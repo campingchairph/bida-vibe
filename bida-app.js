@@ -18,7 +18,9 @@ const BIDA_CONFIG = {
   adminEmails: ['morphiicreate@gmail.com'],
   // Free tier limits
   freeSounds: 4,      // first N default pads are free
-  freeUploads: 2,     // custom pads a free user can add
+  freeUploads: 2,     // uploaded sound pads a free user can add
+  freeRecordings: 2,  // recorded sound pads a free user can add (separate from uploads)
+  recordMaxSec: 3,    // every recording stops automatically after this many seconds
   // Test unlock — only works on localhost, never on the live site.
   devUnlockCode: 'BIDATEST',
   // Spotify: create an app at developer.spotify.com, add this page's URL as a Redirect URI, paste the Client ID.
@@ -621,13 +623,16 @@ async function loadCustom() { try { CUSTOM = (await dbAll()).sort((a, b) => (a.c
 function soundEntry(id) {
   const d = DEFAULT_SOUNDS.find(s => s.id === id);
   if (d) return { ...d, kind: 'default' };
-  const ci = CUSTOM.findIndex(s => s.id === id);
-  return ci >= 0 ? { ...CUSTOM[ci], kind: 'custom', idx: ci } : null;
+  const c = CUSTOM.find(s => s.id === id); if (!c) return null;
+  const type = isRec(c) ? 'rec' : 'up';
+  return { ...c, kind: 'custom', type, idx: CUSTOM.filter(s => isRec(s) === (type === 'rec')).indexOf(c) };
 }
+const isRec = s => s.id[0] === 'r';
 function canPlaySound(id) {
   if (BIDA.premium) return true;
   const s = soundEntry(id); if (!s) return false;
-  return s.kind === 'default' ? s.n <= BIDA_CONFIG.freeSounds : s.idx < BIDA_CONFIG.freeUploads;
+  if (s.kind === 'default') return s.n <= BIDA_CONFIG.freeSounds;
+  return s.idx < (s.type === 'rec' ? BIDA_CONFIG.freeRecordings : BIDA_CONFIG.freeUploads);
 }
 async function playSound(id, padEl) {
   if (!canPlaySound(id)) { openPremium('Sound pads'); return; }
@@ -658,18 +663,21 @@ function padsHTML(limit) {
       <span class="pad-name">${esc(s.name)}</span></button>`;
   }).join('');
 }
-function uploadsLeft() { return BIDA.premium ? Infinity : Math.max(0, BIDA_CONFIG.freeUploads - CUSTOM.length); }
+function uploadsLeft() { return BIDA.premium ? Infinity : Math.max(0, BIDA_CONFIG.freeUploads - CUSTOM.filter(s => !isRec(s)).length); }
+function recordingsLeft() { return BIDA.premium ? Infinity : Math.max(0, BIDA_CONFIG.freeRecordings - CUSTOM.filter(isRec).length); }
+const leftLabel = (n, more) => n === Infinity ? more : n ? `${n} libre pa` : 'Premium';
 async function renderSounds() {
   const missing = DEFAULT_SOUNDS.filter(s => SND_OK[s.id] === false);
-  const left = uploadsLeft();
+  const max = BIDA_CONFIG.recordMaxSec;
   $('#panel-sounds').innerHTML = `
     <div class="panel-head"><div><h2>Sound pads</h2>
-      <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : `Libre ang unang ${BIDA_CONFIG.freeSounds} sounds at ${BIDA_CONFIG.freeUploads} sariling upload.`}</p></div>
+      <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : `Libre ang unang ${BIDA_CONFIG.freeSounds} sounds, ${BIDA_CONFIG.freeUploads} upload at ${BIDA_CONFIG.freeRecordings} recording (max ${max}s bawat isa).`}</p></div>
       ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}I-unlock lahat</button>`}</div>
     <div class="pads" id="pads">${padsHTML()}
       <button class="pad pad--add" onclick="addSoundClick()">${ic('upload')}<span class="pad-name">Upload</span>
-        <small>${left === Infinity ? 'mp3 · m4a · wav' : left ? `${left} libre pa` : 'Premium'}</small></button>
-      <button class="pad pad--add" id="rec-btn" onclick="recordClick()">${ic('rec')}<span class="pad-name">Record</span><small>max 10s</small></button></div>
+        <small>${leftLabel(uploadsLeft(), 'mp3 · m4a · wav')}</small></button>
+      <button class="pad pad--add" id="rec-btn" onclick="recordClick()">${ic('rec')}<span class="pad-name">Record</span>
+        <small>${leftLabel(recordingsLeft(), `max ${max}s`)}${recordingsLeft() !== Infinity && recordingsLeft() ? ` · max ${max}s` : ''}</small></button></div>
     <input type="file" id="snd-file" accept="audio/*" multiple hidden onchange="uploadSounds(this.files);this.value=''">
     ${isAdmin() && missing.length ? `<div class="note" style="margin-top:18px"><b>Admin:</b> ${missing.length} default sound${missing.length > 1 ? 's' : ''} wala pa sa <code>sounds/</code> folder: ${missing.map(s => `<code>${s.file}</code>`).join(' ')}</div>` : ''}`;
 }
@@ -694,24 +702,31 @@ async function delSound(id) {
 let recorder, recChunks = [];
 function recordClick() {
   if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
-  if (!uploadsLeft()) { openPremium('Dagdag sounds'); return; }
+  if (!recordingsLeft()) { openPremium('Dagdag recordings'); return; }
   toggleRecord();
 }
 async function toggleRecord() {
-  const btn = $('#rec-btn');
+  const btn = $('#rec-btn'), max = BIDA_CONFIG.recordMaxSec;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recChunks = []; recorder = new MediaRecorder(stream);
     recorder.ondataavailable = e => e.data.size && recChunks.push(e.data);
+    let tick;
     recorder.onstop = async () => {
+      clearInterval(tick);
       stream.getTracks().forEach(t => t.stop());
       const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/webm' });
-      const name = (prompt('Pangalan ng sound?', 'Recording ' + (CUSTOM.length + 1)) || 'Recording').slice(0, 20);
+      const name = (prompt('Pangalan ng sound?', 'Recording ' + (CUSTOM.filter(isRec).length + 1)) || 'Recording').slice(0, 20);
       const s = { id: 'r' + Date.now().toString(36), name, blob, c: 'magenta', created: Date.now() };
       await dbPut(s); CUSTOM.push(s); renderSounds(); toast('Na-save ang recording!');
     };
-    recorder.start(); btn.classList.add('rec-on'); btn.querySelector('.pad-name').textContent = 'Stop';
-    setTimeout(() => recorder?.state === 'recording' && recorder.stop(), 10000);
+    recorder.start();
+    // Hard stop at max seconds, with a visible countdown on the pad
+    const t0 = Date.now(), label = btn.querySelector('.pad-name'), sub = btn.querySelector('small');
+    btn.classList.add('rec-on'); label.textContent = 'Stop';
+    const show = () => { sub.textContent = Math.max(0, max - (Date.now() - t0) / 1000).toFixed(1) + 's'; };
+    show(); tick = setInterval(show, 100);
+    setTimeout(() => recorder?.state === 'recording' && recorder.stop(), max * 1000);
   } catch (e) { toast('Kailangan ng mic permission'); }
 }
 
@@ -1223,7 +1238,7 @@ function openPremium(feature) {
       ${PRO_FEATURE ? `<span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE)}</span>` : ''}
       <h4>Lahat ng sound at music, walang limit.</h4>
       <ul class="pro-list">
-        <li>${ic('star')}Lahat ng 20 sound pads + walang limit na sariling upload</li>
+        <li>${ic('star')}Lahat ng 20 sound pads + walang limit na sariling upload at recording</li>
         <li>${ic('star')}Music bar: YouTube, Spotify at sariling files</li>
         <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
       </ul>
@@ -1245,7 +1260,7 @@ function openAccount() {
     <div class="card stack">
       ${u ? `<div><b>${esc(u.displayName || u.email)}</b><p class="muted">${esc(u.email || '')}</p></div>` : '<p class="muted">Hindi naka-sign in.</p>'}
       <p>${status}</p>
-      ${!authReady() ? '<p class="note">Hindi pa naka-setup ang Google sign-in (Firebase config). Tingnan ang PAYMENTS.md.</p>'
+      ${!authReady() ? '<p class="note">Hindi pa bukas ang Google sign-in — malapit na!</p>'
         : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
           : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>
              <p class="muted">Para sa Premium buyers at admin. Ang admin ay ${esc(BIDA_CONFIG.adminEmails.join(', '))} lang.</p>`}
