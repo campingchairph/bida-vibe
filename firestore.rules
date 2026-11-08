@@ -6,7 +6,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Admin test accounts: document ID = the Google email in lowercase
-    // (e.g. admins/morphiicreate@gmail.com). Add/remove them in the Console only.
+    // (e.g. admins/you@gmail.com). Add/remove them in the Console only.
+    // Optional: the main admin is set by fingerprint in BIDA_CONFIG.adminHashes instead.
     // A signed-in user with a Google-verified email may read ONLY their own document,
     // which is how the app and the payment Worker check "am I an admin?".
     match /admins/{email} {

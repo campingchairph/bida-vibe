@@ -17,12 +17,9 @@ All three services have free tiers that cover this. PayMongo charges a per-trans
 ---
 
 ## 1. Firebase (done ✓) + admin test account
-Google sign-in is connected (project `bidavibe`). Two more steps in the Firebase Console:
+Google sign-in is connected (project `bidavibe`). The admin test account is set by fingerprint in `BIDA_CONFIG.adminHashes` — nothing to do in Firebase for it. It gets everything free, even before PayMongo is set up.
 
-1. **Firestore Database → Rules**: paste [`firestore.rules`](firestore.rules) → **Publish**.
-2. **Firestore Database → Data → Start collection** `admins` → **Document ID** = the Google email in lowercase, e.g. `morphiicreate@gmail.com`. Add any field (e.g. `note` = `test account`) → Save.
-
-That account now gets everything free, even before PayMongo is set up. To add another tester, add another document; to remove one, delete it.
+To change the admin: hash the new Gmail (lowercase) with SHA-256 and replace the value in `adminHashes` (and `DEFAULT_ADMIN_HASHES` in the Worker), or just ask for it to be updated.
 
 ## 2. PayMongo
 1. Sign up at **dashboard.paymongo.com**. Test mode works right away. Live payments need account activation (they'll ask for ID and business details).

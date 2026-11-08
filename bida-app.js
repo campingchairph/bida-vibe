@@ -21,9 +21,11 @@ const BIDA_CONFIG = {
     messagingSenderId: '596965053196',
     appId: '1:596965053196:web:cb32617798b800f4276f29'
   },
-  // Admin test accounts are NOT listed here. They live in Firestore: collection "admins",
-  // document ID = the Google email in lowercase. firestore.rules lets a verified user read only
-  // their own admin document, and the Worker re-checks it server-side.
+  // Admin test accounts: SHA-256 fingerprints of the Google email (lowercase), never the email itself.
+  // Only someone who signs in with Google as that verified account matches. To add/change an admin,
+  // hash the new email (e.g. `printf '%s' you@gmail.com | sha256sum`) and replace/add it here.
+  // (Firestore admins/{email} documents also still work, if you ever add them.)
+  adminHashes: ['291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd'],
   // Free tier limits
   freeSounds: 4,      // first N default pads are free
   freeUploads: 2,     // uploaded sound pads a free user can add
@@ -1188,6 +1190,16 @@ function initAuth() {
     });
   } catch (e) { AUTH.ready = true; }
 }
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+// Admin = Google-verified email whose fingerprint is in adminHashes, or with a Firestore admins/{email} doc.
+async function checkAdmin(u) {
+  if (!u || !u.emailVerified || !u.email) return false;
+  if ((BIDA_CONFIG.adminHashes || []).includes(await sha256Hex(u.email.trim().toLowerCase()))) return true;
+  try { return await checkAdminDoc(u); } catch (e) { return false; }
+}
 // Ask Firestore (as this user) whether admins/{email} exists. Rules decide; 200 = admin.
 async function checkAdminDoc(u) {
   if (!u || !u.emailVerified || !u.email) return false;
@@ -1209,8 +1221,8 @@ async function refreshPremium() {
   const u = AUTH.user; if (!u) return false;
   try {
     let admin = false, until = 0;
-    if (paymentsReady()) { const j = await workerFetch('/status'); admin = !!j.admin; until = j.until || 0; }
-    else admin = await checkAdminDoc(u);
+    admin = await checkAdmin(u);
+    if (paymentsReady()) { const j = await workerFetch('/status'); admin = admin || !!j.admin; until = j.until || 0; }
     AUTH.admin = admin;
     BIDA.proKind = admin ? 'admin' : until > Date.now() ? 'pass' : '';
     BIDA.premiumUntil = until;

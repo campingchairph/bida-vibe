@@ -9,7 +9,7 @@ Bida-Vibe is a static site (GitHub Pages). Anything that runs in the browser can
 
 | Area | How |
 |---|---|
-| Admin test accounts | Firestore `admins/{email}` (doc ID = Google email, lowercase). Rules let a signed-in user with a **Google-verified** email read **only their own** doc; nobody can list or write. The app and the Worker both ask Firestore *as that user*. No admin emails are written in the site's code. |
+| Admin test accounts | A SHA-256 fingerprint of the admin's Google email is in the code, never the email itself. Admin is given only after a Google sign-in whose email Google has **verified** hashes to that fingerprint, so knowing or guessing the email isn't enough: you need the actual Google account. The Worker repeats the same check server-side. Optional extra admins via Firestore `admins/{email}`: the rules let a verified user read **only their own** doc. |
 | Premium (₱50 / 30 days) | Decided by the Worker only. Price and days are set server-side (`PRICE_CENTAVOS`, `PASS_DAYS`); the browser never sends an amount. |
 | Payments | PayMongo hosted checkout. The PayMongo secret key lives only in the Worker as a Cloudflare secret. |
 | Payment confirmations | Webhook HMAC signature checked (constant-time compare). The amount must be at least the price. Each checkout session can add days only once, so retries and replays don't stack. |
@@ -31,7 +31,7 @@ Known limit: Premium features run in the browser, so a technical user could unlo
 1. **Firestore rules**: Firebase Console → Firestore Database → Rules → paste `firestore.rules` → **Publish**.
    - In the Rules Playground, **ALLOW** a `get` of `admins/<your email>` while signed in as you.
    - **DENY** a `get` of someone else's doc, any `list`, and any write.
-2. **Admin docs**: Firestore → `admins` collection → document ID = the exact Google email in lowercase (e.g. `morphiicreate@gmail.com`). Fields don't matter (e.g. `note: "test account"`).
+2. **Admin accounts**: the main admin is a SHA-256 fingerprint of the Google email in `BIDA_CONFIG.adminHashes` (and the Worker's `DEFAULT_ADMIN_HASHES` / `ADMIN_EMAIL_HASHES`). The email itself is never in the code. Optional extra admins: Firestore → `admins` collection → document ID = the Google email in lowercase.
 3. **Restrict the Firebase API key**: Google Cloud Console → APIs & Services → Credentials → the "Browser key" → HTTP referrers:
    - `https://campingchairph.github.io/*`
    - `http://localhost:*` for testing

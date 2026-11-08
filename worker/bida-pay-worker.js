@@ -29,6 +29,8 @@
    ============================================================ */
 
 const DAY = 86400000;
+// Admin test account fingerprint (SHA-256 of the lowercase Google email). Override with ADMIN_EMAIL_HASHES.
+const DEFAULT_ADMIN_HASHES = '291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd';
 
 export default {
   async fetch(req, env) {
@@ -60,7 +62,12 @@ async function handleStatus(req, env, cors) {
 // Read with the user's own ID token, so Firestore security rules decide.
 async function isAdmin(user, env) {
   if (!user.emailVerified || !user.email) return false;
-  const email = user.email.toLowerCase();
+  const email = user.email.trim().toLowerCase();
+  // 1) SHA-256 fingerprint of the email (ADMIN_EMAIL_HASHES, comma list) — no email stored anywhere
+  const hashes = String(env.ADMIN_EMAIL_HASHES || DEFAULT_ADMIN_HASHES).split(',').map(s => s.trim()).filter(Boolean);
+  const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email)))].map(b => b.toString(16).padStart(2, '0')).join('');
+  if (hashes.includes(digest)) return true;
+  // 2) or a Firestore admins/{email} document
   const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/admins/${encodeURIComponent(email)}`;
   try {
     const r = await fetch(url, { headers: { Authorization: 'Bearer ' + user.token } });

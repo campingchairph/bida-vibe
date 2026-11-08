@@ -36,7 +36,7 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 | Recordings (max 3s each) | 2 | unlimited |
 | Music bar, Talk, Fade | — | ✓ |
 
-**Admin test accounts:** any Google account with a document in Firestore `admins/{email}` gets everything free after signing in (account button in the header). Firestore rules decide, and the Worker re-checks it — see [SECURITY.md](SECURITY.md).
+**Admin test account:** set by a SHA-256 fingerprint of its Google email in `BIDA_CONFIG.adminHashes` (the email itself is never in the code). Signing in with that verified Google account unlocks everything free; the Worker re-checks it. See [SECURITY.md](SECURITY.md).
 
 ## Before launch — `BIDA_CONFIG` in `bida-app.js`
 
