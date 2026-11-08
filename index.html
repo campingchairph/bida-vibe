@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFF6E5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="Bida-Vibe — ang host buddy ng bawat handaan. Program, Taglish host scripts, party games, sound effects at music fades.">
+<title>Bida-Vibe — Host Buddy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 8h56l-6 24-22 24L10 32z' fill='%23E2367A' stroke='%231E1A16' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='24' r='7' fill='%23FFF6E5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="bida.css">
+</head>
+<body>
+
+<!-- ============ SVG ICON SPRITE ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-event" viewBox="0 0 24 24"><path d="M4 9h16v11H4zM4 9l2-5h12l2 5M9 13h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-program" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-script" viewBox="0 0 24 24"><path d="M5 4h10l4 4v12H5zM9 11h6M9 15h6M15 4v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-games" viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 4 4v1a3 3 0 0 1-5.4 1.8L14 13h-4l-1.6 1.8A3 3 0 0 1 3 13v-1a4 4 0 0 1 4-4zM8 10v3M6.5 11.5h3M15.5 11h.01M17.5 12.5h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6L8 10zM16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 4l10 8-10 8zM17 4h3v16h-3z" fill="currentColor"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 4L9 12l10 8zM4 4h3v16H4z" fill="currentColor"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="currentColor"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><path d="M8 8h11v12H8zM5 16V4h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20a6 6 0 0 1 12 0M16 5.5a3 3 0 0 1 0 5.6M18 14.5a5 5 0 0 1 3 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v9l-8 4-8-4zM4 8l8 4 8-4M12 12v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============ LANDING ============ -->
+<section id="landing" class="landing" aria-label="Bida-Vibe welcome">
+  <div class="bunting bunting--hero" aria-hidden="true"></div>
+  <nav class="land-nav">
+    <a class="wordmark" href="#" onclick="return false">Bida<span>-</span>Vibe</a>
+    <button class="btn btn--ink btn--sm" onclick="enterApp()">Buksan ang app</button>
+  </nav>
+  <div class="land-hero">
+    <p class="eyebrow fade-up" style="--d:.1s"><span class="dot"></span>Host buddy para sa bawat handaan</p>
+    <h1 class="land-h1 fade-up" style="--d:.25s">
+      <span>Plano.</span>
+      <span class="hl-magenta">Host.</span>
+      <span class="hl-turq">Party!</span>
+    </h1>
+    <p class="land-sub fade-up" style="--d:.4s">Reunion, Christmas party o barkada night — pumili ng event at may program ka na agad, Taglish host script, mga laro na may animated how-to, sound effects at music na humihina pag magsasalita ka.</p>
+    <div class="land-cta fade-up" style="--d:.55s">
+      <button class="btn btn--magenta btn--lg" onclick="enterApp()">Simulan ang party <svg class="ic"><use href="#i-arrow"/></svg></button>
+      <button class="btn btn--ghost btn--lg" onclick="enterApp('games')">Tingnan ang mga laro</button>
+    </div>
+    <ul class="land-stats fade-up" style="--d:.7s">
+      <li><b data-count="9">9</b><span>event types</span></li>
+      <li><b data-count="14">14</b><span>Pinoy party games</span></li>
+      <li><b data-count="4">4</b><span>host tones</span></li>
+    </ul>
+    <div class="land-cards fade-up" style="--d:.5s" aria-hidden="true">
+      <div class="tcard tcard--gold"><small>7:00 PM</small><b>Trip to Jerusalem</b><em>15 min · Game</em></div>
+      <div class="tcard tcard--turq"><small>Host script · Jolly</small><b>“Kainan na! Lolo’t lola muna — ’wag kang sisingit, Tito!”</b></div>
+      <div class="tcard tcard--magenta"><small>Sound Lab</small><b>Boink · Drumroll · Ta-da</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app" class="app" hidden>
+  <header class="app-head">
+    <div class="bunting bunting--app" aria-hidden="true"></div>
+    <div class="head-row">
+      <button class="wordmark wordmark--sm" onclick="showLanding()" aria-label="Bida-Vibe home">Bida<span>-</span>Vibe</button>
+      <div class="head-event" id="head-event"></div>
+      <button class="btn btn--chili btn--sm live-btn" onclick="openLive()"><svg class="ic"><use href="#i-live"/></svg>Live</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <button data-tab="event"   onclick="goTab('event')"><svg class="ic"><use href="#i-event"/></svg><span>Event</span></button>
+    <button data-tab="program" onclick="goTab('program')"><svg class="ic"><use href="#i-program"/></svg><span>Program</span></button>
+    <button data-tab="script"  onclick="goTab('script')"><svg class="ic"><use href="#i-script"/></svg><span>Script</span></button>
+    <button data-tab="games"   onclick="goTab('games')"><svg class="ic"><use href="#i-games"/></svg><span>Games</span></button>
+    <button data-tab="sounds"  onclick="goTab('sounds')"><svg class="ic"><use href="#i-sound"/></svg><span>Sounds</span></button>
+    <button data-tab="music"   onclick="goTab('music')"><svg class="ic"><use href="#i-music"/></svg><span>Music</span></button>
+  </nav>
+
+  <main class="app-main">
+    <section class="panel" id="panel-event"></section>
+    <section class="panel" id="panel-program"></section>
+    <section class="panel" id="panel-script"></section>
+    <section class="panel" id="panel-games"></section>
+    <section class="panel" id="panel-sounds"></section>
+    <section class="panel" id="panel-music"></section>
+  </main>
+
+  <!-- Persistent music mini-bar with talk button -->
+  <div class="minibar" id="minibar" hidden>
+    <button class="mb-play" onclick="musicToggle()" aria-label="Play or pause"><svg class="ic"><use id="mb-play-ic" href="#i-play"/></svg></button>
+    <div class="mb-info"><b id="mb-title">—</b><span id="mb-src"></span></div>
+    <button class="talk-btn talk-btn--mini" id="talk-mini" aria-label="Talk — fade music down"><svg class="ic"><use href="#i-mic"/></svg><span>Talk</span></button>
+  </div>
+</div>
+
+<!-- ============ LIVE HOST MODE ============ -->
+<section id="live" class="live" hidden aria-label="Live host mode">
+  <div class="bunting bunting--app" aria-hidden="true"></div>
+  <div class="live-top">
+    <button class="btn btn--ghost btn--sm" onclick="closeLive()"><svg class="ic"><use href="#i-x"/></svg>Exit</button>
+    <div class="live-clock" id="live-clock">--:--</div>
+    <div class="live-count" id="live-count"></div>
+  </div>
+  <div class="live-body">
+    <div class="live-main">
+      <div class="live-now" id="live-now"></div>
+      <div class="live-script" id="live-script"></div>
+    </div>
+    <aside class="live-side">
+      <div class="live-music" id="live-music"></div>
+      <div class="live-pads" id="live-pads"></div>
+    </aside>
+  </div>
+  <button class="talk-btn talk-btn--mini live-fab" id="talk-fab" aria-label="Talk — fade music down"><svg class="ic"><use href="#i-mic"/></svg><span>Talk</span></button>
+  <div class="live-nav">
+    <button class="btn btn--ghost" onclick="liveStep(-1)"><svg class="ic"><use href="#i-prev"/></svg>Back</button>
+    <button class="btn btn--gold" id="live-timer-btn" onclick="liveTimerToggle()"><svg class="ic"><use href="#i-clock"/></svg><span>Start timer</span></button>
+    <button class="btn btn--ink" onclick="liveStep(1)">Next<svg class="ic"><use href="#i-next"/></svg></button>
+  </div>
+</section>
+
+<!-- ============ SHEET (modal) ============ -->
+<div class="sheet-wrap" id="sheet-wrap" hidden onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" role="dialog" aria-modal="true" id="sheet"></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="bida-content.js"></script>
+<script src="bida-app.js"></script>
+</body>
+</html>
