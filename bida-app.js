@@ -8,11 +8,13 @@
 
 /* ---------- Config (edit before launch) ---------- */
 const BIDA_CONFIG = {
-  // Premium: paste your payment link (PayMongo / GCash / Maya / Stripe link) here.
-  paymentUrl: '',
-  priceLabel: '',                 // e.g. '₱149 one-time' — left blank until you set a price
-  // Client-side unlock codes for testing / promo. Not secure — replace with a server check later.
-  unlockCodes: ['BIDATEST'],
+  priceLabel: '₱149 one-time',
+  // Payments (see PAYMENTS.md): URL of the deployed Cloudflare Worker, e.g. 'https://bida-pay.yourname.workers.dev'
+  workerUrl: '',
+  // Firebase web config (Project settings → Your apps → Web app). Used only for Google sign-in.
+  firebase: null,
+  // Test unlock — only works on localhost, never on the live site.
+  devUnlockCode: 'BIDATEST',
   // Spotify: create an app at developer.spotify.com, add this page's URL as a Redirect URI, paste the Client ID.
   spotifyClientId: ''
 };
@@ -35,6 +37,8 @@ function defaultState() {
     scriptEdits: {},
     nextId: 1,
     premium: false,
+    premiumUid: '',   // Google account the Premium unlock belongs to (cached for offline use)
+    devPro: false,    // localhost-only test unlock
     music: { master: 0.8, duck: 0.2, fade: 500, mode: 'hold', src: 'youtube', ytUrl: '', spUrl: '', link: '', autoDuck: false, sens: 0.5 },
     seenLanding: false,
     tab: 'event',
@@ -1265,11 +1269,99 @@ function lockBanner(feature, text) {
   return `<div class="lock-banner">${ic('lock')}<div><b>${esc(feature)} ay Premium</b><span>${esc(text)}</span></div>
     <button class="btn btn--gold btn--sm" onclick="openPremium('${esc(feature)}')">I-unlock</button></div>`;
 }
+/* ---- Accounts (Firebase Google sign-in) + PayMongo checkout via Worker ---- */
+const IS_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+const AUTH = { user: null, ready: false, busy: false };
+function paymentsReady() { return !!(BIDA_CONFIG.workerUrl && BIDA_CONFIG.firebase && window.firebase); }
+function initAuth() {
+  if (!paymentsReady()) { AUTH.ready = true; return; }
+  try {
+    firebase.initializeApp(BIDA_CONFIG.firebase);
+    firebase.auth().getRedirectResult().catch(() => { });
+    firebase.auth().onAuthStateChanged(async u => {
+      AUTH.user = u; AUTH.ready = true;
+      if (u) await refreshPremium();
+      else if (BIDA.premiumUid) { BIDA.premium = !!BIDA.devPro; BIDA.premiumUid = ''; saveState(); rerenderPremiumViews(); }
+      if (!$('#sheet-wrap').hidden && $('#sheet .pro-hero')) openPremium(PRO_FEATURE);
+    });
+  } catch (e) { AUTH.ready = true; }
+}
+async function workerFetch(path, opts = {}) {
+  const token = await AUTH.user.getIdToken();
+  const r = await fetch(BIDA_CONFIG.workerUrl.replace(/\/$/, '') + path, Object.assign({}, opts, { headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } }));
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'http_' + r.status);
+  return j;
+}
+async function refreshPremium() {
+  if (!AUTH.user) return false;
+  try {
+    const j = await workerFetch('/status');
+    BIDA.premium = !!j.premium || !!BIDA.devPro;
+    BIDA.premiumUid = j.premium ? AUTH.user.uid : '';
+    saveState(); rerenderPremiumViews();
+    return !!j.premium;
+  } catch (e) { return BIDA.premium; } // offline at the venue: keep the cached unlock
+}
+function rerenderPremiumViews() {
+  if (!$('#app').hidden && RENDER[BIDA.tab]) RENDER[BIDA.tab]();
+  if (!$('#live').hidden) renderLive();
+}
+async function signIn() {
+  if (!paymentsReady()) return;
+  const p = new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' });
+  try { await firebase.auth().signInWithPopup(p); }
+  catch (e) {
+    if (/popup-blocked|operation-not-supported/.test(e.code || '')) firebase.auth().signInWithRedirect(p);
+    else if (!/popup-closed|cancelled-popup/.test(e.code || '')) toast('Hindi naka-sign in — subukan ulit');
+  }
+}
+function signOut() { firebase.auth().signOut(); toast('Naka-sign out na'); }
+async function startCheckout() {
+  if (!paymentsReady()) { toast('Hindi pa bukas ang payments — salamat sa pasensya!'); return; }
+  if (!AUTH.user) { await signIn(); if (!AUTH.user) return; }
+  if (AUTH.busy) return; AUTH.busy = true;
+  const b = $('#pay-btn'); if (b) { b.disabled = true; b.querySelector('span').textContent = 'Binubuksan ang PayMongo…'; }
+  try {
+    const j = await workerFetch('/checkout', { method: 'POST', body: '{}' });
+    if (j.already) { await refreshPremium(); closeSheet(); toast('Premium ka na — salamat!'); return; }
+    saveState();
+    location.href = j.url;
+  } catch (e) {
+    toast('Hindi mabuksan ang bayaran — subukan ulit');
+    if (b) { b.disabled = false; b.querySelector('span').textContent = 'Bayaran'; }
+  } finally { AUTH.busy = false; }
+}
+async function handlePaidReturn() {
+  const p = new URLSearchParams(location.search).get('paid');
+  if (p == null) return;
+  history.replaceState(null, '', location.pathname);
+  if (p !== '1') { toast('Hindi natuloy ang bayad — pwede mong subukan ulit'); return; }
+  toast('Kinukumpirma ang bayad…');
+  // Wait for sign-in to restore, then poll — PayMongo's webhook can take a few seconds
+  for (let i = 0; i < 30 && !AUTH.ready; i++) await new Promise(r => setTimeout(r, 300));
+  for (let i = 0; i < 15; i++) {
+    if (AUTH.user && await refreshPremium()) { toast('Premium unlocked! Party na!'); return; }
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  toast('Natanggap na ang bayad pero hindi pa nag-a-unlock. I-refresh ang page mamaya.');
+}
+
+let PRO_FEATURE = '';
 function openPremium(feature) {
+  PRO_FEATURE = feature || PRO_FEATURE;
+  const u = AUTH.user, ready = paymentsReady();
+  let action;
+  if (BIDA.premium) action = `<div class="note" style="background:var(--leaf-soft)"><b>Premium ka na!</b> Naka-unlock ang lahat${u ? ` sa ${esc(u.email || 'account mo')}` : ''}. Salamat sa suporta!</div>`;
+  else if (!ready) action = `<button class="btn btn--magenta btn--lg btn--block" onclick="startCheckout()">Malapit nang mabili</button>`;
+  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>
+      <p class="muted" style="margin-top:10px;text-align:center">Para naka-save ang Premium sa account mo — gagana sa phone at computer.</p>`;
+  else action = `<button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>Bayaran ${esc(BIDA_CONFIG.priceLabel.replace(/ .*/, ''))}</span>${ic('arrow')}</button>
+      <p class="muted" style="margin-top:10px;text-align:center">GCash · Maya · Card — secure checkout sa PayMongo</p>`;
   openSheet(`
     <div class="sheet-head"><h3>Bida-Vibe Premium</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="pro-hero">
-      <span class="kicker" style="color:var(--ink)">${esc(feature || 'Premium')}</span>
+      <span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE || 'Premium')}</span>
       <h4>Gawing mas buhay ang party.</h4>
       <ul class="pro-list">
         <li>${ic('star')}Buong Sound Lab — 19 built-in sounds + upload at record ng sarili mo</li>
@@ -1277,25 +1369,23 @@ function openPremium(feature) {
         <li>${ic('star')}Talk fader: quick fade pag nagsasalita, fade-in pagkatapos</li>
         <li>${ic('star')}Auto-fade gamit ang mic</li>
       </ul>
-      ${BIDA_CONFIG.priceLabel ? `<p style="margin-top:14px;font:800 22px/1 var(--f2)">${esc(BIDA_CONFIG.priceLabel)}</p>` : ''}
+      <p style="margin-top:14px;font:800 26px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.priceLabel)} <small style="font:700 13px/1 var(--f)">· habambuhay, walang subscription</small></p>
     </div>
-    <div class="sheet-actions">
-      <button class="btn btn--magenta btn--lg" onclick="goPay()">${BIDA_CONFIG.paymentUrl ? 'Mag-upgrade' : 'Malapit nang mabili'}</button>
-    </div>
-    <div class="field" style="margin-top:20px"><label for="pro-code">May unlock code?</label>
+    <div style="margin-top:18px">${action}</div>
+    ${u ? `<p class="muted" style="margin-top:14px;text-align:center">Naka-sign in: ${esc(u.email || '')} · <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="signOut()">Sign out</button></p>` : ''}
+    ${IS_LOCAL && !BIDA.premium ? `<div class="field" style="margin-top:20px"><label for="pro-code">Test code (localhost lang)</label>
       <div style="display:flex;gap:8px"><input class="input" id="pro-code" placeholder="CODE" autocapitalize="characters">
-      <button class="btn btn--ink" onclick="redeem()">Gamitin</button></div></div>
-    <p class="muted" style="margin-top:12px">Libre pa rin ang event setup, program, host scripts at lahat ng laro.</p>`);
+      <button class="btn btn--ink" onclick="redeem()">Gamitin</button></div></div>` : ''}
+    <p class="muted" style="margin-top:14px">Libre pa rin ang event setup, program, host scripts at lahat ng laro.</p>`);
 }
-function goPay() {
-  if (BIDA_CONFIG.paymentUrl) window.open(BIDA_CONFIG.paymentUrl, '_blank', 'noopener');
-  else toast('Hindi pa bukas ang payments — salamat sa pasensya!');
+function googleG() {
+  return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z"/><path fill="#fff" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" opacity=".8"/><path fill="#fff" d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14z" opacity=".6"/><path fill="#fff" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" opacity=".9"/></svg>`;
 }
 function redeem() {
-  const c = ($('#pro-code').value || '').trim().toUpperCase();
-  if (BIDA_CONFIG.unlockCodes.includes(c)) {
-    BIDA.premium = true; saveState(); closeSheet(); toast('Premium unlocked! Party na!');
-    if (RENDER[BIDA.tab]) RENDER[BIDA.tab]();
+  const c = ($('#pro-code')?.value || '').trim().toUpperCase();
+  if (IS_LOCAL && c && c === BIDA_CONFIG.devUnlockCode) {
+    BIDA.premium = true; BIDA.devPro = true; saveState(); closeSheet(); toast('Premium unlocked (test)!');
+    rerenderPremiumViews();
   } else toast('Hindi tama ang code');
 }
 
@@ -1406,6 +1496,10 @@ let resizeT;
 window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(renderAllBunting, 150); });
 document.addEventListener('DOMContentLoaded', async () => {
   loadState();
+  // A test unlock from localhost must never carry over to the live site
+  if (!IS_LOCAL && BIDA.devPro) { BIDA.devPro = false; BIDA.premium = !!BIDA.premiumUid; saveState(); }
+  initAuth();
+  handlePaidReturn();
   M.current = BIDA.music.master;
   await spHandleRedirect();
   await loadCustom();
@@ -1424,7 +1518,7 @@ Object.assign(window, {
   playSound, uploadSounds, delSound, toggleRecord,
   loadYouTube, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, fadeTo, duckDown, duckUp,
   setAutoDuck, setTalkMode, setMusicSrc, openExt,
-  openPremium, goPay, redeem, openLive, closeLive, liveStep, liveTimerToggle,
+  openPremium, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
   openSheet, closeSheet, saveState
 });
 Object.defineProperty(window, 'BIDA', { get: () => BIDA });

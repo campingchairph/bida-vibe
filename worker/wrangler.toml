@@ -1,0 +1,18 @@
+# Optional — only needed if you deploy with the Wrangler CLI instead of the Cloudflare dashboard.
+name = "bida-pay"
+main = "bida-pay-worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "REPLACE_WITH_FIREBASE_PROJECT_ID"
+APP_URL = "https://campingchairph.github.io/bida-vibe/"
+ALLOWED_ORIGINS = "https://campingchairph.github.io,http://localhost:8102"
+PRICE_CENTAVOS = "14900"
+
+[[kv_namespaces]]
+binding = "PREMIUM"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Secrets (never put these in this file):
+#   npx wrangler secret put PAYMONGO_SECRET_KEY
+#   npx wrangler secret put PAYMONGO_WEBHOOK_SECRET
