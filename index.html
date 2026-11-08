@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFF6E5">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="Bida-Vibe — ang host buddy ng bawat handaan. Program, Taglish host scripts, party games, sound effects at music fades.">
+<meta name="description" content="Bida-Vibe — ang host buddy ng bawat handaan. Program, host guide, party games, sound effects at music fades.">
 <title>Bida-Vibe — Host Buddy</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 8h56l-6 24-22 24L10 32z' fill='%23E2367A' stroke='%231E1A16' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='24' r='7' fill='%23FFF6E5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -62,7 +62,7 @@
       <span class="hl-magenta">Host.</span>
       <span class="hl-turq">Party!</span>
     </h1>
-    <p class="land-sub fade-up" style="--d:.4s">Reunion, Christmas party o barkada night — pumili ng event at may program ka na agad, Taglish host script, mga laro na may animated how-to, sound effects at music na humihina pag magsasalita ka.</p>
+    <p class="land-sub fade-up" style="--d:.4s">Reunion, Christmas party o barkada night — pumili ng event at may program ka na agad, gabay kung paano panatilihing buhay ang party, mga laro na may animated how-to, sound effects at music na humihina pag magsasalita ka.</p>
     <div class="land-cta fade-up" style="--d:.55s">
       <button class="btn btn--magenta btn--lg" onclick="enterApp()">Simulan ang party <svg class="ic"><use href="#i-arrow"/></svg></button>
       <button class="btn btn--ghost btn--lg" onclick="enterApp('games')">Tingnan ang mga laro</button>
@@ -70,11 +70,11 @@
     <ul class="land-stats fade-up" style="--d:.7s">
       <li><b data-count="9">9</b><span>event types</span></li>
       <li><b data-count="14">14</b><span>Pinoy party games</span></li>
-      <li><b data-count="4">4</b><span>host tones</span></li>
+      <li><b data-count="10">10</b><span>energy moves</span></li>
     </ul>
     <div class="land-cards fade-up" style="--d:.5s" aria-hidden="true">
       <div class="tcard tcard--gold"><small>7:00 PM</small><b>Trip to Jerusalem</b><em>15 min · Game</em></div>
-      <div class="tcard tcard--turq"><small>Host script · Jolly</small><b>“Kainan na! Lolo’t lola muna — ’wag kang sisingit, Tito!”</b></div>
+      <div class="tcard tcard--turq"><small>Energy move</small><b>Fast Talk with Lola — limang mabilis na tanong, laging tawa ang dulo.</b></div>
       <div class="tcard tcard--magenta"><small>Sound Lab</small><b>Boink · Drumroll · Ta-da</b></div>
     </div>
   </div>
@@ -94,7 +94,7 @@
   <nav class="tabs" id="tabs" aria-label="Sections">
     <button data-tab="event"   onclick="goTab('event')"><svg class="ic"><use href="#i-event"/></svg><span>Event</span></button>
     <button data-tab="program" onclick="goTab('program')"><svg class="ic"><use href="#i-program"/></svg><span>Program</span></button>
-    <button data-tab="script"  onclick="goTab('script')"><svg class="ic"><use href="#i-script"/></svg><span>Script</span></button>
+    <button data-tab="script"  onclick="goTab('script')"><svg class="ic"><use href="#i-script"/></svg><span>Guide</span></button>
     <button data-tab="games"   onclick="goTab('games')"><svg class="ic"><use href="#i-games"/></svg><span>Games</span></button>
     <button data-tab="sounds"  onclick="goTab('sounds')"><svg class="ic"><use href="#i-sound"/></svg><span>Sounds</span></button>
     <button data-tab="music"   onclick="goTab('music')"><svg class="ic"><use href="#i-music"/></svg><span>Music</span></button>
@@ -153,6 +153,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="bida-content.js"></script>
+<script src="bida-guide.js"></script>
 <script src="bida-app.js"></script>
 </body>
 </html>

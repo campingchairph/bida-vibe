@@ -30,7 +30,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 let BIDA = defaultState();
 function defaultState() {
   return {
-    v: 1,
+    v: 2,
     event: { type: 'reunion', name: '', group: '', host: '', date: '', start: '15:00' },
     tones: ['friendly', 'jolly'],
     program: [],
@@ -55,6 +55,8 @@ function loadState() {
     if (raw) {
       const d = JSON.parse(raw), def = defaultState();
       BIDA = Object.assign(def, d);
+      // v1 stored full AI scripts here; v2 uses it for the host's own notes
+      if ((d.v || 1) < 2) { BIDA.scriptEdits = {}; BIDA.v = 2; }
       BIDA.event = Object.assign(def.event, d.event || {});
       BIDA.music = Object.assign(def.music, d.music || {});
     }
@@ -204,7 +206,7 @@ function renderEvent() {
       <p class="muted">Matatapos ng mga ${fmtTime(toMin(e.start) + totalMin())}</p></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn--ghost" onclick="goTab('program')">Tingnan ang program</button>
-        <button class="btn btn--magenta" onclick="goTab('script')">Gawin ang host script ${ic('arrow')}</button>
+        <button class="btn btn--magenta" onclick="goTab('script')">Tingnan ang host guide ${ic('arrow')}</button>
       </div>
     </div>`;
 }
@@ -219,7 +221,7 @@ function renderEventSummaryOnly() { /* keep focus: only refresh end-time text la
 function pickEventType(id) {
   if (id === BIDA.event.type) return;
   const edited = Object.keys(BIDA.scriptEdits).length > 0;
-  if (edited && !confirm('Papalitan nito ang program at ang mga in-edit mong script. Ituloy?')) return;
+  if (edited && !confirm('Papalitan nito ang program at ang mga notes mo sa bawat segment. Ituloy?')) return;
   BIDA.event.type = id; buildProgram(id); saveState(); renderEvent(); renderHead();
   toast(`Program para sa ${eventType().label} — handa na!`);
 }
@@ -304,60 +306,75 @@ function deleteSeg(id) {
 }
 
 /* ============================================================
-   SCRIPT PANEL
+   HOST GUIDE PANEL — what to do / cover / energy, not a script.
+   BIDA.scriptEdits now holds the host's own notes per segment.
    ============================================================ */
 const TONE_ORDER = ['formal', 'serious', 'friendly', 'jolly'];
-function genScript(seg, i) {
-  const tones = TONE_ORDER.filter(t => BIDA.tones.includes(t));
-  if (!tones.length) tones.push('friendly');
-  const main = tones[0];
-  const lib = BIDA_SCRIPTS[seg.kind] || BIDA_SCRIPTS.opening;
-  const next = BIDA.program[i + 1];
-  const vars = { title: seg.title, next: next ? next.title : 'ang pagtatapos' };
-  const out = [];
-  if (i > 0) out.push(fillVars(BIDA_SEGUES[main], { next: seg.title }));
-  out.push(fillVars(lib[main][0], vars));
-  if (tones.includes('serious') && main !== 'serious' && lib.serious) out.push(fillVars(lib.serious[0], vars));
-  if (tones.includes('jolly') && main !== 'jolly' && lib.jolly) out.push('Hirit: ' + fillVars(lib.jolly[0], vars));
-  const g = seg.game && gameById(seg.game);
-  if (g) {
-    out.push(g.script.intro);
-    out.push('Mechanics: ' + g.script.rules);
-    out.push('Habang naglalaro: ' + g.script.during);
-    out.push('Pagkatapos: ' + g.script.end);
-  }
-  return out.join('\n\n');
+function guideFor(seg) { return BIDA_GUIDE[seg.kind] || BIDA_GUIDE.opening; }
+function activeTones() {
+  const t = TONE_ORDER.filter(x => BIDA.tones.includes(x));
+  return t.length ? t : ['friendly'];
 }
-function scriptFor(seg, i) { return BIDA.scriptEdits[seg.id] ?? genScript(seg, i); }
+function samplesFor(seg) {
+  const s = guideFor(seg).sample || {}, out = [];
+  activeTones().forEach(t => { if (s[t]) out.push([t, fillVars(s[t], { title: seg.title })]); });
+  if (!out.length) { const k = Object.keys(s)[0]; if (k) out.push([k, fillVars(s[k], { title: seg.title })]); }
+  return out.slice(0, 2);
+}
+function toneLabel(id) { return (BIDA_TONES.find(t => t.id === id) || {}).label || id; }
+function segueTip(i) {
+  const prev = BIDA.program[i - 1], cur = BIDA.program[i];
+  return prev ? `Pagpasok: isang linya ng recap sa “${prev.title}”, tapos bakit dapat abangan ang “${cur.title}”.` : '';
+}
+function guideBlock(seg, i, { compact = false } = {}) {
+  const g = guideFor(seg), game = seg.game && gameById(seg.game), st = g.style && BIDA_STYLES[g.style];
+  const list = (title, icon, items, cls) => items?.length ? `<div class="g-col ${cls}"><div class="g-h">${ic(icon)}${title}</div><ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
+  const say = [...g.say];
+  if (game) say.push(`Rules ng ${game.name}: ${game.steps.slice(0, 3).join(' ')}`);
+  const doList = [...g.do];
+  if (game) doList.unshift('Ihanda: ' + game.materials.join(', '));
+  const segue = segueTip(i);
+  return `
+    <p class="g-goal">${ic('star')}<span>${esc(g.goal)}</span></p>
+    ${segue ? `<p class="g-segue">${ic('arrow')}<span>${esc(segue)}</span></p>` : ''}
+    <div class="g-cols">
+      ${list('Gawin', 'box', doList, 'c-do')}
+      ${list('Sabihin (sa sariling salita)', 'mic', say, 'c-say')}
+      ${list('Energy moves', 'live', g.energy, 'c-energy')}
+    </div>
+    ${samplesFor(seg).map(([t, line]) => `<div class="g-sample"><small>Halimbawa · ${esc(toneLabel(t))} — gawing sarili mo</small>“${esc(line)}”</div>`).join('')}
+    ${st && !compact ? `<div class="g-style"><b>Style tip — gaya ni ${esc(st.name)}:</b> <i>${esc(st.move)}.</i> ${esc(st.what)}</div>` : ''}
+    ${game && !compact ? `<button class="game-link" onclick="openGame('${game.id}')">${ic('games')}${esc(game.name)} — buong how-to at animation</button>` : ''}`;
+}
 function renderScript() {
   const times = segTimes();
   $('#panel-script').innerHTML = `
-    <div class="panel-head"><div><span class="kicker">Taglish host script</span><h2>Ano ang vibe?</h2>
-      <p>Piliin ang tono — pwede marami. Ang script ay nag-a-adjust agad. Pindutin ang kahit anong linya para i-edit.</p></div>
+    <div class="panel-head"><div><span class="kicker">Host guide</span><h2>Paano mag-host</h2>
+      <p>Hindi ito script na babasahin. Bawat bahagi: ano ang gagawin, ano ang sasabihin sa sariling salita, at paano panatilihing buhay ang energy.</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn--ghost btn--sm" onclick="copyScript()">${ic('copy')}Copy lahat</button>
-        <button class="btn btn--ghost btn--sm" onclick="regenScripts()">I-regenerate</button></div></div>
-    <div class="card" style="margin-bottom:18px">
-      <span class="field-label" style="display:block;margin-bottom:10px">Tono ng host</span>
+        <button class="btn btn--gold btn--sm" onclick="openToolbox()">${ic('live')}Energy toolbox</button>
+        <button class="btn btn--ghost btn--sm" onclick="copyScript()">${ic('copy')}Copy guide</button></div></div>
+    <details class="card rules" ${BIDA.rulesOpen === false ? '' : 'open'} ontoggle="BIDA.rulesOpen=this.open;saveState()">
+      <summary><h3>7 golden rules ng magaling na host</h3></summary>
+      <ol class="rule-list">${BIDA_RULES.map(r => `<li><b>${esc(r.t)}</b><span>${esc(r.d)}</span></li>`).join('')}</ol>
+    </details>
+    <div class="card" style="margin:16px 0 18px">
+      <span class="field-label" style="display:block;margin-bottom:10px">Vibe ng event — para sa mga halimbawang linya</span>
       <div class="chips">${BIDA_TONES.map(t => `
         <label class="chip ${BIDA.tones.includes(t.id) ? 'on' : ''}" title="${esc(t.hint)}">
           <input type="checkbox" ${BIDA.tones.includes(t.id) ? 'checked' : ''} onchange="toggleTone('${t.id}',this.checked)">
           <span class="tick"></span>${esc(t.label)}</label>`).join('')}</div>
-      <p class="muted" style="margin-top:10px">${toneSummary()}</p>
     </div>
     <div id="script-list">${BIDA.program.map((s, i) => {
       const k = BIDA_KINDS[s.kind] || BIDA_KINDS.opening;
-      return `<article class="script-seg ks-${k.color} ${BIDA.scriptEdits[s.id] != null ? 'edited' : ''}" data-id="${s.id}">
-        <header><b>${i + 1}. ${esc(s.title)}</b><small>${fmtTime(times[i])}</small></header>
-        <div class="script-body" contenteditable="true" spellcheck="false" oninput="editScript(${s.id},this)">${esc(scriptFor(s, i))}</div>
-      </article>`;
-    }).join('')}</div>`;
-}
-function toneSummary() {
-  const t = TONE_ORDER.filter(x => BIDA.tones.includes(x));
-  if (!t.length) return 'Walang napili — Friendly ang gagamitin.';
-  const names = t.map(x => BIDA_TONES.find(y => y.id === x).label);
-  return `Main voice: <b>${names[0]}</b>${names.length > 1 ? ` · may halong ${names.slice(1).join(', ')}` : ''}.`;
+      return `<article class="guide-seg ks-${k.color}">
+        <header><b>${i + 1}. ${esc(s.title)}</b><small>${esc(k.label)} · ${fmtTime(times[i])} · ${s.min} min</small></header>
+        <div class="g-body">${guideBlock(s, i)}
+          <label class="g-notes"><span>Sariling notes / linya mo</span>
+            <textarea class="input" rows="2" placeholder="hal. Banggitin si Tito Ben na galing Dubai" oninput="editScript(${s.id},this)">${esc(BIDA.scriptEdits[s.id] || '')}</textarea></label>
+        </div></article>`;
+    }).join('')}</div>
+    <p class="muted" style="margin-top:20px">Batay sa payo ng mga Pinoy emcee at MC guides. Ang style tips ay paglalarawan ng kilalang galaw ng mga sikat na host — hindi sila ang sumulat nito.</p>`;
 }
 function toggleTone(id, on) {
   BIDA.tones = on ? [...new Set([...BIDA.tones, id])] : BIDA.tones.filter(t => t !== id);
@@ -365,18 +382,24 @@ function toggleTone(id, on) {
 }
 let editT;
 function editScript(id, el) {
-  BIDA.scriptEdits[id] = el.innerText;
-  el.closest('.script-seg').classList.add('edited');
+  if (el.value.trim()) BIDA.scriptEdits[id] = el.value; else delete BIDA.scriptEdits[id];
   clearTimeout(editT); editT = setTimeout(saveState, 400);
 }
-function regenScripts() {
-  if (Object.keys(BIDA.scriptEdits).length && !confirm('Mabubura ang mga in-edit mong linya. Ituloy?')) return;
-  BIDA.scriptEdits = {}; saveState(); renderScript(); toast('Bagong script!');
+function openToolbox() {
+  openSheet(`
+    <div class="sheet-head"><h3>Energy toolbox</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <p class="muted" style="margin-bottom:12px">Pag humina ang kwarto, pumili ng isa. Lahat ay wala pang 2 minuto.</p>
+    <div class="tool-grid">${BIDA_ENERGY.map(e => `<div class="tool"><b>${esc(e.name)}</b><small>${esc(e.time)}</small><p>${esc(e.how)}</p></div>`).join('')}</div>
+    <div class="sec-title">${ic('lock')}Pag may aberya</div>
+    <div class="host-lines">${BIDA_RESCUE.map(r => `<div class="host-line"><small>${esc(r.t)}</small>${esc(r.d)}</div>`).join('')}</div>`);
 }
 function copyScript() {
   const times = segTimes();
-  const txt = BIDA.program.map((s, i) => `${fmtTime(times[i])} — ${s.title}\n${scriptFor(s, i)}`).join('\n\n———\n\n');
-  navigator.clipboard?.writeText(txt).then(() => toast('Na-copy ang buong script'), () => toast('Hindi ma-copy — i-select na lang'));
+  const txt = BIDA.program.map((s, i) => {
+    const g = guideFor(s), smp = samplesFor(s).map(([, l]) => `  Halimbawa: “${l}”`).join('\n');
+    return `${fmtTime(times[i])} — ${s.title}\n  Goal: ${g.goal}\n  Gawin: ${g.do.join('; ')}\n  Sabihin: ${g.say.join('; ')}\n  Energy: ${g.energy.join('; ')}${smp ? '\n' + smp : ''}${BIDA.scriptEdits[s.id] ? '\n  Notes: ' + BIDA.scriptEdits[s.id] : ''}`;
+  }).join('\n\n');
+  navigator.clipboard?.writeText(txt).then(() => toast('Na-copy ang host guide'), () => toast('Hindi ma-copy — i-select na lang'));
 }
 
 /* ============================================================
@@ -625,7 +648,7 @@ function openGame(id) {
     <div class="sec-title" style="justify-content:space-between"><span style="display:flex;gap:8px;align-items:center">${ic('program')}Paano laruin</span>
       <button class="btn btn--gold btn--sm" id="step-play" onclick="playSteps()">${ic('play')}Play steps</button></div>
     <ol class="gd-steps" id="gd-steps">${g.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
-    <div class="sec-title">${ic('mic')}Host script</div>
+    <div class="sec-title">${ic('mic')}Mga puwedeng sabihin — gawing sarili mo</div>
     <div class="host-lines">
       <div class="host-line"><small>Pagtawag</small>${esc(g.script.intro)}</div>
       <div class="host-line"><small>Mechanics</small>${esc(g.script.rules)}</div>
@@ -1376,7 +1399,7 @@ function openPremium(feature) {
     ${IS_LOCAL && !BIDA.premium ? `<div class="field" style="margin-top:20px"><label for="pro-code">Test code (localhost lang)</label>
       <div style="display:flex;gap:8px"><input class="input" id="pro-code" placeholder="CODE" autocapitalize="characters">
       <button class="btn btn--ink" onclick="redeem()">Gamitin</button></div></div>` : ''}
-    <p class="muted" style="margin-top:14px">Libre pa rin ang event setup, program, host scripts at lahat ng laro.</p>`);
+    <p class="muted" style="margin-top:14px">Libre pa rin ang event setup, program, host guide at lahat ng laro.</p>`);
 }
 function googleG() {
   return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z"/><path fill="#fff" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" opacity=".8"/><path fill="#fff" d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14z" opacity=".6"/><path fill="#fff" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" opacity=".9"/></svg>`;
@@ -1415,8 +1438,9 @@ function renderLive() {
     <div class="ln-meta"><span class="ln-timer" id="ln-timer">${s.min}:00</span><span class="pill">${s.min} min</span>
       ${g ? `<button class="pill" onclick="openGame('${g.id}')">${ic('games')}How to play</button>` : ''}</div>
     ${next ? `<div class="ln-next">Susunod: ${esc(next.title)} · ${fmtTime(times[i + 1])}</div>` : '<div class="ln-next">Huling segment na!</div>'}`;
-  const txt = scriptFor(s, i);
-  $('#live-script').innerHTML = esc(txt) + (g ? `<div class="ls-game"><b>Kailangan:</b> ${esc(g.materials.join(' · '))}</div>` : '');
+  const note = BIDA.scriptEdits[s.id];
+  $('#live-script').innerHTML = (note ? `<div class="g-note-live"><small>Notes mo</small>${esc(note)}</div>` : '') + guideBlock(s, i, { compact: true }) +
+    `<button class="btn btn--gold btn--sm" style="margin-top:14px" onclick="openToolbox()">${ic('live')}Mahina ang energy? Toolbox</button>`;
   $('#live-music').innerHTML = consoleHTML(true);
   bindTalk($('#talk-live'));
   $('#live-pads').innerHTML = `<div class="sec-title" style="margin-top:0">${ic('sound')}Sound pads</div><div class="pads">${padsHTML(BIDA.premium ? 12 : 9)}</div>`;
@@ -1513,7 +1537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 Object.assign(window, {
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg,
-  toggleTone, editScript, regenScripts, copyScript,
+  toggleTone, editScript, copyScript, openToolbox,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, toggleRecord,
   loadYouTube, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, fadeTo, duckDown, duckUp,
