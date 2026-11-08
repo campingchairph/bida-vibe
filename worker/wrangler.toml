@@ -4,11 +4,11 @@ main = "bida-pay-worker.js"
 compatibility_date = "2026-10-01"
 
 [vars]
-FIREBASE_PROJECT_ID = "REPLACE_WITH_FIREBASE_PROJECT_ID"
+FIREBASE_PROJECT_ID = "bidavibe"
 APP_URL = "https://campingchairph.github.io/bida-vibe/"
 ALLOWED_ORIGINS = "https://campingchairph.github.io,http://localhost:8102"
-PRICE_CENTAVOS = "14900"
-ADMIN_EMAILS = "morphiicreate@gmail.com"
+PRICE_CENTAVOS = "5000"
+PASS_DAYS = "30"
 
 [[kv_namespaces]]
 binding = "PREMIUM"

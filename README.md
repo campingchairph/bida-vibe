@@ -28,7 +28,7 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 
 ## Free vs Premium
 
-| | Free | Premium (₱149 one-time) |
+| | Free | Premium (₱50 / 30 days, sign-in required, no auto-charge) |
 |---|---|---|
 | Plan, games, Live mode | ✓ | ✓ |
 | Default sound pads | first 4 | all 20 |
@@ -36,13 +36,14 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 | Recordings (max 3s each) | 2 | unlimited |
 | Music bar, Talk, Fade | — | ✓ |
 
-**Admin:** `morphiicreate@gmail.com` gets everything free after signing in with Google (account button in the header). The app checks the Google-verified email, and the Worker checks it again server-side against `ADMIN_EMAILS`, so nobody can claim admin by editing the browser.
+**Admin test accounts:** any Google account with a document in Firestore `admins/{email}` gets everything free after signing in (account button in the header). Firestore rules decide, and the Worker re-checks it — see [SECURITY.md](SECURITY.md).
 
 ## Before launch — `BIDA_CONFIG` in `bida-app.js`
 
 - `firebase` — Google sign-in config (needed for **admin login** and for buyers). See PAYMENTS.md step 2.
 - `workerUrl` — the payments Worker. See [PAYMENTS.md](PAYMENTS.md).
-- `adminEmails`, `freeSounds` (4), `freeUploads` (2), `freeRecordings` (2), `recordMaxSec` (3), `priceLabel`.
+- `price` / `passDays` (display only — the Worker sets the real price), `freeSounds` (4), `freeUploads` (2), `freeRecordings` (2), `recordMaxSec` (3).
+- `firestore.rules` — publish in the Firebase Console.
 - `devUnlockCode` — `BIDATEST`, works on localhost only.
 - `spotifyClientId` — create an app at developer.spotify.com, add the page URL as a Redirect URI. Listeners need Spotify Premium; phones control the Spotify app that's already open.
 

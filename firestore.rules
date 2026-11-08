@@ -1,0 +1,24 @@
+rules_version = '2';
+// Bida-Vibe — Firestore security rules.
+// The rules are the lock: page code is never trusted.
+// Publish: Firebase Console → Firestore Database → Rules → paste this whole file → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Admin test accounts: document ID = the Google email in lowercase
+    // (e.g. admins/morphiicreate@gmail.com). Add/remove them in the Console only.
+    // A signed-in user with a Google-verified email may read ONLY their own document,
+    // which is how the app and the payment Worker check "am I an admin?".
+    match /admins/{email} {
+      allow get: if request.auth != null
+                 && request.auth.token.email_verified == true
+                 && request.auth.token.email.lower() == email;
+      allow list, write: if false;
+    }
+
+    // Everything else is closed. Premium passes live in the Cloudflare Worker (KV), not here.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

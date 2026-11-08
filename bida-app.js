@@ -8,7 +8,8 @@
 
 /* ---------- Config (edit before launch) ---------- */
 const BIDA_CONFIG = {
-  priceLabel: '₱149 one-time',
+  price: '₱50',
+  passDays: 30,       // Premium is a pass: ₱50 for 30 days, no auto-charge. Paying again adds 30 days.
   // Payments (see PAYMENTS.md): URL of the deployed Cloudflare Worker, e.g. 'https://bida-pay.yourname.workers.dev'
   workerUrl: '',
   // Firebase web config (Project settings → Your apps → Web app). Used for Google sign-in (buyers + admin).
@@ -20,9 +21,9 @@ const BIDA_CONFIG = {
     messagingSenderId: '596965053196',
     appId: '1:596965053196:web:cb32617798b800f4276f29'
   },
-  // Admin accounts get everything free. Must sign in with Google as this exact, verified address.
-  // The Worker checks this again server-side (ADMIN_EMAILS variable).
-  adminEmails: ['morphiicreate@gmail.com'],
+  // Admin test accounts are NOT listed here. They live in Firestore: collection "admins",
+  // document ID = the Google email in lowercase. firestore.rules lets a verified user read only
+  // their own admin document, and the Worker re-checks it server-side.
   // Free tier limits
   freeSounds: 4,      // first N default pads are free
   freeUploads: 2,     // uploaded sound pads a free user can add
@@ -45,12 +46,14 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 let BIDA = defaultState();
 function defaultState() {
   return {
-    v: 3,
+    v: 4,
     event: { type: 'reunion', name: '', date: '', start: '15:00' },
     program: [],
     nextId: 1,
     premium: false,
     premiumUid: '',   // Google account the Premium unlock belongs to (cached for offline use)
+    premiumUntil: 0,  // end of the paid pass (ms); 0 = none
+    proKind: '',      // 'admin' | 'pass' | '' — cached so the venue works offline
     devPro: false,    // localhost-only test unlock
     music: { master: 0.8, duck: 0.2, fade: 500, mode: 'hold', src: 'youtube', ytUrl: '', spUrl: '', link: '', autoDuck: false, sens: 0.5 },
     seenLanding: false,
@@ -73,9 +76,17 @@ function loadState() {
       // v3: scripts/guide removed, tabs simplified
       delete BIDA.scriptEdits; delete BIDA.tones; delete BIDA.rulesOpen;
       if (!['plan', 'games', 'sounds', 'music'].includes(BIDA.tab)) BIDA.tab = 'plan';
-      BIDA.v = 3;
+      // v4: Premium became a 30-day pass — drop any old lifetime unlock
+      if ((d.v || 1) < 4) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; BIDA.premium = false; }
+      BIDA.v = 4;
     }
   } catch (e) { BIDA = defaultState(); }
+  // Treat stored data as untrusted: keep only well-formed activities (numbers are numbers, ids are known)
+  BIDA.program = (Array.isArray(BIDA.program) ? BIDA.program : []).filter(s => s && Number.isInteger(s.id) && BIDA_KINDS[s.kind])
+    .map(s => ({ id: s.id, kind: s.kind, title: String(s.title || '').slice(0, 80), min: clamp(parseInt(s.min, 10) || 5, 1, 300), game: gameById(s.game) ? s.game : '' }));
+  BIDA.nextId = Math.max(Number.isInteger(BIDA.nextId) ? BIDA.nextId : 1, ...BIDA.program.map(s => s.id + 1));
+  if (!BIDA_EVENTS.some(e => e.id === BIDA.event.type)) BIDA.event.type = 'reunion';
+  if (!/^\d{2}:\d{2}$/.test(BIDA.event.start)) BIDA.event.start = '15:00';
   if (!BIDA.program.length) buildProgram(BIDA.event.type);
 }
 
@@ -625,7 +636,13 @@ function dbAll() { return db().then(d => new Promise(res => { const q = d.transa
 function dbPut(o) { return db().then(d => new Promise(res => { const tx = d.transaction('sounds', 'readwrite'); tx.objectStore('sounds').put(o); tx.oncomplete = res; })); }
 function dbDel(id) { return db().then(d => new Promise(res => { const tx = d.transaction('sounds', 'readwrite'); tx.objectStore('sounds').delete(id); tx.oncomplete = res; })); }
 let CUSTOM = [];          // [{id,name,blob,c,created}]
-async function loadCustom() { try { CUSTOM = (await dbAll()).sort((a, b) => (a.created || 0) - (b.created || 0)); } catch (e) { CUSTOM = []; } }
+async function loadCustom() {
+  try {
+    CUSTOM = (await dbAll()).filter(s => /^[ur][a-z0-9]{4,30}$/.test(String(s.id)) && s.blob instanceof Blob)
+      .map(s => ({ ...s, name: String(s.name || 'Sound').slice(0, 20) }))
+      .sort((a, b) => (a.created || 0) - (b.created || 0));
+  } catch (e) { CUSTOM = []; }
+}
 
 function soundEntry(id) {
   const d = DEFAULT_SOUNDS.find(s => s.id === id);
@@ -723,7 +740,7 @@ async function toggleRecord() {
       clearInterval(tick);
       stream.getTracks().forEach(t => t.stop());
       const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/webm' });
-      const name = (prompt('Pangalan ng sound?', 'Recording ' + (CUSTOM.filter(isRec).length + 1)) || 'Recording').slice(0, 20);
+      const name = String(prompt('Pangalan ng sound?', 'Recording ' + (CUSTOM.filter(isRec).length + 1)) || 'Recording').slice(0, 20);
       const s = { id: 'r' + Date.now().toString(36), name, blob, c: 'magenta', created: Date.now() };
       await dbPut(s); CUSTOM.push(s); renderSounds(); toast('Na-save ang recording!');
     };
@@ -1133,20 +1150,23 @@ function openExt() {
 }
 
 /* ============================================================
-   ACCOUNT · PREMIUM · ADMIN
-   Admin = signed in with Google as an address in adminEmails AND
-   verified by Google. With the Worker configured, the Worker
-   re-checks the signed ID token server-side (ADMIN_EMAILS).
+   ACCOUNT · PREMIUM PASS · ADMIN
+   - Everyone must sign in with Google to subscribe.
+   - Premium = ₱50 pass for 30 days (no auto-charge); paying again adds 30 days.
+   - Admin test accounts = Google-verified email with a document at
+     Firestore admins/{email}. firestore.rules only lets a user read their
+     own document; the Worker re-checks it server-side.
    ============================================================ */
 const IS_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const AUTH = { user: null, ready: false, busy: false, admin: false };
 function authReady() { return !!(BIDA_CONFIG.firebase && window.firebase); }
 function paymentsReady() { return !!(authReady() && BIDA_CONFIG.workerUrl); }
-function isAdminUser(u) {
-  const list = BIDA_CONFIG.adminEmails.map(e => e.toLowerCase());
-  return !!(u && u.emailVerified && list.includes(String(u.email || '').toLowerCase()));
-}
 function isAdmin() { return !!AUTH.admin; }
+function fmtDay(ms) { return new Date(ms).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function passActive() { return BIDA.premiumUntil > Date.now(); }
+function applyEntitlement() {
+  BIDA.premium = BIDA.proKind === 'admin' || passActive() || !!BIDA.devPro;
+}
 function initAuth() {
   if (!authReady()) { AUTH.ready = true; return; }
   try {
@@ -1154,15 +1174,29 @@ function initAuth() {
     firebase.auth().getRedirectResult().catch(() => { });
     firebase.auth().onAuthStateChanged(async u => {
       AUTH.user = u; AUTH.ready = true;
-      if (u) await refreshPremium();
-      else {
+      if (u) {
+        // A different Google account on this device must not inherit the last user's unlock
+        if (BIDA.premiumUid && BIDA.premiumUid !== u.uid) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; applyEntitlement(); }
+        await refreshPremium();
+      } else {
         AUTH.admin = false;
-        if (BIDA.premiumUid) { BIDA.premium = !!BIDA.devPro; BIDA.premiumUid = ''; saveState(); }
+        if (BIDA.premiumUid) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; applyEntitlement(); saveState(); }
         rerenderPremiumViews();
       }
       if (!$('#sheet-wrap').hidden && $('#sheet [data-acct]')) openAccount();
+      if (!$('#sheet-wrap').hidden && $('#sheet .pro-hero')) openPremium(PRO_FEATURE);
     });
   } catch (e) { AUTH.ready = true; }
+}
+// Ask Firestore (as this user) whether admins/{email} exists. Rules decide; 200 = admin.
+async function checkAdminDoc(u) {
+  if (!u || !u.emailVerified || !u.email) return false;
+  const id = encodeURIComponent(u.email.toLowerCase());
+  const url = `https://firestore.googleapis.com/v1/projects/${BIDA_CONFIG.firebase.projectId}/databases/(default)/documents/admins/${id}`;
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + await u.getIdToken() } });
+  if (r.status === 200) return true;
+  if (r.status === 404 || r.status === 403) return false;
+  throw new Error('firestore_' + r.status);
 }
 async function workerFetch(path, opts = {}) {
   const token = await AUTH.user.getIdToken();
@@ -1173,16 +1207,20 @@ async function workerFetch(path, opts = {}) {
 }
 async function refreshPremium() {
   const u = AUTH.user; if (!u) return false;
-  let paid = false, admin = isAdminUser(u);
-  if (paymentsReady()) {
-    try { const j = await workerFetch('/status'); paid = !!j.premium; admin = !!j.admin; }
-    catch (e) { return BIDA.premium; } // offline at the venue: keep the cached unlock
+  try {
+    let admin = false, until = 0;
+    if (paymentsReady()) { const j = await workerFetch('/status'); admin = !!j.admin; until = j.until || 0; }
+    else admin = await checkAdminDoc(u);
+    AUTH.admin = admin;
+    BIDA.proKind = admin ? 'admin' : until > Date.now() ? 'pass' : '';
+    BIDA.premiumUntil = until;
+    BIDA.premiumUid = BIDA.proKind ? u.uid : '';
+  } catch (e) {
+    // Offline at the venue: keep the cached unlock (a pass still ends on its date)
+    AUTH.admin = BIDA.proKind === 'admin';
   }
-  AUTH.admin = admin;
-  BIDA.premium = paid || admin || !!BIDA.devPro;
-  BIDA.premiumUid = (paid || admin) ? u.uid : '';
-  saveState(); rerenderPremiumViews();
-  return paid || admin;
+  applyEntitlement(); saveState(); rerenderPremiumViews();
+  return BIDA.premium;
 }
 function rerenderPremiumViews() {
   if (!$('#app').hidden && RENDER[BIDA.tab]) RENDER[BIDA.tab]();
@@ -1190,7 +1228,7 @@ function rerenderPremiumViews() {
   renderHead(); updateBar();
 }
 async function signIn() {
-  if (!authReady()) { toast('Hindi pa naka-setup ang sign-in'); return; }
+  if (!authReady()) { toast('Hindi pa bukas ang sign-in'); return; }
   const p = new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' });
   try { await firebase.auth().signInWithPopup(p); }
   catch (e) {
@@ -1200,13 +1238,13 @@ async function signIn() {
 }
 function signOut() { firebase.auth().signOut(); toast('Naka-sign out na'); }
 async function startCheckout() {
-  if (!paymentsReady()) { toast('Hindi pa bukas ang payments — salamat sa pasensya!'); return; }
-  if (!AUTH.user) { await signIn(); if (!AUTH.user) return; }
+  if (!AUTH.user) { await signIn(); return; }       // sign-in is required before paying
+  if (!paymentsReady()) { toast('Hindi pa bukas ang payments — malapit na!'); return; }
   if (AUTH.busy) return; AUTH.busy = true;
   const b = $('#pay-btn'); if (b) { b.disabled = true; b.querySelector('span').textContent = 'Binubuksan ang PayMongo…'; }
   try {
     const j = await workerFetch('/checkout', { method: 'POST', body: '{}' });
-    if (j.already) { await refreshPremium(); closeSheet(); toast('Premium ka na — salamat!'); return; }
+    if (j.already) { await refreshPremium(); closeSheet(); toast('Admin account — lahat naka-unlock'); return; }
     saveState();
     location.href = j.url;
   } catch (e) {
@@ -1220,58 +1258,61 @@ async function handlePaidReturn() {
   history.replaceState(null, '', location.pathname);
   if (p !== '1') { toast('Hindi natuloy ang bayad — pwede mong subukan ulit'); return; }
   toast('Kinukumpirma ang bayad…');
+  const before = BIDA.premiumUntil;
   for (let i = 0; i < 30 && !AUTH.ready; i++) await new Promise(r => setTimeout(r, 300));
   for (let i = 0; i < 15; i++) {
-    if (AUTH.user && await refreshPremium()) { toast('Premium unlocked! Party na!'); return; }
+    if (AUTH.user) { await refreshPremium(); if (BIDA.premiumUntil > before) { toast(`Premium hanggang ${fmtDay(BIDA.premiumUntil)}. Party na!`); return; } }
     await new Promise(r => setTimeout(r, 2000));
   }
   toast('Natanggap na ang bayad pero hindi pa nag-a-unlock. I-refresh ang page mamaya.');
 }
 
+function passLine() {
+  if (isAdmin() || BIDA.proKind === 'admin') return '<span class="badge-pro">Admin</span> Test account — lahat naka-unlock';
+  if (passActive()) return `<span class="badge-pro">Premium</span> Hanggang <b>${esc(fmtDay(BIDA.premiumUntil))}</b>`;
+  if (BIDA.premiumUntil) return `Natapos ang Premium noong ${esc(fmtDay(BIDA.premiumUntil))}`;
+  return '';
+}
 let PRO_FEATURE = '';
 function openPremium(feature) {
   PRO_FEATURE = feature || PRO_FEATURE;
-  const u = AUTH.user;
+  const u = AUTH.user, admin = isAdmin() || BIDA.proKind === 'admin', days = BIDA_CONFIG.passDays;
   let action;
-  if (BIDA.premium) action = `<div class="note" style="background:var(--leaf-soft)"><b>${isAdmin() ? 'Admin ka' : 'Premium ka na'}!</b> Naka-unlock ang lahat.</div>`;
-  else if (!paymentsReady()) action = `<button class="btn btn--magenta btn--lg btn--block" onclick="startCheckout()">Malapit nang mabili</button>`;
-  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>
-      <p class="muted" style="margin-top:10px;text-align:center">Naka-save ang Premium sa account mo — gagana sa phone, tablet at computer.</p>`;
-  else action = `<button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>Bayaran ${esc(BIDA_CONFIG.priceLabel.replace(/ .*/, ''))}</span>${ic('arrow')}</button>
+  if (admin) action = `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`;
+  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google para mag-subscribe</button>
+      <p class="muted" style="margin-top:10px;text-align:center">Kailangan ng account para naka-save ang Premium mo — gagana sa phone, tablet at computer.</p>`;
+  else action = `${passActive() ? `<div class="note" style="background:var(--leaf-soft);margin-bottom:12px">${passLine()}</div>` : ''}
+      <button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>${passActive() ? `Dagdag ${days} araw` : 'Bayaran'} · ${esc(BIDA_CONFIG.price)}</span>${ic('arrow')}</button>
       <p class="muted" style="margin-top:10px;text-align:center">GCash · Maya · Card — secure checkout sa PayMongo</p>`;
   openSheet(`
     <div class="sheet-head"><h3>Bida-Vibe Premium</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="pro-hero">
       ${PRO_FEATURE ? `<span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE)}</span>` : ''}
-      <h4>Lahat ng sound at music, walang limit.</h4>
+      <h4>Para sa handaan mo ngayong buwan.</h4>
       <ul class="pro-list">
         <li>${ic('star')}Lahat ng 20 sound pads + walang limit na sariling upload at recording</li>
         <li>${ic('star')}Music bar: YouTube, Spotify at sariling files</li>
         <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
       </ul>
-      <p style="margin-top:14px;font:800 26px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.priceLabel)} <small style="font:700 13px/1 var(--f)">· habambuhay</small></p>
+      <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">/ ${days} araw · walang auto-charge</small></p>
     </div>
     <div style="margin-top:18px">${action}</div>
     ${u ? `<p class="muted" style="margin-top:14px;text-align:center">Naka-sign in: ${esc(u.email || '')} · <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="signOut()">Sign out</button></p>` : ''}
     ${IS_LOCAL && !BIDA.premium ? `<div class="field" style="margin-top:20px"><label for="pro-code">Test code (localhost lang)</label>
       <div style="display:flex;gap:8px"><input class="input" id="pro-code" placeholder="CODE" autocapitalize="characters">
-      <button class="btn btn--ink" onclick="redeem()">Gamitin</button></div></div>` : ''}
-    <p class="muted" style="margin-top:14px">Libre pa rin ang activities, lahat ng laro at ${BIDA_CONFIG.freeSounds} sound pads.</p>`);
+      <button class="btn btn--ink" onclick="redeem()">Gamitin</button></div></div>` : ''}`);
 }
 function openAccount() {
-  const u = AUTH.user;
-  const status = isAdmin() ? '<span class="badge-pro">Admin</span> Lahat naka-unlock'
-    : BIDA.premium ? '<span class="badge-pro">Premium</span> Lahat naka-unlock' : 'Libreng version';
+  const u = AUTH.user, line = passLine();
   openSheet(`
     <div class="sheet-head" data-acct><h3>Account</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="card stack">
-      ${u ? `<div><b>${esc(u.displayName || u.email)}</b><p class="muted">${esc(u.email || '')}</p></div>` : '<p class="muted">Hindi naka-sign in.</p>'}
-      <p>${status}</p>
+      ${u ? `<div><b>${esc(u.displayName || u.email)}</b><p class="muted">${esc(u.email || '')}</p></div>` : ''}
+      ${u && line ? `<p>${line}</p>` : ''}
       ${!authReady() ? '<p class="note">Hindi pa bukas ang Google sign-in — malapit na!</p>'
         : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
-          : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>
-             <p class="muted">Para sa Premium buyers at admin. Ang admin ay ${esc(BIDA_CONFIG.adminEmails.join(', '))} lang.</p>`}
-      ${!BIDA.premium ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">I-unlock Premium · ${esc(BIDA_CONFIG.priceLabel)}</button>` : ''}
+          : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>`}
+      ${BIDA.proKind !== 'admin' ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">${passActive() ? `Dagdag ${BIDA_CONFIG.passDays} araw` : 'Mag-subscribe'} · ${esc(BIDA_CONFIG.price)} / ${BIDA_CONFIG.passDays} araw</button>` : ''}
     </div>`);
 }
 function googleG() {
@@ -1394,7 +1435,8 @@ window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTi
 document.addEventListener('DOMContentLoaded', async () => {
   loadState();
   // A test unlock from localhost must never carry over to the live site
-  if (!IS_LOCAL && BIDA.devPro) { BIDA.devPro = false; BIDA.premium = !!BIDA.premiumUid; saveState(); }
+  if (!IS_LOCAL) BIDA.devPro = false;
+  applyEntitlement(); saveState();   // a 30-day pass locks again on its end date, even offline
   M.current = BIDA.music.master;
   bindTalk($('#talk-bar'));
   initAuth();

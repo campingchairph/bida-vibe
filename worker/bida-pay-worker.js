@@ -2,23 +2,33 @@
    Bida-Vibe payments — Cloudflare Worker
    Holds the PayMongo secret key (never in the browser), creates
    Checkout Sessions, verifies PayMongo webhooks, and stores who
-   has Premium in Cloudflare KV.
+   has an active Premium pass in Cloudflare KV.
+
+   Premium = a 30-day pass (₱50). Paying again adds 30 days.
+   No auto-charge.
 
    Bindings (Worker → Settings):
      KV namespace   PREMIUM                  (Variables → KV Namespace Bindings)
      Secret         PAYMONGO_SECRET_KEY      sk_test_… / sk_live_…
      Secret         PAYMONGO_WEBHOOK_SECRET  whsk_…  (from the webhook you create)
-     Variable       FIREBASE_PROJECT_ID      e.g. bidavibe-12345
-     Variable       APP_URL                  e.g. https://campingchairph.github.io/bida-vibe/
+     Variable       FIREBASE_PROJECT_ID      bidavibe
+     Variable       APP_URL                  https://campingchairph.github.io/bida-vibe/
      Variable       ALLOWED_ORIGINS          comma list, e.g. https://campingchairph.github.io,http://localhost:8102
-     Variable       PRICE_CENTAVOS           14900  (₱149.00)
-     Variable       ADMIN_EMAILS             morphiicreate@gmail.com  (free full access; comma list)
+     Variable       PRICE_CENTAVOS           5000  (₱50.00)
+     Variable       PASS_DAYS                30
+
+   Admin test accounts live in Firestore: collection "admins", document ID = the
+   Google email in lowercase. The Worker asks Firestore *as the signed-in user*;
+   the Firestore rules only let a verified user read their own admin document,
+   so nobody can claim admin from the browser.
 
    Routes:
-     GET  /status    (Authorization: Bearer <Firebase ID token>) → { premium, paidAt }
+     GET  /status    (Authorization: Bearer <Firebase ID token>) → { premium, admin, until }
      POST /checkout  (Authorization: Bearer <Firebase ID token>) → { url }
      POST /webhook   (from PayMongo, signed)                      → 200
    ============================================================ */
+
+const DAY = 86400000;
 
 export default {
   async fetch(req, env) {
@@ -40,28 +50,37 @@ export default {
 /* ---------- routes ---------- */
 async function handleStatus(req, env, cors) {
   const user = await requireUser(req, env);
-  if (isAdmin(user, env)) return json({ premium: true, admin: true, paidAt: null }, 200, cors);
+  if (await isAdmin(user, env)) return json({ premium: true, admin: true, until: null }, 200, cors);
   const rec = await env.PREMIUM.get('pro:' + user.uid, 'json');
-  return json({ premium: !!rec, admin: false, paidAt: rec?.paidAt || null }, 200, cors);
+  const until = rec?.until || 0;
+  return json({ premium: until > Date.now(), admin: false, until: until || null }, 200, cors);
 }
-// Admin = Google-verified email listed in ADMIN_EMAILS (comma list). Checked against the signed token, not the browser.
-function isAdmin(user, env) {
-  const list = String(env.ADMIN_EMAILS || 'morphiicreate@gmail.com').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
-  return !!(user.emailVerified && user.email && list.includes(user.email.toLowerCase()));
+
+// Admin = verified Google email with a document at admins/{email} in Firestore.
+// Read with the user's own ID token, so Firestore security rules decide.
+async function isAdmin(user, env) {
+  if (!user.emailVerified || !user.email) return false;
+  const email = user.email.toLowerCase();
+  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/admins/${encodeURIComponent(email)}`;
+  try {
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + user.token } });
+    return r.status === 200;
+  } catch (e) { return false; }
 }
 
 async function handleCheckout(req, env, cors) {
   const user = await requireUser(req, env);
-  if (isAdmin(user, env) || await env.PREMIUM.get('pro:' + user.uid)) return json({ already: true }, 200, cors);
+  if (await isAdmin(user, env)) return json({ already: true, admin: true }, 200, cors);
 
-  const amount = parseInt(env.PRICE_CENTAVOS || '14900', 10);
+  const amount = parseInt(env.PRICE_CENTAVOS || '5000', 10);
+  const days = parseInt(env.PASS_DAYS || '30', 10);
   const appUrl = env.APP_URL;
   const body = {
     data: {
       attributes: {
-        line_items: [{ name: 'Bida-Vibe Premium (lifetime)', amount, currency: 'PHP', quantity: 1 }],
+        line_items: [{ name: `Bida-Vibe Premium — ${days} araw`, amount, currency: 'PHP', quantity: 1 }],
         payment_method_types: ['gcash', 'paymaya', 'card'],
-        description: 'Sound Lab, music playlists at Talk fader — one-time unlock',
+        description: `Lahat ng sound pads, music bar, Talk at Fade sa loob ng ${days} araw. Walang auto-charge.`,
         reference_number: user.uid.slice(0, 20) + '-' + Date.now().toString(36),
         send_email_receipt: true,
         show_description: true,
@@ -97,8 +116,6 @@ async function handleWebhook(req, env) {
   if (!parts.t || !given) return new Response('bad signature', { status: 401 });
   const expected = await hmacHex(env.PAYMONGO_WEBHOOK_SECRET, `${parts.t}.${raw}`);
   if (!timingSafeEqual(expected, given)) return new Response('bad signature', { status: 401 });
-  // No timestamp-age check: PayMongo retries failed deliveries, and re-applying a
-  // genuine "paid" event is harmless (it only re-marks the same buyer as Premium).
 
   const evt = JSON.parse(raw);
   const type = evt?.data?.attributes?.type;
@@ -106,19 +123,30 @@ async function handleWebhook(req, env) {
 
   const session = evt.data.attributes.data;              // checkout_session resource
   const attrs = session?.attributes || {};
+  if (!session?.id) return new Response('no session', { status: 200 });
+  // PayMongo retries deliveries: each checkout session may add days only once
+  if (await env.PREMIUM.get('paid:' + session.id)) return new Response('already processed', { status: 200 });
+
   let uid = attrs.metadata?.uid;
-  if (!uid && session?.id) uid = (await env.PREMIUM.get('session:' + session.id, 'json'))?.uid;
+  if (!uid) uid = (await env.PREMIUM.get('session:' + session.id, 'json'))?.uid;
   if (!uid) return new Response('no uid', { status: 200 });
 
   const paid = (attrs.payments || [])[0]?.attributes || {};
-  const expected_amount = parseInt(env.PRICE_CENTAVOS || '14900', 10);
+  const expectedAmount = parseInt(env.PRICE_CENTAVOS || '5000', 10);
   const amount = paid.amount ?? attrs.line_items?.[0]?.amount ?? 0;
-  if (amount < expected_amount) return new Response('amount mismatch', { status: 200 });
+  if (amount < expectedAmount) return new Response('amount mismatch', { status: 200 });
 
+  // Extend from today, or from the current end date if the pass is still active
+  const days = parseInt(env.PASS_DAYS || '30', 10);
+  const prev = await env.PREMIUM.get('pro:' + uid, 'json');
+  const start = Math.max(Date.now(), prev?.until || 0);
+  const until = start + days * DAY;
   await env.PREMIUM.put('pro:' + uid, JSON.stringify({
-    paidAt: new Date().toISOString(), sessionId: session.id, amount,
-    method: attrs.payment_method_used || paid.source?.type || '', email: attrs.metadata?.email || ''
+    until, lastPaidAt: new Date().toISOString(), sessionId: session.id, amount,
+    method: attrs.payment_method_used || paid.source?.type || '', email: attrs.metadata?.email || '',
+    payments: (prev?.payments || 0) + 1
   }));
+  await env.PREMIUM.put('paid:' + session.id, '1', { expirationTtl: 60 * 60 * 24 * 90 });
   return new Response('ok', { status: 200 });
 }
 
@@ -149,7 +177,7 @@ async function requireUser(req, env) {
   if (payload.exp < now || payload.iat > now + 60) throw err(401, 'expired');
   if (payload.aud !== pid || payload.iss !== 'https://securetoken.google.com/' + pid) throw err(401, 'wrong_project');
   if (!payload.sub) throw err(401, 'no_sub');
-  return { uid: payload.sub, email: payload.email, emailVerified: payload.email_verified === true };
+  return { uid: payload.sub, email: payload.email, emailVerified: payload.email_verified === true, token: m[1] };
 }
 
 /* ---------- utils ---------- */
