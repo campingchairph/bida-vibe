@@ -1,6 +1,6 @@
 # Bida-Vibe
 
-Host buddy for Filipino family events and any group gathering — reunions, Christmas parties, birthdays, barkada nights, office parties, binyag, despedida, fiesta.
+Simple but powerful host buddy for Filipino family events and any group gathering — reunions, Christmas parties, birthdays, barkada nights, office parties, binyag, despedida, fiesta.
 
 No build step, no npm. Open `index.html` or push to GitHub Pages.
 
@@ -8,31 +8,41 @@ No build step, no npm. Open `index.html` or push to GitHub Pages.
 
 | File | Purpose |
 |---|---|
-| `index.html` | Landing, app shell, Live mode, sheet, icon sprite |
-| `bida.css` | Flat fiesta styles (no gradients), mobile + desktop (≥900px sidebar) |
-| `bida-content.js` | Event types → suggested programs, Taglish host scripts by tone, 14 games |
-| `worker/bida-pay-worker.js` | Cloudflare Worker: PayMongo checkout, webhook verification, Premium records (KV) |
-| `bida-app.js` | State (`BIDA`, localStorage `bidavibe_data`), rendering, game animations, Sound Lab, music + talk fader, Live mode |
+| `index.html` | Landing, app shell, music bar, Live mode, sheet, icon sprite |
+| `bida.css` | Flat fiesta styles (no gradients). Phone < 600px · tablet 600–1099px (touch-first, bottom tabs) · desktop ≥ 1100px (sidebar) |
+| `bida-content.js` | Event types → suggested activities, 14 party games |
+| `bida-app.js` | State (`BIDA`, localStorage `bidavibe_data`), Plan, game animations, sound pads, music + fades, accounts, Live mode |
+| `sounds/` | The 20 default sound pad files — see [sounds/README.md](sounds/README.md) for exact names |
+| `worker/bida-pay-worker.js` | Cloudflare Worker: PayMongo checkout, webhook verification, Premium + admin check |
 
 Custom sounds are stored in IndexedDB (`bidavibe_media`).
 
 ## Features
 
-- **Event setup** — pick a type, get a timed program; add, edit, reorder segments.
-- **Host script** — Formal / Serious / Friendly / Jolly checkboxes generate Taglish lines per segment; every line is editable.
-- **Games** — animated SVG how-to, players, materials checklist, steps (with "Play steps"), host script, add to program.
-- **Sound Lab** *(premium)* — 19 synthesized sounds (Web Audio, no copyrighted clips), upload, record your own. Keys 1–0, Q–P.
-- **Music** *(premium)* — YouTube / YouTube Music, Spotify, local files, or link-out for other apps.
-- **Talk fader** *(premium)* — quick fade down while you speak, fade back in after. Hold or toggle, duck level + fade speed sliders, optional mic auto-fade. Space bar works too.
-- **Live Host Mode** — current segment, countdown, script, next up, music console, sound pads. Arrow keys to move.
+- **Plan** — pick the event type, get a timed activity list. Tap to edit, arrows to reorder, quick-add common activities or a game.
+- **Games** — 14 Pinoy party games with animated how-to, materials checklist and steps.
+- **Sound pads** — 20 default sounds from `sounds/` + upload or record your own. Keys 1–0, Q–P.
+- **Music bar (always on screen)** — play / pause, previous / next, **Fade out / Fade in**, volume, **Talk** (hold to lower the music while you speak), and an expandable panel with the YouTube preview and what's up next. Space bar = Talk.
+- **Music tab** — setup only: YouTube / YouTube Music, Spotify, local files, link-out; talk mode, how low Talk goes, fade speed, mic auto-fade.
+- **Live mode** — current activity + timer, game materials and steps, what's next, sound pads, with the music bar underneath.
+
+## Free vs Premium
+
+| | Free | Premium (₱149 one-time) |
+|---|---|---|
+| Plan, games, Live mode | ✓ | ✓ |
+| Default sound pads | first 4 | all 20 |
+| Own uploads / recordings | 2 | unlimited |
+| Music bar, Talk, Fade | — | ✓ |
+
+**Admin:** `morphiicreate@gmail.com` gets everything free after signing in with Google (account button in the header). The app checks the Google-verified email, and the Worker checks it again server-side against `ADMIN_EMAILS`, so nobody can claim admin by editing the browser.
 
 ## Before launch — `BIDA_CONFIG` in `bida-app.js`
 
-- **Premium payments** — ₱149 one-time via PayMongo (GCash · Maya · Card), unlocked automatically on the buyer's Google account. Fill in `workerUrl` and `firebase` after following [PAYMENTS.md](PAYMENTS.md). Until then the upgrade button says payments are coming soon.
+- `firebase` — Google sign-in config (needed for **admin login** and for buyers). See PAYMENTS.md step 2.
+- `workerUrl` — the payments Worker. See [PAYMENTS.md](PAYMENTS.md).
+- `adminEmails`, `freeSounds` (4), `freeUploads` (2), `priceLabel`.
 - `devUnlockCode` — `BIDATEST`, works on localhost only.
-- `spotifyClientId` — create an app at developer.spotify.com, add the page URL as a Redirect URI. Spotify notes:
-  - Listeners need **Spotify Premium**.
-  - Desktop browsers play inside the page (Web Playback SDK). Phones control the Spotify app that's already open (Spotify Connect); some devices ignore remote volume.
-  - New Spotify apps start in development mode (allow-listed users only) until you apply for extended quota.
+- `spotifyClientId` — create an app at developer.spotify.com, add the page URL as a Redirect URI. Listeners need Spotify Premium; phones control the Spotify app that's already open.
 
 Apple Music, Deezer, SoundCloud etc. don't give other websites volume control, so they're link-out only (no fade).

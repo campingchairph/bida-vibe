@@ -12,6 +12,7 @@
      Variable       APP_URL                  e.g. https://campingchairph.github.io/bida-vibe/
      Variable       ALLOWED_ORIGINS          comma list, e.g. https://campingchairph.github.io,http://localhost:8102
      Variable       PRICE_CENTAVOS           14900  (₱149.00)
+     Variable       ADMIN_EMAILS             morphiicreate@gmail.com  (free full access; comma list)
 
    Routes:
      GET  /status    (Authorization: Bearer <Firebase ID token>) → { premium, paidAt }
@@ -39,13 +40,19 @@ export default {
 /* ---------- routes ---------- */
 async function handleStatus(req, env, cors) {
   const user = await requireUser(req, env);
+  if (isAdmin(user, env)) return json({ premium: true, admin: true, paidAt: null }, 200, cors);
   const rec = await env.PREMIUM.get('pro:' + user.uid, 'json');
-  return json({ premium: !!rec, paidAt: rec?.paidAt || null }, 200, cors);
+  return json({ premium: !!rec, admin: false, paidAt: rec?.paidAt || null }, 200, cors);
+}
+// Admin = Google-verified email listed in ADMIN_EMAILS (comma list). Checked against the signed token, not the browser.
+function isAdmin(user, env) {
+  const list = String(env.ADMIN_EMAILS || 'morphiicreate@gmail.com').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+  return !!(user.emailVerified && user.email && list.includes(user.email.toLowerCase()));
 }
 
 async function handleCheckout(req, env, cors) {
   const user = await requireUser(req, env);
-  if (await env.PREMIUM.get('pro:' + user.uid)) return json({ already: true }, 200, cors);
+  if (isAdmin(user, env) || await env.PREMIUM.get('pro:' + user.uid)) return json({ already: true }, 200, cors);
 
   const amount = parseInt(env.PRICE_CENTAVOS || '14900', 10);
   const appUrl = env.APP_URL;
@@ -142,7 +149,7 @@ async function requireUser(req, env) {
   if (payload.exp < now || payload.iat > now + 60) throw err(401, 'expired');
   if (payload.aud !== pid || payload.iss !== 'https://securetoken.google.com/' + pid) throw err(401, 'wrong_project');
   if (!payload.sub) throw err(401, 'no_sub');
-  return { uid: payload.sub, email: payload.email };
+  return { uid: payload.sub, email: payload.email, emailVerified: payload.email_verified === true };
 }
 
 /* ---------- utils ---------- */

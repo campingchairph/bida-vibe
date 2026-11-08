@@ -62,7 +62,7 @@
       <span class="hl-magenta">Host.</span>
       <span class="hl-turq">Party!</span>
     </h1>
-    <p class="land-sub fade-up" style="--d:.4s">Reunion, Christmas party o barkada night — pumili ng event at may program ka na agad, gabay kung paano panatilihing buhay ang party, mga laro na may animated how-to, sound effects at music na humihina pag magsasalita ka.</p>
+    <p class="land-sub fade-up" style="--d:.4s">Reunion, Christmas party o barkada night — pumili ng event at may listahan ka na ng activities at laro. May sound pads at music na humihina pag magsasalita ka — lahat sa isang tap.</p>
     <div class="land-cta fade-up" style="--d:.55s">
       <button class="btn btn--magenta btn--lg" onclick="enterApp()">Simulan ang party <svg class="ic"><use href="#i-arrow"/></svg></button>
       <button class="btn btn--ghost btn--lg" onclick="enterApp('games')">Tingnan ang mga laro</button>
@@ -70,12 +70,12 @@
     <ul class="land-stats fade-up" style="--d:.7s">
       <li><b data-count="9">9</b><span>event types</span></li>
       <li><b data-count="14">14</b><span>Pinoy party games</span></li>
-      <li><b data-count="10">10</b><span>energy moves</span></li>
+      <li><b data-count="20">20</b><span>sound pads</span></li>
     </ul>
     <div class="land-cards fade-up" style="--d:.5s" aria-hidden="true">
-      <div class="tcard tcard--gold"><small>7:00 PM</small><b>Trip to Jerusalem</b><em>15 min · Game</em></div>
-      <div class="tcard tcard--turq"><small>Energy move</small><b>Fast Talk with Lola — limang mabilis na tanong, laging tawa ang dulo.</b></div>
-      <div class="tcard tcard--magenta"><small>Sound Lab</small><b>Boink · Drumroll · Ta-da</b></div>
+      <div class="tcard tcard--gold"><small>7:00 PM</small><b>Trip to Jerusalem</b><em>15 min · may animated how-to</em></div>
+      <div class="tcard tcard--turq"><small>Talk</small><b>Pindutin habang nagsasalita — hihina ang music, babalik pagkatapos.</b></div>
+      <div class="tcard tcard--magenta"><small>Sound pads</small><b>Boink · Tawa · Faah · Drumroll</b></div>
     </div>
   </div>
 </section>
@@ -87,33 +87,51 @@
     <div class="head-row">
       <button class="wordmark wordmark--sm" onclick="showLanding()" aria-label="Bida-Vibe home">Bida<span>-</span>Vibe</button>
       <div class="head-event" id="head-event"></div>
+      <button class="icon-btn acct-btn" id="acct-btn" onclick="openAccount()" aria-label="Account"><svg class="ic"><use href="#i-people"/></svg></button>
       <button class="btn btn--chili btn--sm live-btn" onclick="openLive()"><svg class="ic"><use href="#i-live"/></svg>Live</button>
     </div>
   </header>
 
   <nav class="tabs" id="tabs" aria-label="Sections">
-    <button data-tab="event"   onclick="goTab('event')"><svg class="ic"><use href="#i-event"/></svg><span>Event</span></button>
-    <button data-tab="program" onclick="goTab('program')"><svg class="ic"><use href="#i-program"/></svg><span>Program</span></button>
-    <button data-tab="script"  onclick="goTab('script')"><svg class="ic"><use href="#i-script"/></svg><span>Guide</span></button>
-    <button data-tab="games"   onclick="goTab('games')"><svg class="ic"><use href="#i-games"/></svg><span>Games</span></button>
-    <button data-tab="sounds"  onclick="goTab('sounds')"><svg class="ic"><use href="#i-sound"/></svg><span>Sounds</span></button>
-    <button data-tab="music"   onclick="goTab('music')"><svg class="ic"><use href="#i-music"/></svg><span>Music</span></button>
+    <button data-tab="plan"   onclick="goTab('plan')"><svg class="ic"><use href="#i-program"/></svg><span>Plan</span></button>
+    <button data-tab="games"  onclick="goTab('games')"><svg class="ic"><use href="#i-games"/></svg><span>Games</span></button>
+    <button data-tab="sounds" onclick="goTab('sounds')"><svg class="ic"><use href="#i-sound"/></svg><span>Sounds</span></button>
+    <button data-tab="music"  onclick="goTab('music')"><svg class="ic"><use href="#i-music"/></svg><span>Music</span></button>
   </nav>
 
   <main class="app-main">
-    <section class="panel" id="panel-event"></section>
-    <section class="panel" id="panel-program"></section>
-    <section class="panel" id="panel-script"></section>
+    <section class="panel" id="panel-plan"></section>
     <section class="panel" id="panel-games"></section>
     <section class="panel" id="panel-sounds"></section>
     <section class="panel" id="panel-music"></section>
   </main>
+</div>
 
-  <!-- Persistent music mini-bar with talk button -->
-  <div class="minibar" id="minibar" hidden>
-    <button class="mb-play" onclick="musicToggle()" aria-label="Play or pause"><svg class="ic"><use id="mb-play-ic" href="#i-play"/></svg></button>
-    <div class="mb-info"><b id="mb-title">—</b><span id="mb-src"></span></div>
-    <button class="talk-btn talk-btn--mini" id="talk-mini" aria-label="Talk — fade music down"><svg class="ic"><use href="#i-mic"/></svg><span>Talk</span></button>
+<!-- ============ MUSIC BAR (always on screen in the app and Live mode) ============ -->
+<div class="mbar" id="mbar" aria-label="Music controls">
+  <div class="mbar-panel" id="mbar-panel">
+    <div class="mbp-grid">
+      <div class="yt-dock" id="yt-dock" aria-label="Video preview"></div>
+      <div class="mbp-side">
+        <div class="slider-row"><label for="mb-vol-2">Volume</label><output></output>
+          <input type="range" class="mb-vol" id="mb-vol-2" min="0" max="1" step="0.01" oninput="setMaster(+this.value)"></div>
+        <div class="slider-row"><label for="mb-duck">Pag Talk, hihina hanggang</label><output class="o-duck"></output>
+          <input type="range" id="mb-duck" min="0" max="0.6" step="0.01" oninput="setDuck(+this.value)"></div>
+        <div class="field-label" style="margin-top:12px">Susunod</div>
+        <ul class="queue" id="mb-upnext"></ul>
+        <button class="btn btn--ghost btn--sm" style="margin-top:10px" onclick="goTab('music');closeLive();toggleBar(false)">Music setup</button>
+      </div>
+    </div>
+  </div>
+  <div class="mbar-row">
+    <button class="mb-btn mb-prev" onclick="musicSkip(-1)" aria-label="Previous"><svg class="ic"><use href="#i-prev"/></svg></button>
+    <button class="mb-btn mb-play" onclick="musicToggle()" aria-label="Play or pause"><svg class="ic"><use class="mb-play-ic" href="#i-play"/></svg></button>
+    <button class="mb-btn mb-next" onclick="musicSkip(1)" aria-label="Next"><svg class="ic"><use href="#i-next"/></svg></button>
+    <button class="mb-info" onclick="barInfoClick()"><b id="mb-title">Walang tumutugtog</b><span id="mb-sub"></span></button>
+    <button class="mb-btn mb-fade" onclick="fadeToggle()" aria-label="Fade music in or out"><svg class="ic"><use href="#i-sound"/></svg><span>Fade out</span></button>
+    <input type="range" class="mb-vol mb-vol-inline" min="0" max="1" step="0.01" aria-label="Volume" oninput="setMaster(+this.value)">
+    <button class="talk-btn talk-btn--bar" id="talk-bar" aria-label="Talk — hold to lower the music"><svg class="ic"><use href="#i-mic"/></svg><span>Talk</span></button>
+    <button class="mb-btn mb-more" id="mb-more" onclick="toggleBar()" aria-expanded="false" aria-controls="mbar-panel" aria-label="More music controls"><svg class="ic"><use href="#i-up"/></svg></button>
   </div>
 </div>
 
@@ -131,11 +149,9 @@
       <div class="live-script" id="live-script"></div>
     </div>
     <aside class="live-side">
-      <div class="live-music" id="live-music"></div>
       <div class="live-pads" id="live-pads"></div>
     </aside>
   </div>
-  <button class="talk-btn talk-btn--mini live-fab" id="talk-fab" aria-label="Talk — fade music down"><svg class="ic"><use href="#i-mic"/></svg><span>Talk</span></button>
   <div class="live-nav">
     <button class="btn btn--ghost" onclick="liveStep(-1)"><svg class="ic"><use href="#i-prev"/></svg>Back</button>
     <button class="btn btn--gold" id="live-timer-btn" onclick="liveTimerToggle()"><svg class="ic"><use href="#i-clock"/></svg><span>Start timer</span></button>
@@ -153,7 +169,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="bida-content.js"></script>
-<script src="bida-guide.js"></script>
 <script src="bida-app.js"></script>
 </body>
 </html>

@@ -21,6 +21,8 @@ All three services have free tiers that cover this. PayMongo charges a per-trans
 2. **Developers → API Keys**: copy the **test secret key** (`sk_test_…`). Never put it in the app's code.
 
 ## 2. Firebase (Google sign-in only, free Spark plan)
+This step alone is enough for the **admin login** (morphiicreate@gmail.com). Paste the config into `BIDA_CONFIG.firebase` and admin works even before PayMongo and Cloudflare are set up.
+
 1. console.firebase.google.com → **Add project** → name it `bidavibe`. Analytics is optional.
 2. **Build → Authentication → Get started → Sign-in method → Google → Enable.**
 3. **Authentication → Settings → Authorized domains**: add `campingchairph.github.io`. `localhost` is already there.
@@ -39,6 +41,7 @@ All three services have free tiers that cover this. PayMongo charges a per-trans
    | `APP_URL` | `https://campingchairph.github.io/bida-vibe/` (keep the trailing `/`) |
    | `ALLOWED_ORIGINS` | `https://campingchairph.github.io,http://localhost:8102` |
    | `PRICE_CENTAVOS` | `14900` |
+   | `ADMIN_EMAILS` | `morphiicreate@gmail.com` (free full access; comma-separate to add more) |
 
    And as *Secret*: `PAYMONGO_SECRET_KEY` = your `sk_test_…` key.
 

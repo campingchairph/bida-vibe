@@ -11,8 +11,14 @@ const BIDA_CONFIG = {
   priceLabel: '₱149 one-time',
   // Payments (see PAYMENTS.md): URL of the deployed Cloudflare Worker, e.g. 'https://bida-pay.yourname.workers.dev'
   workerUrl: '',
-  // Firebase web config (Project settings → Your apps → Web app). Used only for Google sign-in.
+  // Firebase web config (Project settings → Your apps → Web app). Used for Google sign-in (buyers + admin).
   firebase: null,
+  // Admin accounts get everything free. Must sign in with Google as this exact, verified address.
+  // The Worker checks this again server-side (ADMIN_EMAILS variable).
+  adminEmails: ['morphiicreate@gmail.com'],
+  // Free tier limits
+  freeSounds: 4,      // first N default pads are free
+  freeUploads: 2,     // custom pads a free user can add
   // Test unlock — only works on localhost, never on the live site.
   devUnlockCode: 'BIDATEST',
   // Spotify: create an app at developer.spotify.com, add this page's URL as a Redirect URI, paste the Client ID.
@@ -30,18 +36,16 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 let BIDA = defaultState();
 function defaultState() {
   return {
-    v: 2,
-    event: { type: 'reunion', name: '', group: '', host: '', date: '', start: '15:00' },
-    tones: ['friendly', 'jolly'],
+    v: 3,
+    event: { type: 'reunion', name: '', date: '', start: '15:00' },
     program: [],
-    scriptEdits: {},
     nextId: 1,
     premium: false,
     premiumUid: '',   // Google account the Premium unlock belongs to (cached for offline use)
     devPro: false,    // localhost-only test unlock
     music: { master: 0.8, duck: 0.2, fade: 500, mode: 'hold', src: 'youtube', ytUrl: '', spUrl: '', link: '', autoDuck: false, sens: 0.5 },
     seenLanding: false,
-    tab: 'event',
+    tab: 'plan',
     gameChecks: {},
     liveIdx: 0
   };
@@ -55,10 +59,12 @@ function loadState() {
     if (raw) {
       const d = JSON.parse(raw), def = defaultState();
       BIDA = Object.assign(def, d);
-      // v1 stored full AI scripts here; v2 uses it for the host's own notes
-      if ((d.v || 1) < 2) { BIDA.scriptEdits = {}; BIDA.v = 2; }
       BIDA.event = Object.assign(def.event, d.event || {});
       BIDA.music = Object.assign(def.music, d.music || {});
+      // v3: scripts/guide removed, tabs simplified
+      delete BIDA.scriptEdits; delete BIDA.tones; delete BIDA.rulesOpen;
+      if (!['plan', 'games', 'sounds', 'music'].includes(BIDA.tab)) BIDA.tab = 'plan';
+      BIDA.v = 3;
     }
   } catch (e) { BIDA = defaultState(); }
   if (!BIDA.program.length) buildProgram(BIDA.event.type);
@@ -68,7 +74,7 @@ function loadState() {
 let toastT;
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400);
 }
 function eventType(id = BIDA.event.type) { return BIDA_EVENTS.find(e => e.id === id) || BIDA_EVENTS[0]; }
 function gameById(id) { return BIDA_GAMES.find(g => g.id === id); }
@@ -83,24 +89,12 @@ function segTimes() {
   return BIDA.program.map(s => { const st = t; t += Number(s.min) || 0; return st; });
 }
 function totalMin() { return BIDA.program.reduce((a, s) => a + (Number(s.min) || 0), 0); }
-function dayPart() {
-  const h = Math.floor(toMin(BIDA.event.start) / 60);
-  return h < 12 ? 'umaga' : h < 18 ? 'hapon' : 'gabi';
-}
-function fillVars(str, extra = {}) {
-  const e = BIDA.event, et = eventType();
-  const vars = Object.assign({
-    event: e.name || et.label, group: e.group || 'mga kapamilya', host: e.host || 'inyong host',
-    time: dayPart()
-  }, extra);
-  return String(str).replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m);
-}
+function fmtDur(m) { return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'm' : ''}` : `${m}m`; }
 
 /* ---------- Program ---------- */
 function buildProgram(typeId) {
   const et = eventType(typeId);
   BIDA.program = et.program.map(([kind, title, min, game]) => ({ id: BIDA.nextId++, kind, title, min, game: game || '' }));
-  BIDA.scriptEdits = {};
   BIDA.liveIdx = 0;
 }
 
@@ -118,7 +112,6 @@ function flagPath(w, h, variant) {
   else {
     const s = r * .75; d += `M${cx - s * 1.6} ${cy - s}h${s}v${s}h${-s}ZM${cx + s * .6} ${cy - s}h${s}v${s}h${-s}ZM${cx - s / 2} ${cy + s * .4}h${s}v${s}h${-s}Z`;
   }
-  // tiny dots near top
   d += `M${w * .2} ${h * .14}h3v3h-3ZM${w * .8 - 3} ${h * .14}h3v3h-3Z`;
   return d;
 }
@@ -141,265 +134,141 @@ function renderAllBunting() { $$('.bunting').forEach(el => { if (el.offsetParent
 /* ---------- Landing / app ---------- */
 function enterApp(tab) {
   BIDA.seenLanding = true; saveState();
-  $('#landing').hidden = true; $('#app').hidden = false;
-  goTab(tab || BIDA.tab || 'event');
+  $('#landing').hidden = true; $('#app').hidden = false; document.body.classList.add('in-app');
+  goTab(tab || BIDA.tab || 'plan');
   requestAnimationFrame(renderAllBunting);
 }
 function showLanding() {
-  $('#landing').hidden = false; $('#app').hidden = true;
+  $('#landing').hidden = false; $('#app').hidden = true; document.body.classList.remove('in-app');
   requestAnimationFrame(renderAllBunting);
 }
 
 /* ---------- Tabs ---------- */
-const RENDER = {
-  event: renderEvent, program: renderProgram, script: renderScript,
-  games: renderGames, sounds: renderSounds, music: renderMusic
-};
+const RENDER = { plan: renderPlan, games: renderGames, sounds: renderSounds, music: renderMusic };
 function goTab(name) {
-  if (!RENDER[name]) name = 'event';
+  if (!RENDER[name]) name = 'plan';
   BIDA.tab = name; saveState();
   $$('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   $$('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   RENDER[name]();
   renderHead();
-  $('#app').classList.toggle('on-music', name === 'music');
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 }
 function renderHead() {
   const e = BIDA.event, et = eventType();
   $('#head-event').innerHTML = `<b>${esc(e.name || et.label)}</b>${e.date ? ' · ' + esc(fmtDate(e.date)) : ''} · ${fmtTime(toMin(e.start))}`;
+  const acct = $('#acct-btn');
+  if (acct) acct.classList.toggle('is-pro', !!BIDA.premium);
 }
 function fmtDate(d) {
   try { return new Date(d + 'T00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }); } catch (e) { return d; }
 }
 
 /* ============================================================
-   EVENT PANEL
+   PLAN PANEL — pick the event, get a simple activity list
    ============================================================ */
-function renderEvent() {
-  const e = BIDA.event;
-  $('#panel-event').innerHTML = `
-    <div class="panel-head"><div><span class="kicker">Step 1</span><h2>Anong handaan?</h2>
-      <p>Pumili ng event type — gagawa agad kami ng suggested program. Pwede mo itong baguhin pagkatapos.</p></div></div>
-    <div class="card stack">
-      <div class="etypes">${BIDA_EVENTS.map(t => `
-        <button class="etype ${t.id === e.type ? 'on' : ''}" onclick="pickEventType('${t.id}')" aria-pressed="${t.id === e.type}">
-          <b>${esc(t.label)}</b><span>${esc(t.tag)}</span></button>`).join('')}</div>
+const QUICK_ADD = ['opening', 'prayer', 'meal', 'game', 'raffle', 'gifts', 'speech', 'awards', 'cake', 'photo', 'toast', 'videoke', 'closing'];
+function renderPlan() {
+  const e = BIDA.event, times = segTimes(), end = toMin(e.start) + totalMin();
+  $('#panel-plan').innerHTML = `
+    <div class="plan-top">
+      <div class="field"><label for="ev-name">Event</label>
+        <input class="input" id="ev-name" placeholder="${esc(eventType().label)}" value="${esc(e.name)}" oninput="setEv('name',this.value)"></div>
+      <div class="field"><label for="ev-date">Petsa</label>
+        <input class="input" id="ev-date" type="date" value="${esc(e.date)}" oninput="setEv('date',this.value)"></div>
+      <div class="field"><label for="ev-start">Simula</label>
+        <input class="input" id="ev-start" type="time" value="${esc(e.start)}" onchange="setEv('start',this.value)"></div>
     </div>
-    <div class="card stack">
-      <h3>Mga detalye</h3>
-      <div class="grid-2">
-        <div class="field"><label for="ev-name">Pangalan ng event</label>
-          <input class="input" id="ev-name" placeholder="hal. Reunion ng Angkang Santos 2026" value="${esc(e.name)}" oninput="setEv('name',this.value)"></div>
-        <div class="field"><label for="ev-group">Pamilya / grupo</label>
-          <input class="input" id="ev-group" placeholder="hal. Pamilya Santos" value="${esc(e.group)}" oninput="setEv('group',this.value)"></div>
-        <div class="field"><label for="ev-host">Pangalan ng host</label>
-          <input class="input" id="ev-host" placeholder="hal. Tita Bing" value="${esc(e.host)}" oninput="setEv('host',this.value)"></div>
-        <div class="field"><label for="ev-date">Petsa</label>
-          <input class="input" id="ev-date" type="date" value="${esc(e.date)}" oninput="setEv('date',this.value)"></div>
-        <div class="field"><label for="ev-start">Simula ng program</label>
-          <input class="input" id="ev-start" type="time" value="${esc(e.start)}" oninput="setEv('start',this.value)"></div>
-      </div>
+    <div class="type-strip" role="radiogroup" aria-label="Uri ng event">${BIDA_EVENTS.map(t => `
+      <button class="type-chip ${t.id === e.type ? 'on' : ''}" role="radio" aria-checked="${t.id === e.type}" onclick="pickEventType('${t.id}')">${esc(t.label)}</button>`).join('')}</div>
+    <div class="plan-head">
+      <div><h2>Activities</h2><p class="muted">${BIDA.program.length} activities · ${fmtTime(toMin(e.start))} – ${fmtTime(end)} · ${fmtDur(totalMin())}</p></div>
+      <button class="btn btn--chili plan-live" onclick="openLive()">${ic('live')}Simulan</button>
     </div>
-    <div class="card" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">
-      <div><h3>${BIDA.program.length} segments · ${Math.floor(totalMin() / 60)}h ${totalMin() % 60}m</h3>
-      <p class="muted">Matatapos ng mga ${fmtTime(toMin(e.start) + totalMin())}</p></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn--ghost" onclick="goTab('program')">Tingnan ang program</button>
-        <button class="btn btn--magenta" onclick="goTab('script')">Tingnan ang host guide ${ic('arrow')}</button>
-      </div>
+    <ol class="act-list">${BIDA.program.map((s, i) => {
+      const k = BIDA_KINDS[s.kind] || BIDA_KINDS.opening, g = s.game && gameById(s.game);
+      return `<li class="act k-${k.color}">
+        <button class="act-main" onclick="editSeg(${s.id})" aria-label="Edit ${esc(s.title)}">
+          <span class="act-time">${fmtTime(times[i])}</span>
+          <span class="act-title">${esc(s.title)}</span>
+          <span class="act-min">${s.min} min${g ? ' · laro' : ''}</span>
+        </button>
+        ${g ? `<button class="act-game" onclick="openGame('${g.id}')" aria-label="How to play ${esc(g.name)}">${ic('games')}</button>` : ''}
+        <span class="act-move">
+          <button onclick="moveSeg(${i},-1)" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button>
+          <button onclick="moveSeg(${i},1)" aria-label="Move down" ${i === BIDA.program.length - 1 ? 'disabled' : ''}>${ic('down')}</button>
+        </span></li>`;
+    }).join('')}</ol>
+    <div class="plan-foot">
+      <button class="btn btn--ink" onclick="editSeg()">${ic('plus')}Dagdag activity</button>
+      <button class="btn btn--ghost" onclick="resetProgram()">I-reset</button>
     </div>`;
 }
 function setEv(k, v) {
   BIDA.event[k] = v; saveState(); renderHead();
-  if (k === 'start') renderEventSummaryOnly();
-}
-function renderEventSummaryOnly() { /* keep focus: only refresh end-time text lazily */
-  const p = $('#panel-event .card:last-child .muted');
-  if (p) p.textContent = 'Matatapos ng mga ' + fmtTime(toMin(BIDA.event.start) + totalMin());
+  if (k === 'start') renderPlan();
 }
 function pickEventType(id) {
   if (id === BIDA.event.type) return;
-  const edited = Object.keys(BIDA.scriptEdits).length > 0;
-  if (edited && !confirm('Papalitan nito ang program at ang mga notes mo sa bawat segment. Ituloy?')) return;
-  BIDA.event.type = id; buildProgram(id); saveState(); renderEvent(); renderHead();
-  toast(`Program para sa ${eventType().label} — handa na!`);
-}
-
-/* ============================================================
-   PROGRAM PANEL
-   ============================================================ */
-function renderProgram() {
-  const times = segTimes();
-  $('#panel-program').innerHTML = `
-    <div class="panel-head"><div><span class="kicker">Run of show</span><h2>Program</h2>
-      <p>Suggested para sa <b>${esc(eventType().label)}</b>. I-edit, ayusin ang pagkakasunod, o magdagdag.</p></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn--ghost btn--sm" onclick="resetProgram()">I-reset</button>
-        <button class="btn btn--ink btn--sm" onclick="editSeg()">${ic('plus')}Dagdag</button></div></div>
-    <div class="prog-summary">
-      <span class="pill">${ic('clock')}${fmtTime(toMin(BIDA.event.start))} – ${fmtTime(toMin(BIDA.event.start) + totalMin())}</span>
-      <span class="pill">${BIDA.program.length} segments</span>
-      <span class="pill">${BIDA.program.filter(s => s.kind === 'game').length} games</span>
-    </div>
-    <ol class="prog-list">${BIDA.program.map((s, i) => {
-      const k = BIDA_KINDS[s.kind] || BIDA_KINDS.opening, g = s.game && gameById(s.game);
-      return `<li class="seg k-${k.color}">
-        <div class="seg-time">${fmtTime(times[i]).replace(' ', '<br><small>') }</small></div>
-        <div class="seg-main"><span>${esc(k.label)} · ${s.min} min</span><b>${esc(s.title)}</b>
-          ${g ? `<button class="game-link" onclick="openGame('${g.id}')">${esc(g.name)} — how to play</button>` : ''}</div>
-        <div class="seg-actions">
-          <button class="icon-btn icon-btn--plain" onclick="moveSeg(${i},-1)" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button>
-          <button class="icon-btn icon-btn--plain" onclick="moveSeg(${i},1)" aria-label="Move down" ${i === BIDA.program.length - 1 ? 'disabled' : ''}>${ic('down')}</button>
-          <button class="icon-btn" onclick="editSeg(${s.id})" aria-label="Edit">${ic('edit')}</button>
-        </div></li>`;
-    }).join('')}</ol>
-    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn--chili" onclick="openLive()">${ic('live')}Simulan ang Live Host Mode</button>
-    </div>`;
+  if (!confirm(`Palitan ang activities ng suggested para sa ${eventType(id).label}?`)) return;
+  BIDA.event.type = id; buildProgram(id); saveState(); renderPlan(); renderHead();
+  toast(`Activities para sa ${eventType().label} — handa na!`);
 }
 function moveSeg(i, d) {
   const j = i + d; if (j < 0 || j >= BIDA.program.length) return;
-  const p = BIDA.program;[p[i], p[j]] = [p[j], p[i]]; saveState(); renderProgram();
+  const p = BIDA.program;[p[i], p[j]] = [p[j], p[i]]; saveState(); renderPlan();
 }
 function resetProgram() {
-  if (!confirm('I-reset ang program sa suggested ng ' + eventType().label + '?')) return;
-  buildProgram(BIDA.event.type); saveState(); renderProgram(); toast('Na-reset ang program');
+  if (!confirm('I-reset sa suggested activities ng ' + eventType().label + '?')) return;
+  buildProgram(BIDA.event.type); saveState(); renderPlan(); toast('Na-reset');
 }
+let segDraft = null;
 function editSeg(id) {
-  const s = id ? BIDA.program.find(x => x.id === id) : { kind: 'game', title: '', min: 15, game: '' };
+  const s = id ? BIDA.program.find(x => x.id === id) : null;
+  segDraft = s ? { ...s } : { kind: 'game', title: '', min: 15, game: '' };
   openSheet(`
-    <div class="sheet-head"><h3>${id ? 'I-edit ang segment' : 'Bagong segment'}</h3>
+    <div class="sheet-head"><h3>${id ? 'I-edit' : 'Dagdag activity'}</h3>
       <button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    ${id ? '' : `<span class="field-label">Pumili</span>
+    <div class="chips" style="margin:8px 0 16px">${QUICK_ADD.map(k => `<button class="chip ${k === segDraft.kind ? 'on' : ''}" onclick="pickKind('${k}',this)">${esc(BIDA_KINDS[k].label)}</button>`).join('')}</div>`}
     <div class="stack">
-      <div class="field"><label for="sg-title">Pamagat</label><input class="input" id="sg-title" value="${esc(s.title)}" placeholder="hal. Pa-raffle ni Tito Boy"></div>
-      <div class="grid-2">
-        <div class="field"><label for="sg-kind">Uri</label><select class="input" id="sg-kind" onchange="$('#sg-game-wrap').hidden=this.value!=='game'&&this.value!=='icebreak'">
-          ${Object.entries(BIDA_KINDS).map(([k, v]) => `<option value="${k}" ${k === s.kind ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></div>
-        <div class="field"><label for="sg-min">Minuto</label><input class="input" id="sg-min" type="number" min="1" max="300" value="${s.min}"></div>
-      </div>
-      <div class="field" id="sg-game-wrap" ${s.kind === 'game' || s.kind === 'icebreak' ? '' : 'hidden'}><label for="sg-game">Laro</label>
-        <select class="input" id="sg-game"><option value="">— Wala / sariling laro —</option>
-        ${BIDA_GAMES.map(g => `<option value="${g.id}" ${g.id === s.game ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>
+      <div class="field"><label for="sg-title">Pangalan</label><input class="input" id="sg-title" value="${esc(segDraft.title)}" placeholder="hal. Raffle ni Tito Boy"></div>
+      <div class="field"><label for="sg-min">Ilang minuto</label>
+        <div class="min-row">${[5, 10, 15, 20, 30, 45, 60].map(m => `<button class="chip ${+segDraft.min === m ? 'on' : ''}" onclick="pickMin(${m},this)">${m}</button>`).join('')}
+        <input class="input" id="sg-min" type="number" min="1" max="300" value="${segDraft.min}" aria-label="Minuto"></div></div>
+      <div class="field" id="sg-game-wrap" ${segDraft.kind === 'game' || segDraft.kind === 'icebreak' ? '' : 'hidden'}><label for="sg-game">Laro</label>
+        <select class="input" id="sg-game" onchange="if(this.value&&!$('#sg-title').value)$('#sg-title').value=this.options[this.selectedIndex].text">
+          <option value="">— Sariling laro —</option>
+          ${BIDA_GAMES.map(g => `<option value="${g.id}" ${g.id === segDraft.game ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>
     </div>
     <div class="sheet-actions">
       ${id ? `<button class="btn btn--ghost" onclick="deleteSeg(${id})">${ic('trash')}Tanggalin</button>` : ''}
       <button class="btn btn--ink" onclick="saveSeg(${id || 0})">I-save</button>
     </div>`);
-  setTimeout(() => $('#sg-title')?.focus(), 50);
+  setTimeout(() => $('#sg-title')?.focus(), 60);
+}
+function pickKind(k, el) {
+  segDraft.kind = k;
+  $$('#sheet .chips .chip').forEach(c => c.classList.toggle('on', c === el));
+  $('#sg-game-wrap').hidden = !(k === 'game' || k === 'icebreak');
+  const t = $('#sg-title'); if (!t.value || QUICK_ADD.some(q => BIDA_KINDS[q].label === t.value)) t.value = k === 'game' ? '' : BIDA_KINDS[k].label;
+}
+function pickMin(m, el) {
+  $('#sg-min').value = m;
+  $$('#sheet .min-row .chip').forEach(c => c.classList.toggle('on', c === el));
 }
 function saveSeg(id) {
-  const kind = $('#sg-kind').value, game = (kind === 'game' || kind === 'icebreak') ? $('#sg-game').value : '';
+  const kind = segDraft.kind, game = (kind === 'game' || kind === 'icebreak') ? $('#sg-game').value : '';
   let title = $('#sg-title').value.trim();
   if (!title) title = game ? gameById(game).name : BIDA_KINDS[kind].label;
   const min = clamp(parseInt($('#sg-min').value, 10) || 5, 1, 300);
-  if (id) {
-    const s = BIDA.program.find(x => x.id === id);
-    if (s.kind !== kind || s.game !== game) delete BIDA.scriptEdits[id];
-    Object.assign(s, { kind, title, min, game });
-  } else BIDA.program.push({ id: BIDA.nextId++, kind, title, min, game });
-  saveState(); closeSheet(); renderProgram(); toast('Na-save!');
+  if (id) Object.assign(BIDA.program.find(x => x.id === id), { kind, title, min, game });
+  else BIDA.program.push({ id: BIDA.nextId++, kind, title, min, game });
+  saveState(); closeSheet(); renderPlan(); toast('Na-save!');
 }
 function deleteSeg(id) {
-  BIDA.program = BIDA.program.filter(s => s.id !== id); delete BIDA.scriptEdits[id];
-  saveState(); closeSheet(); renderProgram(); toast('Natanggal ang segment');
-}
-
-/* ============================================================
-   HOST GUIDE PANEL — what to do / cover / energy, not a script.
-   BIDA.scriptEdits now holds the host's own notes per segment.
-   ============================================================ */
-const TONE_ORDER = ['formal', 'serious', 'friendly', 'jolly'];
-function guideFor(seg) { return BIDA_GUIDE[seg.kind] || BIDA_GUIDE.opening; }
-function activeTones() {
-  const t = TONE_ORDER.filter(x => BIDA.tones.includes(x));
-  return t.length ? t : ['friendly'];
-}
-function samplesFor(seg) {
-  const s = guideFor(seg).sample || {}, out = [];
-  activeTones().forEach(t => { if (s[t]) out.push([t, fillVars(s[t], { title: seg.title })]); });
-  if (!out.length) { const k = Object.keys(s)[0]; if (k) out.push([k, fillVars(s[k], { title: seg.title })]); }
-  return out.slice(0, 2);
-}
-function toneLabel(id) { return (BIDA_TONES.find(t => t.id === id) || {}).label || id; }
-function segueTip(i) {
-  const prev = BIDA.program[i - 1], cur = BIDA.program[i];
-  return prev ? `Pagpasok: isang linya ng recap sa “${prev.title}”, tapos bakit dapat abangan ang “${cur.title}”.` : '';
-}
-function guideBlock(seg, i, { compact = false } = {}) {
-  const g = guideFor(seg), game = seg.game && gameById(seg.game), st = g.style && BIDA_STYLES[g.style];
-  const list = (title, icon, items, cls) => items?.length ? `<div class="g-col ${cls}"><div class="g-h">${ic(icon)}${title}</div><ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
-  const say = [...g.say];
-  if (game) say.push(`Rules ng ${game.name}: ${game.steps.slice(0, 3).join(' ')}`);
-  const doList = [...g.do];
-  if (game) doList.unshift('Ihanda: ' + game.materials.join(', '));
-  const segue = segueTip(i);
-  return `
-    <p class="g-goal">${ic('star')}<span>${esc(g.goal)}</span></p>
-    ${segue ? `<p class="g-segue">${ic('arrow')}<span>${esc(segue)}</span></p>` : ''}
-    <div class="g-cols">
-      ${list('Gawin', 'box', doList, 'c-do')}
-      ${list('Sabihin (sa sariling salita)', 'mic', say, 'c-say')}
-      ${list('Energy moves', 'live', g.energy, 'c-energy')}
-    </div>
-    ${samplesFor(seg).map(([t, line]) => `<div class="g-sample"><small>Halimbawa · ${esc(toneLabel(t))} — gawing sarili mo</small>“${esc(line)}”</div>`).join('')}
-    ${st && !compact ? `<div class="g-style"><b>Style tip — gaya ni ${esc(st.name)}:</b> <i>${esc(st.move)}.</i> ${esc(st.what)}</div>` : ''}
-    ${game && !compact ? `<button class="game-link" onclick="openGame('${game.id}')">${ic('games')}${esc(game.name)} — buong how-to at animation</button>` : ''}`;
-}
-function renderScript() {
-  const times = segTimes();
-  $('#panel-script').innerHTML = `
-    <div class="panel-head"><div><span class="kicker">Host guide</span><h2>Paano mag-host</h2>
-      <p>Hindi ito script na babasahin. Bawat bahagi: ano ang gagawin, ano ang sasabihin sa sariling salita, at paano panatilihing buhay ang energy.</p></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn--gold btn--sm" onclick="openToolbox()">${ic('live')}Energy toolbox</button>
-        <button class="btn btn--ghost btn--sm" onclick="copyScript()">${ic('copy')}Copy guide</button></div></div>
-    <details class="card rules" ${BIDA.rulesOpen === false ? '' : 'open'} ontoggle="BIDA.rulesOpen=this.open;saveState()">
-      <summary><h3>7 golden rules ng magaling na host</h3></summary>
-      <ol class="rule-list">${BIDA_RULES.map(r => `<li><b>${esc(r.t)}</b><span>${esc(r.d)}</span></li>`).join('')}</ol>
-    </details>
-    <div class="card" style="margin:16px 0 18px">
-      <span class="field-label" style="display:block;margin-bottom:10px">Vibe ng event — para sa mga halimbawang linya</span>
-      <div class="chips">${BIDA_TONES.map(t => `
-        <label class="chip ${BIDA.tones.includes(t.id) ? 'on' : ''}" title="${esc(t.hint)}">
-          <input type="checkbox" ${BIDA.tones.includes(t.id) ? 'checked' : ''} onchange="toggleTone('${t.id}',this.checked)">
-          <span class="tick"></span>${esc(t.label)}</label>`).join('')}</div>
-    </div>
-    <div id="script-list">${BIDA.program.map((s, i) => {
-      const k = BIDA_KINDS[s.kind] || BIDA_KINDS.opening;
-      return `<article class="guide-seg ks-${k.color}">
-        <header><b>${i + 1}. ${esc(s.title)}</b><small>${esc(k.label)} · ${fmtTime(times[i])} · ${s.min} min</small></header>
-        <div class="g-body">${guideBlock(s, i)}
-          <label class="g-notes"><span>Sariling notes / linya mo</span>
-            <textarea class="input" rows="2" placeholder="hal. Banggitin si Tito Ben na galing Dubai" oninput="editScript(${s.id},this)">${esc(BIDA.scriptEdits[s.id] || '')}</textarea></label>
-        </div></article>`;
-    }).join('')}</div>
-    <p class="muted" style="margin-top:20px">Batay sa payo ng mga Pinoy emcee at MC guides. Ang style tips ay paglalarawan ng kilalang galaw ng mga sikat na host — hindi sila ang sumulat nito.</p>`;
-}
-function toggleTone(id, on) {
-  BIDA.tones = on ? [...new Set([...BIDA.tones, id])] : BIDA.tones.filter(t => t !== id);
-  saveState(); renderScript();
-}
-let editT;
-function editScript(id, el) {
-  if (el.value.trim()) BIDA.scriptEdits[id] = el.value; else delete BIDA.scriptEdits[id];
-  clearTimeout(editT); editT = setTimeout(saveState, 400);
-}
-function openToolbox() {
-  openSheet(`
-    <div class="sheet-head"><h3>Energy toolbox</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-    <p class="muted" style="margin-bottom:12px">Pag humina ang kwarto, pumili ng isa. Lahat ay wala pang 2 minuto.</p>
-    <div class="tool-grid">${BIDA_ENERGY.map(e => `<div class="tool"><b>${esc(e.name)}</b><small>${esc(e.time)}</small><p>${esc(e.how)}</p></div>`).join('')}</div>
-    <div class="sec-title">${ic('lock')}Pag may aberya</div>
-    <div class="host-lines">${BIDA_RESCUE.map(r => `<div class="host-line"><small>${esc(r.t)}</small>${esc(r.d)}</div>`).join('')}</div>`);
-}
-function copyScript() {
-  const times = segTimes();
-  const txt = BIDA.program.map((s, i) => {
-    const g = guideFor(s), smp = samplesFor(s).map(([, l]) => `  Halimbawa: “${l}”`).join('\n');
-    return `${fmtTime(times[i])} — ${s.title}\n  Goal: ${g.goal}\n  Gawin: ${g.do.join('; ')}\n  Sabihin: ${g.say.join('; ')}\n  Energy: ${g.energy.join('; ')}${smp ? '\n' + smp : ''}${BIDA.scriptEdits[s.id] ? '\n  Notes: ' + BIDA.scriptEdits[s.id] : ''}`;
-  }).join('\n\n');
-  navigator.clipboard?.writeText(txt).then(() => toast('Na-copy ang host guide'), () => toast('Hindi ma-copy — i-select na lang'));
+  BIDA.program = BIDA.program.filter(s => s.id !== id);
+  saveState(); closeSheet(); renderPlan(); toast('Natanggal');
 }
 
 /* ============================================================
@@ -620,8 +489,8 @@ function gameMatch(g) {
 function renderGames() {
   const list = BIDA_GAMES.filter(gameMatch);
   $('#panel-games').innerHTML = `
-    <div class="panel-head"><div><span class="kicker">Games library</span><h2>Mga Laro</h2>
-      <p>Bawat laro ay may animated how-to, kailangang gamit, steps at linya para sa host.</p></div></div>
+    <div class="panel-head"><div><h2>Mga Laro</h2>
+      <p>Animated how-to, kailangang gamit at steps. Tap para makita, idagdag sa activities.</p></div></div>
     <div class="game-filters">${GAME_FILTERS.map(([id, l]) => `<button class="chip ${gameFilter === id ? 'on' : ''}" onclick="setGameFilter('${id}')">${l}</button>`).join('')}</div>
     <div class="game-grid">${list.map(g => `
       <button class="gcard" onclick="openGame('${g.id}')">
@@ -648,15 +517,8 @@ function openGame(id) {
     <div class="sec-title" style="justify-content:space-between"><span style="display:flex;gap:8px;align-items:center">${ic('program')}Paano laruin</span>
       <button class="btn btn--gold btn--sm" id="step-play" onclick="playSteps()">${ic('play')}Play steps</button></div>
     <ol class="gd-steps" id="gd-steps">${g.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
-    <div class="sec-title">${ic('mic')}Mga puwedeng sabihin — gawing sarili mo</div>
-    <div class="host-lines">
-      <div class="host-line"><small>Pagtawag</small>${esc(g.script.intro)}</div>
-      <div class="host-line"><small>Mechanics</small>${esc(g.script.rules)}</div>
-      <div class="host-line"><small>Habang naglalaro</small>${esc(g.script.during)}</div>
-      <div class="host-line"><small>Pagtatapos</small>${esc(g.script.end)}</div>
-    </div>
     ${g.tips?.length ? `<div class="sec-title">${ic('star')}Tips</div><ul class="mat-list">${g.tips.map(t => `<li>• ${esc(t)}</li>`).join('')}</ul>` : ''}
-    <div class="sheet-actions"><button class="btn btn--magenta" onclick="addGameToProgram('${id}')">${ic('plus')}Idagdag sa program</button></div>`);
+    <div class="sheet-actions"><button class="btn btn--magenta" onclick="addGameToProgram('${id}')">${ic('plus')}Idagdag sa activities</button></div>`);
   watchScenes($('#sheet'));
 }
 function playSteps() {
@@ -679,159 +541,66 @@ function addGameToProgram(id) {
   let at = BIDA.program.findIndex(s => s.kind === 'closing' || s.kind === 'videoke' || s.kind === 'photo');
   if (at < 0) at = BIDA.program.length;
   BIDA.program.splice(at, 0, { id: BIDA.nextId++, kind: 'game', title: g.name, min: Math.max(m, 10), game: id });
-  saveState(); closeSheet(); toast(`${g.name} — nadagdag sa program!`);
+  saveState(); closeSheet(); toast(`${g.name} — nadagdag sa activities!`);
 }
 
+
 /* ============================================================
-   SOUND ENGINE (Web Audio — built-in sounds are synthesized,
-   so there are no copyrighted clips)
+   SOUND PADS — 20 default sounds loaded from /sounds/*.mp3
+   (see sounds/README.md for the exact file names) + uploads.
+   Free: first BIDA_CONFIG.freeSounds defaults, freeUploads uploads.
    ============================================================ */
 let AC = null, SFX_BUS = null, MUSIC_BUS = null;
 function ac() {
   if (!AC) {
     AC = new (window.AudioContext || window.webkitAudioContext)();
-    SFX_BUS = AC.createGain(); SFX_BUS.gain.value = .9; SFX_BUS.connect(AC.destination);
+    SFX_BUS = AC.createGain(); SFX_BUS.gain.value = .95; SFX_BUS.connect(AC.destination);
     MUSIC_BUS = AC.createGain(); MUSIC_BUS.gain.value = BIDA.music.master; MUSIC_BUS.connect(AC.destination);
   }
   if (AC.state === 'suspended') AC.resume();
   return AC;
 }
-function noiseBuf(sec = 1) {
-  const a = ac(), b = a.createBuffer(1, a.sampleRate * sec, a.sampleRate), d = b.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  return b;
-}
-let NOISE;
-function noise(t, dur, { type = 'bandpass', f = 1000, q = 1, g = .5, a = .005, out } = {}) {
-  const x = ac(); NOISE = NOISE || noiseBuf(2);
-  const src = x.createBufferSource(); src.buffer = NOISE; src.loop = true;
-  const fl = x.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
-  const gn = x.createGain(); gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(g, t + a); gn.gain.exponentialRampToValueAtTime(.0008, t + dur);
-  src.connect(fl).connect(gn).connect(out || SFX_BUS); src.start(t, Math.random()); src.stop(t + dur + .05);
-  return { src, fl, gn };
-}
-function tone(t, dur, { type = 'sine', f = 440, f2, g = .4, a = .005, out, curve = 'exp' } = {}) {
-  const x = ac(), o = x.createOscillator(), gn = x.createGain();
-  o.type = type; o.frequency.setValueAtTime(f, t);
-  if (f2) curve === 'lin' ? o.frequency.linearRampToValueAtTime(f2, t + dur) : o.frequency.exponentialRampToValueAtTime(f2, t + dur);
-  gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(g, t + a); gn.gain.exponentialRampToValueAtTime(.0008, t + dur);
-  o.connect(gn).connect(out || SFX_BUS); o.start(t); o.stop(t + dur + .05);
-  return { o, gn };
-}
-function voice(t, dur, { f = 220, f2, formants = [[800, 6], [1150, 8], [2900, 10]], g = .5, vib = 0, breath = .08, env } = {}) {
-  const x = ac(), o = x.createOscillator(); o.type = 'sawtooth';
-  o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
-  if (vib) { const l = x.createOscillator(), lg = x.createGain(); l.frequency.value = 5.5; lg.gain.value = vib; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur + .05); }
-  const mix = x.createGain(); mix.gain.value = 1;
-  const gn = x.createGain(); gn.gain.setValueAtTime(0, t);
-  (env || [[.02, g], [dur * .6, g * .8], [dur, .0008]]).forEach(([tt, v]) => v > .001 ? gn.gain.linearRampToValueAtTime(v, t + tt) : gn.gain.exponentialRampToValueAtTime(v, t + tt));
-  formants.forEach(([ff, q], i) => {
-    const bp = x.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = ff; bp.Q.value = q;
-    const fg = x.createGain(); fg.gain.value = [1, .6, .25][i] || .2; o.connect(bp).connect(fg).connect(mix);
-  });
-  mix.connect(gn).connect(SFX_BUS); o.start(t); o.stop(t + dur + .05);
-  if (breath) noise(t, dur * .7, { f: 1500, q: .6, g: breath, a: .02 });
-}
 
-const SYNTHS = {
-  boink(t) {
-    const x = ac(), o = x.createOscillator(), g = x.createGain(), l = x.createOscillator(), lg = x.createGain();
-    o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(520, t + .08); o.frequency.exponentialRampToValueAtTime(220, t + .55);
-    l.frequency.setValueAtTime(28, t); l.frequency.linearRampToValueAtTime(10, t + .55); lg.gain.setValueAtTime(70, t); lg.gain.linearRampToValueAtTime(10, t + .55);
-    l.connect(lg).connect(o.frequency);
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.55, t + .01); g.gain.exponentialRampToValueAtTime(.001, t + .6);
-    o.connect(g).connect(SFX_BUS); o.start(t); l.start(t); o.stop(t + .65); l.stop(t + .65);
-  },
-  drumroll(t) {
-    for (let i = 0; i < 64; i++) { const tt = t + i * .028; noise(tt, .05, { f: 900 + i * 6, q: 1.2, g: .08 + i * .006 }); }
-    tone(t + 1.82, .4, { f: 110, f2: 45, g: .8 }); noise(t + 1.82, 1.4, { type: 'highpass', f: 5000, g: .35 });
-  },
-  badum(t) {
-    tone(t, .18, { f: 200, f2: 120, g: .7 }); noise(t, .06, { f: 2000, g: .2 });
-    tone(t + .2, .2, { f: 150, f2: 90, g: .7 }); noise(t + .2, .06, { f: 1800, g: .2 });
-    noise(t + .48, 1, { type: 'highpass', f: 6000, g: .4 }); tone(t + .48, .12, { f: 60, f2: 40, g: .7 });
-  },
-  airhorn(t) {
-    const x = ac(), lp = x.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.connect(SFX_BUS);
-    [[0, .22], [.28, .22], [.56, 1]].forEach(([s, d]) => [466, 470, 233, 699].forEach((f, i) =>
-      tone(t + s, d, { type: 'sawtooth', f, f2: f * .97, g: [.16, .16, .12, .05][i], a: .015, out: lp })));
-  },
-  ding(t) {
-    [[0, 1318.5], [.22, 1661.2]].forEach(([s, f]) => { tone(t + s, 1.1, { f, g: .4 }); tone(t + s, .8, { f: f * 2.01, g: .1 }); tone(t + s, .5, { f: f * 3, g: .04 }); });
-  },
-  buzzer(t) {
-    const x = ac(), lp = x.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; lp.connect(SFX_BUS);
-    tone(t, .75, { type: 'square', f: 98, g: .28, a: .01, out: lp }); tone(t, .75, { type: 'sawtooth', f: 104, g: .2, a: .01, out: lp });
-  },
-  tada(t) {
-    const x = ac(), lp = x.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(1200, t); lp.frequency.linearRampToValueAtTime(4200, t + .3); lp.connect(SFX_BUS);
-    [392, 493.9].forEach(f => tone(t, .14, { type: 'sawtooth', f, g: .12, out: lp }));
-    [523.3, 659.3, 784, 1046.5].forEach(f => tone(t + .16, 1.3, { type: 'sawtooth', f, g: .1, a: .02, out: lp }));
-    noise(t + .16, .9, { type: 'highpass', f: 7000, g: .12 });
-  },
-  crickets(t) {
-    for (let c = 0; c < 4; c++) for (let p = 0; p < 3; p++) tone(t + c * .55 + p * .06, .045, { f: 4400, g: .12, a: .004 });
-  },
-  slideup(t) { tone(t, .65, { type: 'triangle', f: 380, f2: 1800, g: .35, a: .03 }); },
-  slidedown(t) { tone(t, .75, { type: 'triangle', f: 1700, f2: 300, g: .35, a: .03 }); },
-  pop(t) { tone(t, .08, { f: 900, f2: 120, g: .6 }); noise(t, .03, { f: 3000, g: .3 }); },
-  whoosh(t) {
-    const n = noise(t, 1, { f: 300, q: 2.5, g: .5, a: .3 });
-    n.fl.frequency.setValueAtTime(300, t); n.fl.frequency.exponentialRampToValueAtTime(3500, t + .45); n.fl.frequency.exponentialRampToValueAtTime(500, t + 1);
-  },
-  applause(t) {
-    for (let i = 0; i < 110; i++) {
-      const tt = t + Math.random() * 2.6, sw = Math.min(1, (tt - t) / .5) * (tt - t > 2 ? Math.max(0, 1 - (tt - t - 2) / .6) : 1);
-      noise(tt, .035, { f: 1200 + Math.random() * 1800, q: 1.4, g: .25 * sw + .02, a: .001 });
-    }
-  },
-  laugh(t) {
-    for (let i = 0; i < 7; i++) voice(t + i * .17, .14, { f: 330 - i * 14, f2: 290 - i * 14, formants: [[750, 5], [1250, 7], [2700, 9]], g: .5 - i * .04, breath: .1, env: [[.012, .5 - i * .04], [.14, .0008]] });
-  },
-  giggle(t) {
-    for (let i = 0; i < 9; i++) voice(t + i * .1, .085, { f: 560 + (i % 2) * 40, f2: 520, formants: [[320, 6], [2300, 10], [3000, 12]], g: .4, breath: .07, env: [[.008, .4], [.085, .0008]] });
-  },
-  faah(t) {
-    noise(t, .2, { type: 'highpass', f: 2800, g: .22, a: .04 });
-    voice(t + .14, 1.25, { f: 250, f2: 150, vib: 6, formants: [[820, 6], [1180, 8], [2800, 10]], g: .55, breath: .06, env: [[.08, .55], [.6, .5], [1.25, .0008]] });
-  },
-  kaching(t) {
-    noise(t, .05, { f: 4000, g: .3 }); [2093, 2637, 3136].forEach((f, i) => tone(t + .06 + i * .03, .9, { f, g: .12 }));
-    tone(t + .02, .05, { type: 'square', f: 300, g: .1 });
-  },
-  dundun(t) {
-    const x = ac(), lp = x.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.connect(SFX_BUS);
-    [[0, .3, 146.8], [.38, .3, 146.8], [.76, 1.6, 138.6]].forEach(([s, d, f]) => [f, f * 2, f * 1.5].forEach((ff, i) =>
-      tone(t + s, d, { type: 'sawtooth', f: ff, g: [.28, .1, .08][i], a: .01, out: lp })));
-    tone(t + .76, 1.6, { f: 55, g: .4 });
-  },
-  countdown(t) {
-    [0, 1, 2].forEach(i => tone(t + i * .9, .18, { type: 'square', f: 880, g: .14 }));
-    tone(t + 2.7, .7, { type: 'square', f: 1760, g: .14 });
-  }
-};
-const BUILTIN_SOUNDS = [
-  { id: 'boink', name: 'Boink', tag: 'Boing!', c: 'gold', free: true },
-  { id: 'laugh', name: 'Tawa', tag: 'Ha-ha-ha', c: 'magenta' },
-  { id: 'giggle', name: 'Giggle', tag: 'Hi-hi-hi', c: 'magenta' },
-  { id: 'faah', name: 'Faah', tag: 'Dramatic', c: 'chili' },
-  { id: 'drumroll', name: 'Drumroll', tag: 'Raffle!', c: 'turq' },
-  { id: 'badum', name: 'Ba-dum-tss', tag: 'Joke', c: 'gold' },
-  { id: 'airhorn', name: 'Air horn', tag: 'Hype', c: 'chili' },
-  { id: 'ding', name: 'Ding ding', tag: 'Tama!', c: 'leaf', free: true },
-  { id: 'buzzer', name: 'Buzzer', tag: 'Mali!', c: 'chili', free: true },
-  { id: 'tada', name: 'Ta-da!', tag: 'Winner', c: 'gold' },
-  { id: 'crickets', name: 'Kuliglig', tag: 'Awkward…', c: 'leaf' },
-  { id: 'applause', name: 'Palakpak', tag: 'Applause', c: 'turq' },
-  { id: 'slideup', name: 'Slide up', tag: 'Wheee', c: 'turq' },
-  { id: 'slidedown', name: 'Slide down', tag: 'Fail', c: 'magenta' },
-  { id: 'pop', name: 'Pop', tag: 'Lobo', c: 'paper' },
-  { id: 'whoosh', name: 'Whoosh', tag: 'Transition', c: 'paper' },
-  { id: 'kaching', name: 'Ka-ching', tag: 'Premyo', c: 'gold' },
-  { id: 'dundun', name: 'Dun dun DUN', tag: 'Suspense', c: 'chili' },
-  { id: 'countdown', name: 'Countdown', tag: '3-2-1', c: 'leaf' }
-];
+// The file name is the contract: put exactly these files in /sounds.
+const DEFAULT_SOUNDS = [
+  { file: '01-boink.mp3',     name: 'Boink',        c: 'gold' },
+  { file: '02-tawa.mp3',      name: 'Tawa',         c: 'magenta' },
+  { file: '03-faah.mp3',      name: 'Faah',         c: 'chili' },
+  { file: '04-drumroll.mp3',  name: 'Drumroll',     c: 'turq' },
+  { file: '05-palakpak.mp3',  name: 'Palakpak',     c: 'leaf' },
+  { file: '06-badumtss.mp3',  name: 'Ba-dum-tss',   c: 'gold' },
+  { file: '07-airhorn.mp3',   name: 'Air horn',     c: 'chili' },
+  { file: '08-tama.mp3',      name: 'Tama! (ding)', c: 'leaf' },
+  { file: '09-mali.mp3',      name: 'Mali! (buzzer)', c: 'chili' },
+  { file: '10-tada.mp3',      name: 'Ta-da!',       c: 'gold' },
+  { file: '11-kuliglig.mp3',  name: 'Kuliglig',     c: 'leaf' },
+  { file: '12-giggle.mp3',    name: 'Giggle',       c: 'magenta' },
+  { file: '13-bruh.mp3',      name: 'Bruh',         c: 'paper' },
+  { file: '14-wahwah.mp3',    name: 'Wah-wah',      c: 'turq' },
+  { file: '15-wow.mp3',       name: 'Wow',          c: 'magenta' },
+  { file: '16-dundun.mp3',    name: 'Dun dun DUN',  c: 'chili' },
+  { file: '17-kaching.mp3',   name: 'Ka-ching',     c: 'gold' },
+  { file: '18-whoosh.mp3',    name: 'Whoosh',       c: 'paper' },
+  { file: '19-pop.mp3',       name: 'Pop',          c: 'turq' },
+  { file: '20-countdown.mp3', name: 'Countdown',    c: 'leaf' }
+].map((s, i) => ({ ...s, id: 'd' + (i + 1), n: i + 1 }));
+const SOUND_DIR = 'sounds/';
+const SND_OK = {};            // id → true (file exists) / false (missing)
+const BUF_CACHE = {};
 const PAD_KEYS = '1234567890qwertyuiopasdfghjkl'.split('');
+
+async function probeDefaults() {
+  await Promise.all(DEFAULT_SOUNDS.map(async s => {
+    if (s.id in SND_OK) return;
+    try {
+      const r = await fetch(SOUND_DIR + s.file, { cache: 'force-cache' });
+      if (!r.ok) { SND_OK[s.id] = false; return; }
+      const buf = await r.arrayBuffer();
+      SND_OK[s.id] = true;
+      ac().decodeAudioData(buf.slice(0)).then(b => { BUF_CACHE[s.id] = b; }).catch(() => { SND_OK[s.id] = false; });
+    } catch (e) { SND_OK[s.id] = false; }
+  }));
+}
 
 /* ---- custom sounds: IndexedDB ---- */
 let DB;
@@ -846,68 +615,90 @@ function db() {
 function dbAll() { return db().then(d => new Promise(res => { const q = d.transaction('sounds').objectStore('sounds').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); })); }
 function dbPut(o) { return db().then(d => new Promise(res => { const tx = d.transaction('sounds', 'readwrite'); tx.objectStore('sounds').put(o); tx.oncomplete = res; })); }
 function dbDel(id) { return db().then(d => new Promise(res => { const tx = d.transaction('sounds', 'readwrite'); tx.objectStore('sounds').delete(id); tx.oncomplete = res; })); }
-let CUSTOM = [];          // [{id,name,blob,c}]
-const BUF_CACHE = {};
-async function loadCustom() { try { CUSTOM = await dbAll(); } catch (e) { CUSTOM = []; } }
-async function playCustom(s) {
-  const x = ac();
-  if (!BUF_CACHE[s.id]) BUF_CACHE[s.id] = await x.decodeAudioData(await s.blob.arrayBuffer());
-  const src = x.createBufferSource(); src.buffer = BUF_CACHE[s.id]; src.connect(SFX_BUS); src.start();
+let CUSTOM = [];          // [{id,name,blob,c,created}]
+async function loadCustom() { try { CUSTOM = (await dbAll()).sort((a, b) => (a.created || 0) - (b.created || 0)); } catch (e) { CUSTOM = []; } }
+
+function soundEntry(id) {
+  const d = DEFAULT_SOUNDS.find(s => s.id === id);
+  if (d) return { ...d, kind: 'default' };
+  const ci = CUSTOM.findIndex(s => s.id === id);
+  return ci >= 0 ? { ...CUSTOM[ci], kind: 'custom', idx: ci } : null;
 }
 function canPlaySound(id) {
   if (BIDA.premium) return true;
-  const b = BUILTIN_SOUNDS.find(s => s.id === id); return !!(b && b.free);
+  const s = soundEntry(id); if (!s) return false;
+  return s.kind === 'default' ? s.n <= BIDA_CONFIG.freeSounds : s.idx < BIDA_CONFIG.freeUploads;
 }
-function playSound(id, padEl) {
-  if (!canPlaySound(id)) { openPremium('Sound Lab'); return; }
-  const x = ac();
-  if (SYNTHS[id]) SYNTHS[id](x.currentTime + .01);
-  else { const c = CUSTOM.find(s => s.id === id); if (c) playCustom(c).catch(() => toast('Hindi ma-play ang file')); }
+async function playSound(id, padEl) {
+  if (!canPlaySound(id)) { openPremium('Sound pads'); return; }
   if (padEl) { padEl.classList.add('hit'); setTimeout(() => padEl.classList.remove('hit'), 120); }
+  const x = ac();
+  try {
+    if (!BUF_CACHE[id]) {
+      const s = soundEntry(id);
+      const ab = s.kind === 'default' ? await (await fetch(SOUND_DIR + s.file)).arrayBuffer() : await s.blob.arrayBuffer();
+      BUF_CACHE[id] = await x.decodeAudioData(ab);
+    }
+    const src = x.createBufferSource(); src.buffer = BUF_CACHE[id]; src.connect(SFX_BUS); src.start();
+  } catch (e) { toast('Hindi ma-play ang sound na ito'); }
+}
+function padList() {
+  const defs = DEFAULT_SOUNDS.filter(s => SND_OK[s.id]).map(s => ({ id: s.id, name: s.name, c: s.c, kind: 'default' }));
+  const cust = CUSTOM.map(s => ({ id: s.id, name: s.name, c: s.c || 'paper', kind: 'custom' }));
+  return [...defs, ...cust];
 }
 function padsHTML(limit) {
-  const all = [...BUILTIN_SOUNDS.map(s => ({ ...s, builtin: true })), ...CUSTOM.map(s => ({ id: s.id, name: s.name, tag: 'Sarili mo', c: s.c || 'paper' }))];
-  const list = limit ? all.slice(0, limit) : all;
-  return list.map((s, i) => `<button class="pad pc-${s.c} ${canPlaySound(s.id) ? '' : 'disabled'}" data-sid="${s.id}" onpointerdown="event.preventDefault();playSound('${s.id}',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playSound('${s.id}',this)}">
+  const list = limit ? padList().slice(0, limit) : padList();
+  return list.map((s, i) => {
+    const ok = canPlaySound(s.id);
+    return `<button class="pad pc-${s.c} ${ok ? '' : 'disabled'}" data-sid="${s.id}" onpointerdown="event.preventDefault();playSound('${s.id}',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playSound('${s.id}',this)}">
       ${PAD_KEYS[i] ? `<span class="pad-key">${PAD_KEYS[i].toUpperCase()}</span>` : ''}
-      ${!canPlaySound(s.id) ? `<svg class="ic" style="width:16px;height:16px;position:absolute;top:6px;right:8px"><use href="#i-lock"/></svg>` : ''}
-      ${s.builtin ? '' : `<span class="pad-del" role="button" aria-label="Delete ${esc(s.name)}" onpointerdown="event.stopPropagation();event.preventDefault();delSound('${s.id}')">${ic('trash')}</span>`}
-      ${esc(s.name)}<small>${esc(s.tag)}</small></button>`).join('');
+      ${ok ? '' : `<svg class="ic pad-lock"><use href="#i-lock"/></svg>`}
+      ${s.kind === 'custom' ? `<span class="pad-del" role="button" aria-label="Delete ${esc(s.name)}" onpointerdown="event.stopPropagation();event.preventDefault();delSound('${s.id}')">${ic('trash')}</span>` : ''}
+      <span class="pad-name">${esc(s.name)}</span></button>`;
+  }).join('');
 }
-function renderSounds() {
+function uploadsLeft() { return BIDA.premium ? Infinity : Math.max(0, BIDA_CONFIG.freeUploads - CUSTOM.length); }
+async function renderSounds() {
+  const missing = DEFAULT_SOUNDS.filter(s => SND_OK[s.id] === false);
+  const left = uploadsLeft();
   $('#panel-sounds').innerHTML = `
-    <div class="panel-head"><div><span class="kicker">Sound Lab <span class="badge-pro">${ic('star')}Premium</span></span><h2>Sound effects</h2>
-      <p>Pindutin para tumunog — o gamitin ang keyboard (1–0, Q–P). Ang mga built-in ay ginawa ng app mismo, kaya walang copyright issue.</p></div></div>
-    ${BIDA.premium ? '' : lockBanner('Sound Lab', 'Libre ang Boink, Ding at Buzzer. I-unlock ang lahat + sariling sounds.')}
+    <div class="panel-head"><div><h2>Sound pads</h2>
+      <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : `Libre ang unang ${BIDA_CONFIG.freeSounds} sounds at ${BIDA_CONFIG.freeUploads} sariling upload.`}</p></div>
+      ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}I-unlock lahat</button>`}</div>
     <div class="pads" id="pads">${padsHTML()}
-      <button class="pad pad--add" onclick="${BIDA.premium ? `$('#snd-file').click()` : `openPremium('Sound Lab')`}">${ic('upload')}Upload<small>mp3 · wav · m4a</small></button></div>
+      <button class="pad pad--add" onclick="addSoundClick()">${ic('upload')}<span class="pad-name">Upload</span>
+        <small>${left === Infinity ? 'mp3 · m4a · wav' : left ? `${left} libre pa` : 'Premium'}</small></button>
+      <button class="pad pad--add" id="rec-btn" onclick="recordClick()">${ic('rec')}<span class="pad-name">Record</span><small>max 10s</small></button></div>
     <input type="file" id="snd-file" accept="audio/*" multiple hidden onchange="uploadSounds(this.files);this.value=''">
-    <div class="card" style="margin-top:20px">
-      <h3>Mag-record ng sariling sound</h3>
-      <p class="muted" style="margin-bottom:12px">Gayahin ang paborito mong TikTok sound gamit ang sarili mong boses — o i-record si Lolo na nagsasabing “Ay, susmaryosep!”</p>
-      <div class="rec-row">
-        <input class="input" id="rec-name" placeholder="Pangalan ng sound" style="max-width:260px">
-        <button class="btn btn--chili" id="rec-btn" onclick="${BIDA.premium ? 'toggleRecord()' : `openPremium('Sound Lab')`}">${ic('rec')}<span>Record</span></button>
-      </div>
-      <p class="note" style="margin-top:14px">Tip: ang mga TikTok sounds (tulad ng orihinal na “Fahh” o mga sikat na tawa) ay may sariling may-ari. Ang built-in na Tawa, Giggle at Faah dito ay synthesized na bersyon. Para sa eksaktong sound, i-upload ang file na may karapatan kang gamitin.</p>
-    </div>`;
+    ${isAdmin() && missing.length ? `<div class="note" style="margin-top:18px"><b>Admin:</b> ${missing.length} default sound${missing.length > 1 ? 's' : ''} wala pa sa <code>sounds/</code> folder: ${missing.map(s => `<code>${s.file}</code>`).join(' ')}</div>` : ''}`;
+}
+function addSoundClick() {
+  if (!uploadsLeft()) { openPremium('Dagdag sounds'); return; }
+  $('#snd-file').click();
 }
 async function uploadSounds(files) {
+  let added = 0;
   for (const f of files) {
+    if (!uploadsLeft()) { openPremium('Dagdag sounds'); break; }
     if (f.size > 8 * 1024 * 1024) { toast(`${f.name}: masyadong malaki (max 8MB)`); continue; }
-    const s = { id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: f.name.replace(/\.[^.]+$/, '').slice(0, 22), blob: f, c: ['magenta', 'turq', 'gold', 'leaf', 'chili'][CUSTOM.length % 5] };
-    await dbPut(s); CUSTOM.push(s);
+    const s = { id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: f.name.replace(/\.[^.]+$/, '').slice(0, 20), blob: f, c: ['magenta', 'turq', 'gold', 'leaf', 'chili'][CUSTOM.length % 5], created: Date.now() };
+    await dbPut(s); CUSTOM.push(s); added++;
   }
-  renderSounds(); toast('Na-upload!');
+  renderSounds(); if (added) toast(added > 1 ? `${added} sounds nadagdag!` : 'Nadagdag ang sound!');
 }
 async function delSound(id) {
   if (!confirm('Tanggalin ang sound na ito?')) return;
   await dbDel(id); CUSTOM = CUSTOM.filter(s => s.id !== id); delete BUF_CACHE[id]; renderSounds();
 }
 let recorder, recChunks = [];
+function recordClick() {
+  if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+  if (!uploadsLeft()) { openPremium('Dagdag sounds'); return; }
+  toggleRecord();
+}
 async function toggleRecord() {
   const btn = $('#rec-btn');
-  if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recChunks = []; recorder = new MediaRecorder(stream);
@@ -915,51 +706,57 @@ async function toggleRecord() {
     recorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop());
       const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/webm' });
-      const name = ($('#rec-name')?.value || 'Recording ' + (CUSTOM.length + 1)).slice(0, 22);
-      const s = { id: 'r' + Date.now().toString(36), name, blob, c: 'magenta' };
+      const name = (prompt('Pangalan ng sound?', 'Recording ' + (CUSTOM.length + 1)) || 'Recording').slice(0, 20);
+      const s = { id: 'r' + Date.now().toString(36), name, blob, c: 'magenta', created: Date.now() };
       await dbPut(s); CUSTOM.push(s); renderSounds(); toast('Na-save ang recording!');
     };
-    recorder.start(); btn.classList.add('rec-on'); btn.querySelector('span').textContent = 'Stop';
+    recorder.start(); btn.classList.add('rec-on'); btn.querySelector('.pad-name').textContent = 'Stop';
     setTimeout(() => recorder?.state === 'recording' && recorder.stop(), 10000);
   } catch (e) { toast('Kailangan ng mic permission'); }
 }
 
 /* ============================================================
-   MUSIC — sources + fade/duck controller
+   MUSIC — sources, fade/duck engine, and the always-on music bar.
+   The Music tab is only setup; playback controls live in #mbar.
    ============================================================ */
-const M = { kind: null, playing: false, title: '', current: BIDA?.music?.master ?? .8, ducked: false, raf: 0, yt: null, ytReady: false, sp: null, spDevice: null, spMode: null, audio: null, mediaSrc: null, queue: [], qi: 0, lastSpSet: 0 };
+const M = { kind: null, playing: false, title: '', current: .8, ducked: false, faded: false, raf: 0, fadeT: 0, yt: null, ytReady: false, sp: null, spDevice: null, spMode: null, audio: null, mediaSrc: null, queue: [], qi: 0, lastSpSet: 0, upNext: [], pos: '' };
 
+function liveTarget() { return M.faded ? 0 : M.ducked ? BIDA.music.master * BIDA.music.duck : BIDA.music.master; }
 function applyVolume(v) {
   M.current = v;
   if (M.kind === 'youtube' && M.yt && M.ytReady) { try { M.yt.setVolume(Math.round(v * 100)); } catch (e) { } }
   else if (M.kind === 'local' && MUSIC_BUS) MUSIC_BUS.gain.value = v;
   else if (M.kind === 'spotify') spotifySetVolume(v);
-  const bars = $$('.vol-now'); bars.forEach(b => b.style.width = Math.round(v * 100) + '%');
-  const outs = $$('.vol-pct'); outs.forEach(o => o.textContent = Math.round(v * 100) + '%');
+  $$('.vol-now').forEach(b => b.style.width = Math.round(v * 100) + '%');
 }
 // Timer-based (not rAF) so fades still finish if the page is in the background,
 // e.g. when the host switches to the Spotify app on their phone.
-function fadeTo(target, ms) {
+function fadeTo(target, ms, done) {
   clearInterval(M.raf);
   const from = M.current, t0 = performance.now();
-  if (ms <= 0 || Math.abs(from - target) < .005) { applyVolume(target); return; }
+  if (ms <= 0 || Math.abs(from - target) < .005) { applyVolume(target); done?.(); return; }
   M.raf = setInterval(() => {
     const k = clamp((performance.now() - t0) / ms, 0, 1), e = 1 - Math.pow(1 - k, 3);
     applyVolume(from + (target - from) * e);
-    if (k >= 1) clearInterval(M.raf);
+    if (k >= 1) { clearInterval(M.raf); done?.(); }
   }, 30);
 }
+function needPro(feature) { if (BIDA.premium) return false; openPremium(feature); return true; }
+function needSource() {
+  if (M.kind) return false;
+  goTab('music'); if (!$('#live').hidden) closeLive();
+  toast('Pumili muna ng music dito'); return true;
+}
+/* Talk = quick duck while speaking */
 function duckDown() {
-  if (!BIDA.premium) { openPremium('Music fades'); return; }
-  M.ducked = true; fadeTo(BIDA.music.master * BIDA.music.duck, BIDA.music.fade);
+  if (needPro('Talk fader')) return;
+  M.ducked = true; if (!M.faded) fadeTo(liveTarget(), BIDA.music.fade);
   $$('.talk-btn').forEach(b => b.classList.add('on'));
-  $$('.talk-label').forEach(l => l.textContent = 'Nagsasalita…');
 }
 function duckUp() {
   if (!M.ducked) return;
-  M.ducked = false; fadeTo(BIDA.music.master, Math.round(BIDA.music.fade * 1.6));
+  M.ducked = false; if (!M.faded) fadeTo(liveTarget(), Math.round(BIDA.music.fade * 1.6));
   $$('.talk-btn').forEach(b => b.classList.remove('on'));
-  $$('.talk-label').forEach(l => l.textContent = 'Magsasalita ako');
 }
 function bindTalk(btn) {
   if (!btn || btn._bound) return; btn._bound = true;
@@ -974,9 +771,29 @@ function bindTalk(btn) {
   btn.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') up(); });
   btn.addEventListener('contextmenu', e => e.preventDefault());
 }
+/* Fade = smooth stop / smooth start */
+function fadeToggle() {
+  if (needPro('Fade in / out') || needSource()) return;
+  clearTimeout(M.fadeT);
+  if (M.faded || !M.playing) {
+    M.faded = false;
+    if (!M.playing) { applyVolume(0); musicPlay(); }
+    fadeTo(liveTarget(), 1500);
+  } else {
+    M.faded = true;
+    fadeTo(0, 1500, () => { if (M.faded) musicPause(); });
+  }
+  updateBar();
+}
 function setMaster(v) {
   BIDA.music.master = v; saveState();
-  if (!M.ducked) { clearInterval(M.raf); applyVolume(v); } else applyVolume(v * BIDA.music.duck);
+  clearInterval(M.raf); applyVolume(liveTarget());
+  $$('.mb-vol').forEach(r => { if (+r.value !== v) r.value = v; });
+}
+function setDuck(v) {
+  BIDA.music.duck = v; saveState();
+  if (M.ducked && !M.faded) fadeTo(liveTarget(), 120);
+  $$('.o-duck').forEach(o => o.textContent = Math.round(v * 100) + '%');
 }
 
 /* ---- YouTube (IFrame API: full volume control) ---- */
@@ -1001,46 +818,49 @@ function ytApi() {
   return ytApiP;
 }
 async function loadYouTube() {
-  if (!BIDA.premium) { openPremium('Music player'); return; }
+  if (needPro('Music player')) return;
   const url = $('#yt-url').value; const p = parseYouTube(url);
   if (!p) { toast('Hindi valid ang YouTube link'); return; }
   BIDA.music.ytUrl = url; saveState();
   stopOtherSources('youtube');
   await ytApi();
-  $('#yt-host').innerHTML = '<div id="yt-player"></div>';
-  M.ytReady = false; M.kind = 'youtube';
+  // The player lives in the music bar's preview area so it keeps playing on every tab
+  $('#yt-dock').innerHTML = '<div id="yt-player"></div>';
+  M.ytReady = false; M.kind = 'youtube'; M.faded = false;
   const vars = { playsinline: 1, rel: 0, modestbranding: 1 };
   if (p.list) { vars.listType = 'playlist'; vars.list = p.list; }
   M.yt = new YT.Player('yt-player', {
     videoId: p.id || undefined, playerVars: vars,
     events: {
-      onReady: e => { M.ytReady = true; applyVolume(M.ducked ? BIDA.music.master * BIDA.music.duck : BIDA.music.master); e.target.playVideo(); },
+      onReady: e => { M.ytReady = true; applyVolume(liveTarget()); e.target.playVideo(); },
       onStateChange: e => {
         M.playing = e.data === YT.PlayerState.PLAYING;
         try { M.title = M.yt.getVideoData().title || 'YouTube'; } catch (x) { M.title = 'YouTube'; }
-        updateMini();
+        try { const pl = M.yt.getPlaylist(); M.pos = pl ? `${M.yt.getPlaylistIndex() + 1} / ${pl.length}` : ''; } catch (x) { M.pos = ''; }
+        M.upNext = [];
+        updateBar();
       }
     }
   });
-  showMini('YouTube');
+  openBar(true); updateBar('YouTube');
 }
 
 /* ---- Local files (Web Audio gain) ---- */
 function loadLocal(files) {
-  if (!BIDA.premium) { openPremium('Music player'); return; }
+  if (needPro('Music player')) return;
   const arr = Array.from(files).filter(f => /^audio\//.test(f.type) || /\.(mp3|m4a|wav|ogg|aac|flac)$/i.test(f.name));
   if (!arr.length) return;
   stopOtherSources('local');
   M.queue.forEach(q => URL.revokeObjectURL(q.url));
   M.queue = arr.map(f => ({ name: f.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(f) }));
-  M.kind = 'local'; playLocal(0); renderQueue();
+  M.kind = 'local'; M.faded = false; playLocal(0);
 }
 function ensureAudio() {
   if (M.audio) return M.audio;
-  const a = new Audio(); a.preload = 'auto'; a.crossOrigin = 'anonymous';
+  const a = new Audio(); a.preload = 'auto';
   a.addEventListener('ended', () => playLocal(M.qi + 1));
-  a.addEventListener('play', () => { M.playing = true; updateMini(); });
-  a.addEventListener('pause', () => { M.playing = false; updateMini(); });
+  a.addEventListener('play', () => { M.playing = true; updateBar(); });
+  a.addEventListener('pause', () => { M.playing = false; updateBar(); });
   M.audio = a; ac();
   M.mediaSrc = AC.createMediaElementSource(a); M.mediaSrc.connect(MUSIC_BUS);
   return a;
@@ -1049,12 +869,10 @@ function playLocal(i) {
   if (!M.queue.length) return;
   M.qi = (i + M.queue.length) % M.queue.length;
   const a = ensureAudio(); a.src = M.queue[M.qi].url; M.title = M.queue[M.qi].name;
-  applyVolume(M.ducked ? BIDA.music.master * BIDA.music.duck : BIDA.music.master);
-  a.play().catch(() => { }); showMini('Local files'); renderQueue();
-}
-function renderQueue() {
-  const q = $('#local-queue'); if (!q) return;
-  q.innerHTML = M.queue.map((t, i) => `<li class="${i === M.qi && M.kind === 'local' ? 'now' : ''}" onclick="playLocal(${i})">${ic(i === M.qi && M.playing ? 'pause' : 'play')}<span>${esc(t.name)}</span></li>`).join('');
+  M.pos = `${M.qi + 1} / ${M.queue.length}`;
+  M.upNext = M.queue.slice(M.qi + 1, M.qi + 4).map(q => q.name);
+  applyVolume(liveTarget());
+  a.play().catch(() => { }); updateBar('Sariling files');
 }
 
 /* ---- Spotify (Web Playback SDK on desktop · Connect control on mobile) ---- */
@@ -1064,7 +882,7 @@ function spToken() {
   try { const t = JSON.parse(localStorage.getItem('bidavibe_sp') || 'null'); return t && t.exp > Date.now() + 30000 ? t : null; } catch (e) { return null; }
 }
 async function spLogin() {
-  if (!BIDA.premium) { openPremium('Spotify'); return; }
+  if (needPro('Spotify')) return;
   if (!BIDA_CONFIG.spotifyClientId) { toast('Kailangan munang i-setup ang Spotify Client ID'); return; }
   const v = Array.from(crypto.getRandomValues(new Uint8Array(48)), b => ('0' + b.toString(16)).slice(-2)).join('');
   const dig = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
@@ -1104,12 +922,12 @@ function parseSpotify(url) {
   return m ? { type: m[1], id: m[2], uri: `spotify:${m[1]}:${m[2]}` } : null;
 }
 async function spPlay() {
-  if (!BIDA.premium) { openPremium('Spotify'); return; }
+  if (needPro('Spotify')) return;
   const p = parseSpotify($('#sp-url').value);
   if (!p) { toast('I-paste ang Spotify playlist link'); return; }
   BIDA.music.spUrl = $('#sp-url').value; saveState();
   if (!spToken()) { spLogin(); return; }
-  stopOtherSources('spotify'); M.kind = 'spotify';
+  stopOtherSources('spotify'); M.kind = 'spotify'; M.faded = false;
   const body = p.type === 'track' ? { uris: [p.uri] } : { context_uri: p.uri };
   try {
     if (!isMobileUA) {
@@ -1117,7 +935,10 @@ async function spPlay() {
       if (!M.sp) {
         M.sp = new Spotify.Player({ name: 'Bida-Vibe', getOAuthToken: cb => cb(spToken()?.at), volume: BIDA.music.master });
         M.sp.addListener('ready', ({ device_id }) => { M.spDevice = device_id; });
-        M.sp.addListener('player_state_changed', s => { if (!s) return; M.playing = !s.paused; M.title = s.track_window?.current_track?.name || 'Spotify'; updateMini(); });
+        M.sp.addListener('player_state_changed', s => {
+          if (!s) return; M.playing = !s.paused; M.title = s.track_window?.current_track?.name || 'Spotify';
+          M.upNext = (s.track_window?.next_tracks || []).map(t => t.name); updateBar();
+        });
         M.sp.addListener('account_error', () => toast('Spotify Premium ang kailangan para dito'));
         await M.sp.connect();
         for (let i = 0; i < 30 && !M.spDevice; i++) await new Promise(r => setTimeout(r, 200));
@@ -1129,15 +950,14 @@ async function spPlay() {
       M.spMode = 'connect';
       const r = await spApi('/me/player/play', { method: 'PUT', body: JSON.stringify(body) });
       if (r.status === 404) { toast('Buksan muna ang Spotify app at mag-play ng kahit ano, tapos subukan ulit'); return; }
-      M.playing = true; M.title = 'Spotify'; updateMini();
+      M.playing = true; M.title = 'Spotify';
     }
-    showMini('Spotify');
+    updateBar('Spotify');
   } catch (e) { toast('May problema sa Spotify — i-connect ulit'); }
 }
 let spVolT;
 function spotifySetVolume(v) {
   if (M.spMode === 'sdk' && M.sp) { M.sp.setVolume(v).catch(() => { }); return; }
-  // Connect API: throttle to avoid rate limits
   const now = Date.now(); clearTimeout(spVolT);
   const send = () => { M.lastSpSet = Date.now(); spApi('/me/player/volume?volume_percent=' + Math.round(v * 100), { method: 'PUT' }).catch(() => { }); };
   if (now - M.lastSpSet > 160) send(); else spVolT = setTimeout(send, 160);
@@ -1149,15 +969,23 @@ function stopOtherSources(keep) {
   if (keep !== 'spotify' && M.sp) M.sp.pause().catch(() => { });
   if (keep !== 'spotify' && M.spMode === 'connect') spApi('/me/player/pause', { method: 'PUT' }).catch(() => { });
 }
+function musicPlay() {
+  if (M.kind === 'youtube' && M.yt) M.yt.playVideo();
+  else if (M.kind === 'local' && M.audio) M.audio.play().catch(() => { });
+  else if (M.kind === 'spotify') { if (M.spMode === 'sdk' && M.sp) M.sp.resume(); else { spApi('/me/player/play', { method: 'PUT' }).catch(() => { }); M.playing = true; updateBar(); } }
+}
+function musicPause() {
+  if (M.kind === 'youtube' && M.yt) M.yt.pauseVideo();
+  else if (M.kind === 'local' && M.audio) M.audio.pause();
+  else if (M.kind === 'spotify') { if (M.spMode === 'sdk' && M.sp) M.sp.pause(); else { spApi('/me/player/pause', { method: 'PUT' }).catch(() => { }); M.playing = false; updateBar(); } }
+}
 function musicToggle() {
-  if (M.kind === 'youtube' && M.yt) { M.playing ? M.yt.pauseVideo() : M.yt.playVideo(); }
-  else if (M.kind === 'local' && M.audio) { M.audio.paused ? M.audio.play() : M.audio.pause(); }
-  else if (M.kind === 'spotify') {
-    if (M.spMode === 'sdk' && M.sp) M.sp.togglePlay();
-    else { spApi('/me/player/' + (M.playing ? 'pause' : 'play'), { method: 'PUT' }).catch(() => { }); M.playing = !M.playing; updateMini(); }
-  }
+  if (needPro('Music player') || needSource()) return;
+  if (M.playing) musicPause();
+  else { if (M.faded) { M.faded = false; applyVolume(liveTarget()); } musicPlay(); }
 }
 function musicSkip(d) {
+  if (needPro('Music player') || needSource()) return;
   if (M.kind === 'youtube' && M.yt) { try { d > 0 ? M.yt.nextVideo() : M.yt.previousVideo(); } catch (e) { } }
   else if (M.kind === 'local') playLocal(M.qi + d);
   else if (M.kind === 'spotify') {
@@ -1165,21 +993,45 @@ function musicSkip(d) {
     else spApi('/me/player/' + (d > 0 ? 'next' : 'previous'), { method: 'POST' }).catch(() => { });
   }
 }
-function showMini(src) { $('#minibar').hidden = false; $('#app').classList.add('has-mini'); $('#mb-src').textContent = src; bindTalk($('#talk-mini')); updateMini(); }
-function updateMini() {
-  $('#mb-title').textContent = M.title || '—';
-  $('#mb-play-ic')?.setAttribute('href', M.playing ? '#i-pause' : '#i-play');
-  $$('.np-title').forEach(e => e.textContent = M.title || 'Walang tumutugtog');
-  $$('.np-play use').forEach(u => u.setAttribute('href', M.playing ? '#i-pause' : '#i-play'));
-  renderQueue();
+
+/* ---- The music bar ---- */
+let barSrc = '';
+function updateBar(src) {
+  if (src) barSrc = src;
+  const has = !!M.kind;
+  $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang tumutugtog';
+  $('#mb-sub').textContent = has ? [barSrc, M.pos, M.faded ? 'faded out' : ''].filter(Boolean).join(' · ') : (BIDA.premium ? 'Tap para pumili ng playlist' : 'Premium · tap para sa detalye');
+  $$('.mb-play-ic').forEach(u => u.setAttribute('href', M.playing ? '#i-pause' : '#i-play'));
+  $$('.mb-fade').forEach(b => { b.classList.toggle('on', M.faded); b.querySelector('span').textContent = M.faded || (has && !M.playing) ? 'Fade in' : 'Fade out'; });
+  $$('.mb-vol').forEach(r => r.value = BIDA.music.master);
+  const dk = $('#mb-duck'); if (dk) dk.value = BIDA.music.duck;
+  $$('.o-duck').forEach(o => o.textContent = Math.round(BIDA.music.duck * 100) + '%');
+  const up = $('#mb-upnext');
+  if (up) up.innerHTML = has
+    ? (M.kind === 'local' ? M.queue.map((t, i) => `<li class="${i === M.qi ? 'now' : ''}" onclick="playLocal(${i})">${ic(i === M.qi && M.playing ? 'pause' : 'play')}<span>${esc(t.name)}</span></li>`).join('')
+      : M.upNext.length ? M.upNext.map(n => `<li>${ic('next')}<span>${esc(n)}</span></li>`).join('')
+        : `<li class="empty">${M.pos ? 'Playlist: ' + esc(M.pos) : 'Isang track lang ang naka-load'}</li>`)
+    : `<li class="empty"><button class="btn btn--sm btn--ink" onclick="goTab('music');toggleBar(false)">Pumili ng music</button></li>`;
+  $('#mbar').classList.toggle('has-music', has);
+  $('#mbar').classList.toggle('playing', M.playing);
+}
+function toggleBar(force) {
+  const b = $('#mbar'), open = force ?? !b.classList.contains('open');
+  b.classList.toggle('open', open);
+  $('#mb-more').setAttribute('aria-expanded', open);
+}
+function openBar(v) { toggleBar(v); }
+function barInfoClick() {
+  if (!M.kind) { if (!BIDA.premium) { openPremium('Music player'); return; } goTab('music'); if (!$('#live').hidden) closeLive(); return; }
+  toggleBar();
 }
 
 /* ---- Auto-duck via microphone ---- */
-const MIC = { stream: null, an: null, raf: 0, above: 0, below: 0 };
+const MIC = { stream: null, an: null, raf: 0, above: 0, below: 0, auto: false };
 async function setAutoDuck(on) {
-  if (on && !BIDA.premium) { openPremium('Auto-fade'); renderMusic(); return; }
+  if (on && needPro('Auto-fade')) { renderMusic(); return; }
   BIDA.music.autoDuck = on; saveState();
-  if (!on) { cancelAnimationFrame(MIC.raf); MIC.stream?.getTracks().forEach(t => t.stop()); MIC.stream = null; return; }
+  if (!on) { cancelAnimationFrame(MIC.raf); MIC.stream?.getTracks().forEach(t => t.stop()); MIC.stream = null; renderMusic(); return; }
   try {
     MIC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
     const x = ac(), src = x.createMediaStreamSource(MIC.stream); MIC.an = x.createAnalyser(); MIC.an.fftSize = 1024; src.connect(MIC.an);
@@ -1187,7 +1039,7 @@ async function setAutoDuck(on) {
     const loop = now => {
       MIC.an.getFloatTimeDomainData(buf);
       let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
-      const rms = Math.sqrt(s / buf.length), lvl = clamp(rms * 8, 0, 1);
+      const lvl = clamp(Math.sqrt(s / buf.length) * 8, 0, 1);
       const thr = .9 - BIDA.music.sens * .8, dt = now - last; last = now;
       $$('.vu i').forEach(v => v.style.width = Math.round(lvl * 100) + '%');
       if (lvl > thr) { MIC.above += dt; MIC.below = 0; if (MIC.above > 120 && !M.ducked) { duckDown(); MIC.auto = true; } }
@@ -1195,90 +1047,63 @@ async function setAutoDuck(on) {
       MIC.raf = requestAnimationFrame(loop);
     };
     MIC.raf = requestAnimationFrame(loop);
-    toast('Auto-fade ON — hihina ang music pag nagsalita ka');
+    renderMusic(); toast('Auto-fade ON — hihina ang music pag nagsalita ka');
   } catch (e) { BIDA.music.autoDuck = false; saveState(); toast('Kailangan ng mic permission'); renderMusic(); }
 }
 
-function consoleHTML(compact) {
-  const m = BIDA.music;
-  return `<div class="card console">
-    ${compact ? '' : `<h3>Talk fader</h3><p class="muted">Pindutin para humina ang music habang nagsasalita ka — babalik ito pag binitawan mo.</p>`}
-    <div class="transport" style="margin:${compact ? '0 0 12px' : '14px 0'}">
-      <button class="icon-btn" onclick="musicSkip(-1)" aria-label="Previous">${ic('prev')}</button>
-      <button class="icon-btn np-play" onclick="musicToggle()" aria-label="Play or pause" style="background:var(--gold)">${ic(M.playing ? 'pause' : 'play')}</button>
-      <button class="icon-btn" onclick="musicSkip(1)" aria-label="Next">${ic('next')}</button>
-      <b class="np-title" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px">${esc(M.title || 'Walang tumutugtog')}</b>
-    </div>
-    <button class="talk-btn" id="talk-${compact ? 'live' : 'main'}">${ic('mic')}<span><span class="talk-label">${M.ducked ? 'Nagsasalita…' : 'Magsasalita ako'}</span><small>${m.mode === 'hold' ? 'Pindutin nang matagal' : 'Tap para on/off'} · Space</small></span></button>
-    <div class="vol-meter"><span>Vol</span><span class="bar"><i class="vol-now" style="width:${Math.round(M.current * 100)}%"></i></span><span class="vol-pct">${Math.round(M.current * 100)}%</span></div>
-    <div class="slider-row"><label for="sl-master">Music volume</label><output id="o-master">${Math.round(m.master * 100)}%</output>
-      <input type="range" id="sl-master" min="0" max="1" step="0.01" value="${m.master}" oninput="setMaster(+this.value);$('#o-master').textContent=Math.round(this.value*100)+'%'"></div>
-    ${compact ? '' : `
-    <div class="slider-row"><label for="sl-duck">Hihina hanggang</label><output id="o-duck">${Math.round(m.duck * 100)}%</output>
-      <input type="range" id="sl-duck" min="0" max="0.6" step="0.01" value="${m.duck}" oninput="BIDA.music.duck=+this.value;saveState();$('#o-duck').textContent=Math.round(this.value*100)+'%';if(M.ducked)fadeTo(BIDA.music.master*BIDA.music.duck,120)"></div>
-    <div class="slider-row"><label for="sl-fade">Bilis ng fade</label><output id="o-fade">${(m.fade / 1000).toFixed(1)}s</output>
-      <input type="range" id="sl-fade" min="100" max="2500" step="50" value="${m.fade}" oninput="BIDA.music.fade=+this.value;saveState();$('#o-fade').textContent=(this.value/1000).toFixed(1)+'s'"></div>
-    <div class="seg-ctrl" role="group" aria-label="Talk button mode">
-      <button class="${m.mode === 'hold' ? 'on' : ''}" onclick="setTalkMode('hold')">Hold to talk</button>
-      <button class="${m.mode === 'toggle' ? 'on' : ''}" onclick="setTalkMode('toggle')">Tap on / off</button></div>
-    <label class="toggle"><input type="checkbox" ${m.autoDuck ? 'checked' : ''} onchange="setAutoDuck(this.checked)">Auto-fade gamit ang mic (beta)</label>
-    <div class="vu" ${m.autoDuck ? '' : 'hidden'}><i></i></div>
-    <div class="slider-row" ${m.autoDuck ? '' : 'hidden'}><label for="sl-sens">Mic sensitivity</label><output id="o-sens">${Math.round(m.sens * 100)}%</output>
-      <input type="range" id="sl-sens" min="0.05" max="1" step="0.05" value="${m.sens}" oninput="BIDA.music.sens=+this.value;saveState();$('#o-sens').textContent=Math.round(this.value*100)+'%'"></div>`}
-  </div>`;
-}
-function setTalkMode(mode) { BIDA.music.mode = mode; saveState(); renderMusic(); }
-
-let musicBuilt = false;
+/* ---- Music tab: setup only ---- */
 function renderMusic() {
-  const m = BIDA.music, panel = $('#panel-music');
-  // Keep the YouTube iframe alive across re-renders
-  const ytNode = $('#yt-host')?.firstElementChild;
-  panel.innerHTML = `
-    <div class="panel-head"><div><span class="kicker">Music <span class="badge-pro">${ic('star')}Premium</span></span><h2>Patugtugin</h2>
-      <p>Ikonekta ang playlist mo. Pag magsasalita ka, pindutin ang Talk — hihina ang music, hindi titigil.</p></div></div>
-    ${BIDA.premium ? '' : lockBanner('Music + Talk fader', 'Ikonekta ang YouTube, Spotify o sariling files, may quick fade pag nagsasalita.')}
+  const m = BIDA.music;
+  $('#panel-music').innerHTML = `
+    <div class="panel-head"><div><h2>Music setup</h2>
+      <p>Pumili ng music dito. Ang controls — play, next, fade at Talk — ay nasa music bar sa ibaba, kahit anong tab.</p></div>
+      ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Music player')">${ic('lock')}Premium</button>`}</div>
     <div class="src-tabs" role="tablist">
       ${[['youtube', 'YouTube', 'May fade'], ['spotify', 'Spotify', 'Premium acct'], ['local', 'Sariling files', 'May fade'], ['link', 'Iba pa', 'Link lang']].map(([id, l, s]) =>
         `<button class="src-tab ${m.src === id ? 'on' : ''}" role="tab" aria-selected="${m.src === id}" onclick="setMusicSrc('${id}')">${l}<small>${s}</small></button>`).join('')}
     </div>
-    <div class="grid-2" style="align-items:start">
-      <div class="card stack" id="src-card">
-        <div ${m.src === 'youtube' ? '' : 'hidden'}>
-          <div class="field"><label for="yt-url">YouTube video o playlist link</label>
-            <input class="input" id="yt-url" placeholder="https://www.youtube.com/playlist?list=…" value="${esc(m.ytUrl)}"></div>
-          <button class="btn btn--chili btn--block" style="margin-top:12px" onclick="loadYouTube()">${ic('play')}I-load at patugtugin</button>
-          <div class="yt-host" id="yt-host" style="margin-top:14px"></div>
-          <p class="muted" style="margin-top:8px">Gumagana rin sa YouTube Music links (music.youtube.com).</p>
-        </div>
-        <div ${m.src === 'spotify' ? '' : 'hidden'}>
-          ${BIDA_CONFIG.spotifyClientId ? `
-          <div class="field"><label for="sp-url">Spotify playlist / album link</label>
-            <input class="input" id="sp-url" placeholder="https://open.spotify.com/playlist/…" value="${esc(m.spUrl)}"></div>
-          <button class="btn btn--leaf btn--block" style="margin-top:12px" onclick="spPlay()">${ic('play')}${spToken() ? 'Patugtugin' : 'Connect at patugtugin'}</button>
-          <p class="note" style="margin-top:12px">Kailangan ng <b>Spotify Premium</b>. ${isMobileUA ? 'Sa phone: buksan muna ang Spotify app — ito ang kokontrolin namin, kasama ang volume fade.' : 'Sa computer: tutugtog dito mismo sa browser.'}</p>` : `
-          <p class="note">Hindi pa naka-setup ang Spotify. Developer: maglagay ng <code>spotifyClientId</code> sa <code>BIDA_CONFIG</code> (bida-app.js) — gumawa ng app sa developer.spotify.com at idagdag ang URL ng page na ito bilang Redirect URI.</p>`}
-        </div>
-        <div ${m.src === 'local' ? '' : 'hidden'}>
-          <button class="btn btn--turq btn--block" onclick="${BIDA.premium ? `$('#local-files').click()` : `openPremium('Music player')`}">${ic('upload')}Pumili ng music files</button>
-          <input type="file" id="local-files" accept="audio/*" multiple hidden onchange="loadLocal(this.files);this.value=''">
-          <ul class="queue" id="local-queue"></ul>
-          <p class="muted" style="margin-top:8px">Mp3 o m4a na nasa phone/computer mo. Hindi ito ina-upload kahit saan.</p>
-        </div>
-        <div ${m.src === 'link' ? '' : 'hidden'}>
-          <div class="field"><label for="ext-url">Apple Music, Deezer, SoundCloud o iba pa</label>
-            <input class="input" id="ext-url" placeholder="I-paste ang link" value="${esc(m.link)}" onchange="BIDA.music.link=this.value;saveState()"></div>
-          <button class="btn btn--ink btn--block" style="margin-top:12px" onclick="openExt()">Buksan sa app ${ic('arrow')}</button>
-          <p class="note" style="margin-top:12px">Ang mga app na ito ay hindi nagbibigay ng volume control sa ibang website, kaya walang auto-fade dito — gamitin ang volume ng phone o speaker.</p>
-        </div>
+    <div class="card stack">
+      <div ${m.src === 'youtube' ? '' : 'hidden'}>
+        <div class="field"><label for="yt-url">YouTube o YouTube Music link (video o playlist)</label>
+          <input class="input" id="yt-url" placeholder="https://www.youtube.com/playlist?list=…" value="${esc(m.ytUrl)}"></div>
+        <button class="btn btn--chili btn--block" style="margin-top:12px" onclick="loadYouTube()">${ic('play')}I-load</button>
       </div>
-      <div>${consoleHTML(false)}</div>
+      <div ${m.src === 'spotify' ? '' : 'hidden'}>
+        ${BIDA_CONFIG.spotifyClientId ? `
+        <div class="field"><label for="sp-url">Spotify playlist / album link</label>
+          <input class="input" id="sp-url" placeholder="https://open.spotify.com/playlist/…" value="${esc(m.spUrl)}"></div>
+        <button class="btn btn--leaf btn--block" style="margin-top:12px" onclick="spPlay()">${ic('play')}${spToken() ? 'I-load' : 'Connect at i-load'}</button>
+        <p class="note" style="margin-top:12px">Kailangan ng <b>Spotify Premium</b>. ${isMobileUA ? 'Sa phone/tablet: buksan muna ang Spotify app — ito ang kokontrolin, kasama ang fade.' : 'Sa computer: tutugtog dito mismo.'}</p>` : `
+        <p class="note">Hindi pa naka-setup ang Spotify (kailangan ng Client ID ng developer).</p>`}
+      </div>
+      <div ${m.src === 'local' ? '' : 'hidden'}>
+        <button class="btn btn--turq btn--block" onclick="${BIDA.premium ? `$('#local-files').click()` : `openPremium('Music player')`}">${ic('upload')}Pumili ng music files</button>
+        <input type="file" id="local-files" accept="audio/*" multiple hidden onchange="loadLocal(this.files);this.value=''">
+        <p class="muted" style="margin-top:8px">Mp3 o m4a sa device mo. Hindi ina-upload kahit saan.</p>
+      </div>
+      <div ${m.src === 'link' ? '' : 'hidden'}>
+        <div class="field"><label for="ext-url">Apple Music, Deezer, SoundCloud…</label>
+          <input class="input" id="ext-url" placeholder="I-paste ang link" value="${esc(m.link)}" onchange="BIDA.music.link=this.value;saveState()"></div>
+        <button class="btn btn--ink btn--block" style="margin-top:12px" onclick="openExt()">Buksan sa app ${ic('arrow')}</button>
+        <p class="note" style="margin-top:12px">Walang fade dito — hindi pinapayagan ng mga app na ito ang volume control mula sa ibang website.</p>
+      </div>
+    </div>
+    <div class="card stack">
+      <h3>Talk at fade</h3>
+      <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Talk button mode">
+        <button class="${m.mode === 'hold' ? 'on' : ''}" onclick="setTalkMode('hold')">Hold to talk</button>
+        <button class="${m.mode === 'toggle' ? 'on' : ''}" onclick="setTalkMode('toggle')">Tap on / off</button></div>
+      <div class="slider-row"><label for="sl-duck">Pag nagsasalita, hihina hanggang</label><output class="o-duck">${Math.round(m.duck * 100)}%</output>
+        <input type="range" id="sl-duck" min="0" max="0.6" step="0.01" value="${m.duck}" oninput="setDuck(+this.value)"></div>
+      <div class="slider-row"><label for="sl-fade">Bilis ng fade</label><output id="o-fade">${(m.fade / 1000).toFixed(1)}s</output>
+        <input type="range" id="sl-fade" min="100" max="2500" step="50" value="${m.fade}" oninput="BIDA.music.fade=+this.value;saveState();$('#o-fade').textContent=(this.value/1000).toFixed(1)+'s'"></div>
+      <label class="toggle"><input type="checkbox" ${m.autoDuck ? 'checked' : ''} onchange="setAutoDuck(this.checked)">Auto-fade gamit ang mic (beta)</label>
+      ${m.autoDuck ? `<div class="vu"><i></i></div>
+      <div class="slider-row"><label for="sl-sens">Mic sensitivity</label><output id="o-sens">${Math.round(m.sens * 100)}%</output>
+        <input type="range" id="sl-sens" min="0.05" max="1" step="0.05" value="${m.sens}" oninput="BIDA.music.sens=+this.value;saveState();$('#o-sens').textContent=Math.round(this.value*100)+'%'"></div>` : ''}
     </div>`;
-  if (ytNode && M.kind === 'youtube') $('#yt-host').appendChild(ytNode);
-  bindTalk($('#talk-main'));
-  renderQueue();
-  musicBuilt = true;
 }
+function setTalkMode(mode) { BIDA.music.mode = mode; saveState(); renderMusic(); }
 function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
 function openExt() {
   const u = ($('#ext-url').value || '').trim(); if (!/^https?:\/\//.test(u)) { toast('I-paste muna ang link'); return; }
@@ -1286,26 +1111,34 @@ function openExt() {
 }
 
 /* ============================================================
-   PREMIUM
+   ACCOUNT · PREMIUM · ADMIN
+   Admin = signed in with Google as an address in adminEmails AND
+   verified by Google. With the Worker configured, the Worker
+   re-checks the signed ID token server-side (ADMIN_EMAILS).
    ============================================================ */
-function lockBanner(feature, text) {
-  return `<div class="lock-banner">${ic('lock')}<div><b>${esc(feature)} ay Premium</b><span>${esc(text)}</span></div>
-    <button class="btn btn--gold btn--sm" onclick="openPremium('${esc(feature)}')">I-unlock</button></div>`;
-}
-/* ---- Accounts (Firebase Google sign-in) + PayMongo checkout via Worker ---- */
 const IS_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-const AUTH = { user: null, ready: false, busy: false };
-function paymentsReady() { return !!(BIDA_CONFIG.workerUrl && BIDA_CONFIG.firebase && window.firebase); }
+const AUTH = { user: null, ready: false, busy: false, admin: false };
+function authReady() { return !!(BIDA_CONFIG.firebase && window.firebase); }
+function paymentsReady() { return !!(authReady() && BIDA_CONFIG.workerUrl); }
+function isAdminUser(u) {
+  const list = BIDA_CONFIG.adminEmails.map(e => e.toLowerCase());
+  return !!(u && u.emailVerified && list.includes(String(u.email || '').toLowerCase()));
+}
+function isAdmin() { return !!AUTH.admin; }
 function initAuth() {
-  if (!paymentsReady()) { AUTH.ready = true; return; }
+  if (!authReady()) { AUTH.ready = true; return; }
   try {
     firebase.initializeApp(BIDA_CONFIG.firebase);
     firebase.auth().getRedirectResult().catch(() => { });
     firebase.auth().onAuthStateChanged(async u => {
       AUTH.user = u; AUTH.ready = true;
       if (u) await refreshPremium();
-      else if (BIDA.premiumUid) { BIDA.premium = !!BIDA.devPro; BIDA.premiumUid = ''; saveState(); rerenderPremiumViews(); }
-      if (!$('#sheet-wrap').hidden && $('#sheet .pro-hero')) openPremium(PRO_FEATURE);
+      else {
+        AUTH.admin = false;
+        if (BIDA.premiumUid) { BIDA.premium = !!BIDA.devPro; BIDA.premiumUid = ''; saveState(); }
+        rerenderPremiumViews();
+      }
+      if (!$('#sheet-wrap').hidden && $('#sheet [data-acct]')) openAccount();
     });
   } catch (e) { AUTH.ready = true; }
 }
@@ -1317,21 +1150,25 @@ async function workerFetch(path, opts = {}) {
   return j;
 }
 async function refreshPremium() {
-  if (!AUTH.user) return false;
-  try {
-    const j = await workerFetch('/status');
-    BIDA.premium = !!j.premium || !!BIDA.devPro;
-    BIDA.premiumUid = j.premium ? AUTH.user.uid : '';
-    saveState(); rerenderPremiumViews();
-    return !!j.premium;
-  } catch (e) { return BIDA.premium; } // offline at the venue: keep the cached unlock
+  const u = AUTH.user; if (!u) return false;
+  let paid = false, admin = isAdminUser(u);
+  if (paymentsReady()) {
+    try { const j = await workerFetch('/status'); paid = !!j.premium; admin = !!j.admin; }
+    catch (e) { return BIDA.premium; } // offline at the venue: keep the cached unlock
+  }
+  AUTH.admin = admin;
+  BIDA.premium = paid || admin || !!BIDA.devPro;
+  BIDA.premiumUid = (paid || admin) ? u.uid : '';
+  saveState(); rerenderPremiumViews();
+  return paid || admin;
 }
 function rerenderPremiumViews() {
   if (!$('#app').hidden && RENDER[BIDA.tab]) RENDER[BIDA.tab]();
   if (!$('#live').hidden) renderLive();
+  renderHead(); updateBar();
 }
 async function signIn() {
-  if (!paymentsReady()) return;
+  if (!authReady()) { toast('Hindi pa naka-setup ang sign-in'); return; }
   const p = new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' });
   try { await firebase.auth().signInWithPopup(p); }
   catch (e) {
@@ -1361,7 +1198,6 @@ async function handlePaidReturn() {
   history.replaceState(null, '', location.pathname);
   if (p !== '1') { toast('Hindi natuloy ang bayad — pwede mong subukan ulit'); return; }
   toast('Kinukumpirma ang bayad…');
-  // Wait for sign-in to restore, then poll — PayMongo's webhook can take a few seconds
   for (let i = 0; i < 30 && !AUTH.ready; i++) await new Promise(r => setTimeout(r, 300));
   for (let i = 0; i < 15; i++) {
     if (AUTH.user && await refreshPremium()) { toast('Premium unlocked! Party na!'); return; }
@@ -1373,33 +1209,48 @@ async function handlePaidReturn() {
 let PRO_FEATURE = '';
 function openPremium(feature) {
   PRO_FEATURE = feature || PRO_FEATURE;
-  const u = AUTH.user, ready = paymentsReady();
+  const u = AUTH.user;
   let action;
-  if (BIDA.premium) action = `<div class="note" style="background:var(--leaf-soft)"><b>Premium ka na!</b> Naka-unlock ang lahat${u ? ` sa ${esc(u.email || 'account mo')}` : ''}. Salamat sa suporta!</div>`;
-  else if (!ready) action = `<button class="btn btn--magenta btn--lg btn--block" onclick="startCheckout()">Malapit nang mabili</button>`;
+  if (BIDA.premium) action = `<div class="note" style="background:var(--leaf-soft)"><b>${isAdmin() ? 'Admin ka' : 'Premium ka na'}!</b> Naka-unlock ang lahat.</div>`;
+  else if (!paymentsReady()) action = `<button class="btn btn--magenta btn--lg btn--block" onclick="startCheckout()">Malapit nang mabili</button>`;
   else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>
-      <p class="muted" style="margin-top:10px;text-align:center">Para naka-save ang Premium sa account mo — gagana sa phone at computer.</p>`;
+      <p class="muted" style="margin-top:10px;text-align:center">Naka-save ang Premium sa account mo — gagana sa phone, tablet at computer.</p>`;
   else action = `<button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>Bayaran ${esc(BIDA_CONFIG.priceLabel.replace(/ .*/, ''))}</span>${ic('arrow')}</button>
       <p class="muted" style="margin-top:10px;text-align:center">GCash · Maya · Card — secure checkout sa PayMongo</p>`;
   openSheet(`
     <div class="sheet-head"><h3>Bida-Vibe Premium</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="pro-hero">
-      <span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE || 'Premium')}</span>
-      <h4>Gawing mas buhay ang party.</h4>
+      ${PRO_FEATURE ? `<span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE)}</span>` : ''}
+      <h4>Lahat ng sound at music, walang limit.</h4>
       <ul class="pro-list">
-        <li>${ic('star')}Buong Sound Lab — 19 built-in sounds + upload at record ng sarili mo</li>
-        <li>${ic('star')}YouTube, Spotify at sariling music files</li>
-        <li>${ic('star')}Talk fader: quick fade pag nagsasalita, fade-in pagkatapos</li>
-        <li>${ic('star')}Auto-fade gamit ang mic</li>
+        <li>${ic('star')}Lahat ng 20 sound pads + walang limit na sariling upload</li>
+        <li>${ic('star')}Music bar: YouTube, Spotify at sariling files</li>
+        <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
       </ul>
-      <p style="margin-top:14px;font:800 26px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.priceLabel)} <small style="font:700 13px/1 var(--f)">· habambuhay, walang subscription</small></p>
+      <p style="margin-top:14px;font:800 26px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.priceLabel)} <small style="font:700 13px/1 var(--f)">· habambuhay</small></p>
     </div>
     <div style="margin-top:18px">${action}</div>
     ${u ? `<p class="muted" style="margin-top:14px;text-align:center">Naka-sign in: ${esc(u.email || '')} · <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="signOut()">Sign out</button></p>` : ''}
     ${IS_LOCAL && !BIDA.premium ? `<div class="field" style="margin-top:20px"><label for="pro-code">Test code (localhost lang)</label>
       <div style="display:flex;gap:8px"><input class="input" id="pro-code" placeholder="CODE" autocapitalize="characters">
       <button class="btn btn--ink" onclick="redeem()">Gamitin</button></div></div>` : ''}
-    <p class="muted" style="margin-top:14px">Libre pa rin ang event setup, program, host guide at lahat ng laro.</p>`);
+    <p class="muted" style="margin-top:14px">Libre pa rin ang activities, lahat ng laro at ${BIDA_CONFIG.freeSounds} sound pads.</p>`);
+}
+function openAccount() {
+  const u = AUTH.user;
+  const status = isAdmin() ? '<span class="badge-pro">Admin</span> Lahat naka-unlock'
+    : BIDA.premium ? '<span class="badge-pro">Premium</span> Lahat naka-unlock' : 'Libreng version';
+  openSheet(`
+    <div class="sheet-head" data-acct><h3>Account</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <div class="card stack">
+      ${u ? `<div><b>${esc(u.displayName || u.email)}</b><p class="muted">${esc(u.email || '')}</p></div>` : '<p class="muted">Hindi naka-sign in.</p>'}
+      <p>${status}</p>
+      ${!authReady() ? '<p class="note">Hindi pa naka-setup ang Google sign-in (Firebase config). Tingnan ang PAYMENTS.md.</p>'
+        : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
+          : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>
+             <p class="muted">Para sa Premium buyers at admin. Ang admin ay ${esc(BIDA_CONFIG.adminEmails.join(', '))} lang.</p>`}
+      ${!BIDA.premium ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">I-unlock Premium · ${esc(BIDA_CONFIG.priceLabel)}</button>` : ''}
+    </div>`);
 }
 function googleG() {
   return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z"/><path fill="#fff" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" opacity=".8"/><path fill="#fff" d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14z" opacity=".6"/><path fill="#fff" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" opacity=".9"/></svg>`;
@@ -1413,37 +1264,38 @@ function redeem() {
 }
 
 /* ============================================================
-   LIVE HOST MODE
+   LIVE MODE — current activity, timer, what's next, sound pads
    ============================================================ */
 const LIVE = { timerStart: 0, running: false, elapsed: 0, iv: 0 };
 function openLive() {
-  if (!BIDA.program.length) { toast('Wala pang program'); return; }
+  if (!BIDA.program.length) { toast('Wala pang activities'); return; }
   BIDA.liveIdx = clamp(BIDA.liveIdx || 0, 0, BIDA.program.length - 1);
-  $('#live').hidden = false; document.body.style.overflow = 'hidden';
-  bindTalk($('#talk-fab'));
+  $('#live').hidden = false; document.body.style.overflow = 'hidden'; document.body.classList.add('in-live');
   requestAnimationFrame(renderAllBunting);
   renderLive(); clearInterval(LIVE.iv); LIVE.iv = setInterval(tickLive, 500); tickLive();
   try { navigator.wakeLock?.request('screen').then(l => LIVE.lock = l).catch(() => { }); } catch (e) { }
 }
 function closeLive() {
-  $('#live').hidden = true; document.body.style.overflow = ''; clearInterval(LIVE.iv);
+  $('#live').hidden = true; document.body.style.overflow = ''; document.body.classList.remove('in-live'); clearInterval(LIVE.iv);
   LIVE.lock?.release?.(); LIVE.lock = null;
 }
 function renderLive() {
   const i = BIDA.liveIdx, s = BIDA.program[i], k = BIDA_KINDS[s.kind] || BIDA_KINDS.opening, times = segTimes();
-  const next = BIDA.program[i + 1], g = s.game && gameById(s.game);
+  const g = s.game && gameById(s.game);
   $('#live-count').textContent = `${i + 1} / ${BIDA.program.length}`;
   $('#live-now').className = 'live-now ks-' + k.color;
   $('#live-now').innerHTML = `<div class="ln-kind">${esc(k.label)} · ${fmtTime(times[i])}</div><h2>${esc(s.title)}</h2>
-    <div class="ln-meta"><span class="ln-timer" id="ln-timer">${s.min}:00</span><span class="pill">${s.min} min</span>
-      ${g ? `<button class="pill" onclick="openGame('${g.id}')">${ic('games')}How to play</button>` : ''}</div>
-    ${next ? `<div class="ln-next">Susunod: ${esc(next.title)} · ${fmtTime(times[i + 1])}</div>` : '<div class="ln-next">Huling segment na!</div>'}`;
-  const note = BIDA.scriptEdits[s.id];
-  $('#live-script').innerHTML = (note ? `<div class="g-note-live"><small>Notes mo</small>${esc(note)}</div>` : '') + guideBlock(s, i, { compact: true }) +
-    `<button class="btn btn--gold btn--sm" style="margin-top:14px" onclick="openToolbox()">${ic('live')}Mahina ang energy? Toolbox</button>`;
-  $('#live-music').innerHTML = consoleHTML(true);
-  bindTalk($('#talk-live'));
-  $('#live-pads').innerHTML = `<div class="sec-title" style="margin-top:0">${ic('sound')}Sound pads</div><div class="pads">${padsHTML(BIDA.premium ? 12 : 9)}</div>`;
+    <div class="ln-meta"><span class="ln-timer" id="ln-timer">${s.min}:00</span><span class="pill">${s.min} min</span></div>`;
+  const upcoming = BIDA.program.slice(i + 1, i + 4);
+  $('#live-script').innerHTML = (g ? `
+    <div class="lg-head"><b>${esc(g.name)}</b><button class="btn btn--gold btn--sm" onclick="openGame('${g.id}')">${ic('play')}Animated how-to</button></div>
+    <div class="sec-title" style="margin-top:12px">${ic('box')}Kailangan</div>
+    <ul class="mat-list">${g.materials.map(m => `<li>• ${esc(m)}</li>`).join('')}</ul>
+    <div class="sec-title">${ic('program')}Paano laruin</div>
+    <ol class="gd-steps">${g.steps.map(t => `<li>${esc(t)}</li>`).join('')}</ol>` : '') + `
+    <div class="sec-title" ${g ? '' : 'style="margin-top:0"'}>${ic('clock')}Susunod</div>
+    ${upcoming.length ? `<ol class="up-list">${upcoming.map((u, j) => `<li><span>${fmtTime(times[i + 1 + j])}</span><b>${esc(u.title)}</b><small>${u.min} min</small></li>`).join('')}</ol>` : '<p class="muted">Huling activity na — palakpakan!</p>'}`;
+  $('#live-pads').innerHTML = `<div class="sec-title" style="margin-top:0">${ic('sound')}Sound pads</div><div class="pads">${padsHTML()}</div>`;
   LIVE.running = false; LIVE.elapsed = 0; updateTimerBtn();
 }
 function liveStep(d) {
@@ -1462,8 +1314,7 @@ function updateTimerBtn() {
   b.querySelector('span').textContent = LIVE.running ? 'Pause' : (LIVE.elapsed ? 'Ituloy' : 'Start timer');
 }
 function tickLive() {
-  const now = new Date();
-  $('#live-clock').textContent = now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+  $('#live-clock').textContent = new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
   const s = BIDA.program[BIDA.liveIdx]; if (!s) return;
   const el = LIVE.elapsed + (LIVE.running ? Date.now() - LIVE.timerStart : 0);
   const rem = s.min * 60 - Math.floor(el / 1000), a = Math.abs(rem);
@@ -1490,14 +1341,14 @@ function closeSheet() {
 }
 
 /* ============================================================
-   KEYBOARD
+   KEYBOARD — Space = Talk (anywhere), 1–0/Q–P = pads
    ============================================================ */
 document.addEventListener('keydown', e => {
   if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
   if (e.key === 'Escape') { if (!$('#sheet-wrap').hidden) closeSheet(); else if (!$('#live').hidden) closeLive(); return; }
-  const live = !$('#live').hidden, sheetOpen = !$('#sheet-wrap').hidden;
-  if (sheetOpen) return;
-  if (e.code === 'Space' && (live || BIDA.tab === 'music') && !e.repeat && !e.target.closest('button')) {
+  if (!$('#sheet-wrap').hidden || !$('#landing').hidden) return;
+  const live = !$('#live').hidden;
+  if (e.code === 'Space' && !e.repeat && !e.target.closest('button')) {
     e.preventDefault(); BIDA.music.mode === 'hold' ? duckDown() : (M.ducked ? duckUp() : duckDown()); return;
   }
   if (live && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { liveStep(e.key === 'ArrowRight' ? 1 : -1); return; }
@@ -1522,27 +1373,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadState();
   // A test unlock from localhost must never carry over to the live site
   if (!IS_LOCAL && BIDA.devPro) { BIDA.devPro = false; BIDA.premium = !!BIDA.premiumUid; saveState(); }
+  M.current = BIDA.music.master;
+  bindTalk($('#talk-bar'));
   initAuth();
   handlePaidReturn();
-  M.current = BIDA.music.master;
   await spHandleRedirect();
   await loadCustom();
+  const probing = probeDefaults().then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
   const startTab = new URLSearchParams(location.search).get('tab');
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
+  updateBar();
   if (BIDA.music.autoDuck) { BIDA.music.autoDuck = false; saveState(); } // mic needs a fresh user gesture
+  await probing;
 });
 
 /* ---------- exports for inline handlers ---------- */
 Object.assign(window, {
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
-  moveSeg, resetProgram, editSeg, saveSeg, deleteSeg,
-  toggleTone, editScript, copyScript, openToolbox,
+  moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
-  playSound, uploadSounds, delSound, toggleRecord,
-  loadYouTube, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, fadeTo, duckDown, duckUp,
-  setAutoDuck, setTalkMode, setMusicSrc, openExt,
-  openPremium, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
+  playSound, uploadSounds, delSound, addSoundClick, recordClick,
+  loadYouTube, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
+  toggleBar, barInfoClick, setAutoDuck, setTalkMode, setMusicSrc, openExt,
+  openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
   openSheet, closeSheet, saveState
 });
 Object.defineProperty(window, 'BIDA', { get: () => BIDA });

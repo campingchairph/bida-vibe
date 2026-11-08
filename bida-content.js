@@ -36,8 +36,7 @@ window.BIDA_KINDS = {
   closing:  { label: 'Closing',                color: 'leaf' }
 };
 
-/* ---------- Event types → suggested program ----------
-   Each program row: [kind, title, minutes, gameId?]          */
+/* ---------- Event types → suggested activities ----------\n   Each program row: [kind, title, minutes, gameId?]          */
 window.BIDA_EVENTS = [
   {
     id: 'reunion', label: 'Family Reunion', tag: 'Para sa buong angkan',
@@ -200,13 +199,7 @@ window.BIDA_GAMES = [
       'Biglang ihinto ang music — uupo ang lahat sa pinakamalapit na upuan.',
       'Ang walang naupuan, out. Magtanggal ng isang upuan.',
       'Ulitin hanggang dalawa na lang ang players at isang upuan — ang makaupo, panalo!'
-    ],
-    script: {
-      intro: 'Kailangan ko ng sampung volunteers — mas maraming tito at tita, mas maganda!',
-      rules: 'Simple lang: iikot kayo habang may music. Pag tumigil ang tugtog — upo agad! Ang walang upuan, out. Bawal manulak, bawal umupo sa kandungan… maliban kung asawa mo.',
-      during: 'Ikot lang, ikot lang… ’wag kayong titingin sa akin, hindi ko sasabihin kung kailan ko ititigil!',
-      end: 'At ang ating hari/reyna ng upuan — palakpakan natin!'
-    },
+    ],
     tips: ['I-fade ang music, hindi i-stop agad — mas exciting.', 'Gamitin ang Talk button para ianunsyo kung sino ang out.']
   },
   {
@@ -220,13 +213,7 @@ window.BIDA_GAMES = [
       'Pag tumigil ang music, itiklop ang dyaryo sa kalahati.',
       'Ulitin — pwedeng buhatin ang partner para magkasya!',
       'Ang pares na lumabas sa dyaryo, out. Ang huling pares, panalo.'
-    ],
-    script: {
-      intro: 'Hanap kayo ng partner — asawa, kapatid, crush, kahit sino basta kaya kang buhatin!',
-      rules: 'Sasayaw kayo sa ibabaw ng dyaryo. Pag tumigil ang music, tiklop ang dyaryo. Ang tumapak sa sahig — out!',
-      during: 'Lumiliit na ang mundo ninyo! Kapit lang, kapit lang!',
-      end: 'Grabe ang teamwork! Palakpakan ang ating Paper Dance champions!'
-    },
+    ],
     tips: ['Siguraduhing hindi madulas ang sahig.']
   },
   {
@@ -240,13 +227,7 @@ window.BIDA_GAMES = [
       'Magtatanong siya; ang sagot lang ay “Oo”, “Hindi”, o “Pwede”.',
       'May 2 minuto para mahulaan ang salita.',
       'Pinakamaraming nahulaan o pinakamabilis — panalo!'
-    ],
-    script: {
-      intro: 'Sino dito ang henyo? Kailangan ko ng mga pares na magkakilala nang husto!',
-      rules: 'Ang salita, nasa noo mo — hindi mo makikita. Magtanong ka, at ang partner mo ay sasagot lang ng Oo, Hindi, o Pwede. Dalawang minuto. Go!',
-      during: 'Tao ba? Bagay? Pagkain? Malapit na, malapit na!',
-      end: 'Henyo nga! Palakpakan para sa ating pinakamatalinong pares!'
-    },
+    ],
     tips: ['Gumawa ng categories: tao, bagay, pagkain, lugar.', 'Gamitin ang Ding sa tamang sagot at Buzzer sa time’s up.']
   },
   {
@@ -260,13 +241,7 @@ window.BIDA_GAMES = [
       'Uunahan ng mga runner na dalhin ito sa host.',
       'Ang unang makapagdala, may 1 puntos.',
       'Pinakamaraming puntos pagkatapos ng 10 rounds — panalo!'
-    ],
-    script: {
-      intro: 'Hati tayo sa teams! Pumili ng pinakamabilis tumakbo — o ’yung pinakamakapal ang mukha.',
-      rules: 'Pag sinabi kong “Bring me”, dalhin agad dito ang bagay. Ang unang makarating, may puntos!',
-      during: 'Bring me… isang lolo na naka-shades! Bring me… resibo! Bring me… isang taong naka-pink!',
-      end: 'Ang bilis ninyo! Palakpakan ang ating Bring Me champions!'
-    },
+    ],
     tips: ['Ihalo ang madali at mahirap na items.', 'Mag-ingat sa pagtakbo kapag may mga bata.']
   },
   {
@@ -279,13 +254,7 @@ window.BIDA_GAMES = [
       'Pag tumigil ang music — freeze! Bawal gumalaw.',
       'Ang gumalaw, out.',
       'Ulitin hanggang isa na lang ang natitira.'
-    ],
-    script: {
-      intro: 'Lahat ng marunong sumayaw — at lahat ng hindi — dito sa harap!',
-      rules: 'Sayaw habang may music. Pag tumigil — STOP! Parang statue. Ang gumalaw, out!',
-      during: 'Ayan, ayan… STOP! Uy, gumalaw ang kilay mo, out ka!',
-      end: 'Ang ating Stop Dance champion! Palakpakan!'
-    },
+    ],
     tips: ['Perfect gamitin ang mabilis na fade-out sa music panel.']
   },
   {
@@ -299,13 +268,7 @@ window.BIDA_GAMES = [
       'Maglakad papunta sa marker at bumalik nang hindi nahuhulog ang calamansi.',
       'Ipasa ang kutsara sa susunod — bawal hawakan ng kamay.',
       'Ang unang team na matapos, panalo!'
-    ],
-    script: {
-      intro: 'Team relay tayo! Bawat team, pumila dito.',
-      rules: 'Kutsara sa bibig, calamansi sa kutsara. Pag nahulog, balik sa umpisa! Bawal kamay!',
-      during: 'Dahan-dahan lang… ay nahulog! Balik, balik!',
-      end: 'Panalo ang team na may pinaka-steady na bibig! Palakpakan!'
-    },
+    ],
     tips: ['Gumamit ng hilaw na itlog para sa adult round — mas maraming tawanan.']
   },
   {
@@ -319,13 +282,7 @@ window.BIDA_GAMES = [
       'Ibubulong niya ito sa susunod — isang beses lang.',
       'Isusulat o sasabihin ng huling tao ang narinig niya.',
       'Pinakamalapit sa original — panalo!'
-    ],
-    script: {
-      intro: 'Pila tayo, dalawang team! Test natin kung gaano kayo kagaling makinig.',
-      rules: 'Ibubulong ko ang mensahe sa una, ipapasa ninyo hanggang dulo. Isang beses lang ang bulong, bawal ulitin!',
-      during: 'Shhh… bawal tumawa habang bumubulong!',
-      end: 'Ang original na mensahe ay… at ang narinig ninyo ay… ano ’yan?! Hahaha!'
-    },
+    ],
     tips: ['Gumamit ng tongue-twister: “Pitong puting pating”.']
   },
   {
@@ -338,13 +295,7 @@ window.BIDA_GAMES = [
       'Isang miyembro ang bubunot ng card at i-aakto ito nang walang salita.',
       'Huhulaan ng team niya sa loob ng 1 minuto.',
       'Tamang hula = 1 puntos. Pinakamaraming puntos — panalo!'
-    ],
-    script: {
-      intro: 'Sino dito ang artista? Charades tayo!',
-      rules: 'Bubunot ka ng card, i-aakto mo nang walang salita. Bawal magsalita, bawal mag-lip sync! Isang minuto!',
-      during: 'Ano ’yan? Manok? Eroplano? Si Darna?!',
-      end: 'Best actor/actress award goes to… palakpakan!'
-    },
+    ],
     tips: ['Gumamit ng Pinoy teleserye, OPM at pagkain bilang categories.']
   },
   {
@@ -357,13 +308,7 @@ window.BIDA_GAMES = [
       'Ang nasa kaliwa ay sisigaw ng “Hep hep!”, ang nasa kanan ay “Hooray!”.',
       'Paiikutin ng host — kapag tinuro ka, sumagot agad nang tama.',
       'Ang nagkamali o nabagal, out.'
-    ],
-    script: {
-      intro: 'Ikot tayo lahat! Icebreaker muna para magising tayo.',
-      rules: 'Pag tinuro ko ang kaliwa mo, sigaw ka ng “Hep hep!”. Pag kanan — “Hooray!”. Bilis-bilisan natin!',
-      during: 'Hep hep! Hooray! Hep— ay mali! Out!',
-      end: 'Gising na ba tayo? Palakpakan ang natira!'
-    },
+    ],
     tips: ['Bilisan unti-unti para mas nakakatawa.']
   },
   {
@@ -376,13 +321,7 @@ window.BIDA_GAMES = [
       'Gamit ang kahit anong dala nila, gumawa ng pinakamahabang linya sa sahig.',
       'Bawal kumuha sa ibang team.',
       'Pinakamahabang tuloy-tuloy na linya — panalo!'
-    ],
-    script: {
-      intro: 'Teams, handa na ang mga sinturon at sapatos ninyo?',
-      rules: 'Tatlong minuto. Gumawa ng pinakamahabang linya gamit ang kahit anong nasa inyo — basta disente ha!',
-      during: 'Uy, may nagtatanggal na ng medyas! Isang minuto na lang!',
-      end: 'Sukatan na! At ang pinakamahabang linya ay sa… palakpakan!'
-    },
+    ],
     tips: ['Magtakda ng limitasyon kung hanggang saan ang pwedeng tanggalin.']
   },
   {
@@ -395,13 +334,7 @@ window.BIDA_GAMES = [
       'Sa hudyat, subukang putukin ang lobo ng iba gamit ang paa.',
       'Protektahan ang sarili mong lobo!',
       'Ang huling may buong lobo — panalo!'
-    ],
-    script: {
-      intro: 'Kunin ang lobo, itali sa paa — mahigpit ha!',
-      rules: 'Sa hudyat ko, putukin ang lobo ng iba. Bawal kamay, bawal manulak. Ang huling may lobo, panalo!',
-      during: 'BOOM! May isa na namang nalaglag! Takbo, takbo!',
-      end: 'Ang survivor ng Putok Lobo! Palakpakan!'
-    },
+    ],
     tips: ['Paghiwalayin ang mga bata at matatanda.']
   },
   {
@@ -414,13 +347,7 @@ window.BIDA_GAMES = [
       'Maglaro ng Bato Bato Pik — best of 3.',
       'Ang talo ay magiging cheerer ng nanalo at susunod sa kanya.',
       'Paglaban-labanin ang mga nanalo hanggang dalawa na lang — final match!'
-    ],
-    script: {
-      intro: 'Lahat tayo maglalaro! Hanap ng kalaban!',
-      rules: 'Best of 3. Pag talo ka, maging cheerleader ka ng nanalo — sigaw ng pangalan niya hanggang sa finals!',
-      during: 'Jack-en-poy! Hale-hale-hoy! Ang ingay ng mga cheerers!',
-      end: 'At ang hari/reyna ng Bato Bato Pik! Palakpakan!'
-    },
+    ],
     tips: ['Ang “cheer train” ang pinakamasayang parte — hayaan silang mag-ingay.']
   },
   {
@@ -434,13 +361,7 @@ window.BIDA_GAMES = [
       'Kung nasa top 5, may puntos ang team.',
       'Tatlong mali — ang kabilang team ang may chance mag-steal.',
       'Pinakamaraming puntos pagkatapos ng 5 tanong — panalo!'
-    ],
-    script: {
-      intro: 'Dalawang team, punta sa harap! Survey says na tayo!',
-      rules: 'Babasahin ko ang tanong. Ang unang pumindot, sasagot. Kung nasa top 5 ng survey — puntos! Tatlong mali, steal ang kabila!',
-      during: 'Top answer… ihanda ang Ding! O ang Buzzer!',
-      end: 'Survey says… panalo ang team ni ______! Palakpakan!'
-    },
+    ],
     tips: ['Gawin ang survey sa group chat bago ang event para totoo ang sagot.', 'Ding sa tama, Buzzer sa mali — nasa Sound Lab.']
   },
   {
@@ -453,13 +374,7 @@ window.BIDA_GAMES = [
       'Ipasa ang bola habang may music.',
       'Pag tumigil ang music, ang may hawak ng bola — out (o gagawa ng forfeit).',
       'Ulitin hanggang isa na lang ang natitira.'
-    ],
-    script: {
-      intro: 'Bilog tayo lahat! Mainit na patatas tayo!',
-      rules: 'Ipasa ang bola habang may music. Pag huminto — ang may hawak, out! O kakanta, depende sa mood ko.',
-      during: 'Init, init, init! Bilis ipasa!',
-      end: 'Ang hindi natamaan ng init — ang ating champion!'
-    },
+    ],
     tips: ['Lagyan ng forfeit: kumanta, sumayaw, o mag-share ng embarrassing story.']
   }
 ];

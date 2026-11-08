@@ -8,6 +8,7 @@ FIREBASE_PROJECT_ID = "REPLACE_WITH_FIREBASE_PROJECT_ID"
 APP_URL = "https://campingchairph.github.io/bida-vibe/"
 ALLOWED_ORIGINS = "https://campingchairph.github.io,http://localhost:8102"
 PRICE_CENTAVOS = "14900"
+ADMIN_EMAILS = "morphiicreate@gmail.com"
 
 [[kv_namespaces]]
 binding = "PREMIUM"
