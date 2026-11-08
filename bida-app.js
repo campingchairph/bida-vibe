@@ -12,7 +12,14 @@ const BIDA_CONFIG = {
   // Payments (see PAYMENTS.md): URL of the deployed Cloudflare Worker, e.g. 'https://bida-pay.yourname.workers.dev'
   workerUrl: '',
   // Firebase web config (Project settings → Your apps → Web app). Used for Google sign-in (buyers + admin).
-  firebase: null,
+  firebase: {
+    apiKey: 'AIzaSyCkgq_rS5ZlTO40PsoKhvG0ZwwefhjNeWE',
+    authDomain: 'bidavibe.firebaseapp.com',
+    projectId: 'bidavibe',
+    storageBucket: 'bidavibe.firebasestorage.app',
+    messagingSenderId: '596965053196',
+    appId: '1:596965053196:web:cb32617798b800f4276f29'
+  },
   // Admin accounts get everything free. Must sign in with Google as this exact, verified address.
   // The Worker checks this again server-side (ADMIN_EMAILS variable).
   adminEmails: ['morphiicreate@gmail.com'],
