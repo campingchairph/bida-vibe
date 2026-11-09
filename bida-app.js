@@ -57,7 +57,9 @@ function defaultState() {
     premiumUntil: 0,  // end of the paid pass (ms); 0 = none
     proKind: '',      // 'admin' | 'pass' | '' — cached so the venue works offline
     devPro: false,    // localhost-only test unlock
-    music: { master: 0.8, duck: 0.2, fade: 500, mode: 'hold', src: 'youtube', ytUrl: '', spUrl: '', link: '', autoDuck: false, sens: 0.5 },
+    // fade = Talk fade-down ms · fadeUp = how long the music takes to come back · delay = wait before it comes back
+    // fadeBtn = length of the Fade out / Fade in button
+    music: { master: 0.8, duck: 0.2, fade: 500, fadeUp: 1000, delay: 0, fadeBtn: 1500, mode: 'hold', src: 'youtube', ytUrl: '', spUrl: '', link: '', autoDuck: false, sens: 0.5 },
     seenLanding: false,
     tab: 'plan',
     gameChecks: {},
@@ -75,6 +77,10 @@ function loadState() {
       BIDA = Object.assign(def, d);
       BIDA.event = Object.assign(def.event, d.event || {});
       BIDA.music = Object.assign(def.music, d.music || {});
+      // Any missing / broken number falls back to its default (never NaN in the sliders)
+      for (const k of ['master', 'duck', 'fade', 'fadeUp', 'delay', 'fadeBtn', 'sens']) {
+        if (!Number.isFinite(BIDA.music[k])) BIDA.music[k] = defaultState().music[k];
+      }
       // v3: scripts/guide removed, tabs simplified
       delete BIDA.scriptEdits; delete BIDA.tones; delete BIDA.rulesOpen;
       if (!['plan', 'games', 'sounds', 'music'].includes(BIDA.tab)) BIDA.tab = 'plan';
@@ -85,12 +91,30 @@ function loadState() {
   } catch (e) { BIDA = defaultState(); }
   // Treat stored data as untrusted: keep only well-formed activities (numbers are numbers, ids are known)
   BIDA.program = (Array.isArray(BIDA.program) ? BIDA.program : []).filter(s => s && Number.isInteger(s.id) && BIDA_KINDS[s.kind])
-    .map(s => ({ id: s.id, kind: s.kind, title: String(s.title || '').slice(0, 80), min: clamp(parseInt(s.min, 10) || 5, 1, 300), game: gameById(s.game) ? s.game : '' }));
+    .map(s => ({ id: s.id, kind: s.kind, title: String(s.title || '').slice(0, 80), min: clamp(parseInt(s.min, 10) || 5, 1, 300), game: gameById(s.game) ? s.game : '',
+      note: String(s.note || '').slice(0, 300), done: s.done === true }));
   BIDA.nextId = Math.max(Number.isInteger(BIDA.nextId) ? BIDA.nextId : 1, ...BIDA.program.map(s => s.id + 1));
   if (!BIDA_EVENTS.some(e => e.id === BIDA.event.type)) BIDA.event.type = 'reunion';
   if (!/^\d{2}:\d{2}$/.test(BIDA.event.start)) BIDA.event.start = '15:00';
   if (!BIDA.program.length) buildProgram(BIDA.event.type);
 }
+
+/* ---------- In-app dialogs (never native confirm/prompt: they freeze the page and can pause music) ---------- */
+function openDlg(msg, { input = null, yes = 'Oo', no = 'Huwag' } = {}) {
+  return new Promise(resolve => {
+    const wrap = $('#dlg-wrap'), inp = $('#dlg-input'), y = $('#dlg-yes'), n = $('#dlg-no');
+    $('#dlg-msg').textContent = msg; y.textContent = yes; n.textContent = no;
+    inp.hidden = input === null; if (input !== null) inp.value = input;
+    wrap.hidden = false; (input !== null ? inp : y).focus();
+    const done = v => { wrap.hidden = true; y.onclick = n.onclick = inp.onkeydown = wrap.onclick = null; resolve(v); };
+    y.onclick = () => done(input !== null ? inp.value.trim() : true);
+    n.onclick = () => done(input !== null ? null : false);
+    inp.onkeydown = e => { if (e.key === 'Enter') y.onclick(); if (e.key === 'Escape') n.onclick(); };
+    wrap.onclick = e => { if (e.target === wrap) n.onclick(); };
+  });
+}
+const askConfirm = (msg, yes) => openDlg(msg, { yes });
+const askText = (msg, def) => openDlg(msg, { input: def, yes: 'I-save', no: 'Kanselahin' });
 
 /* ---------- Helpers ---------- */
 let toastT;
@@ -116,7 +140,7 @@ function fmtDur(m) { return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m
 /* ---------- Program ---------- */
 function buildProgram(typeId) {
   const et = eventType(typeId);
-  BIDA.program = et.program.map(([kind, title, min, game]) => ({ id: BIDA.nextId++, kind, title, min, game: game || '' }));
+  BIDA.program = et.program.map(([kind, title, min, game]) => ({ id: BIDA.nextId++, kind, title, min, game: game || '', note: '', done: false }));
   BIDA.liveIdx = 0;
 }
 
@@ -204,16 +228,19 @@ function renderPlan() {
     <div class="type-strip" role="radiogroup" aria-label="Uri ng event">${BIDA_EVENTS.map(t => `
       <button class="type-chip ${t.id === e.type ? 'on' : ''}" role="radio" aria-checked="${t.id === e.type}" onclick="pickEventType('${t.id}')">${esc(t.label)}</button>`).join('')}</div>
     <div class="plan-head">
-      <div><h2>Activities</h2><p class="muted">${BIDA.program.length} activities · ${fmtTime(toMin(e.start))} – ${fmtTime(end)} · ${fmtDur(totalMin())}</p></div>
+      <div><h2>Activities</h2><p class="muted">${BIDA.program.filter(s => s.done).length}/${BIDA.program.length} tapos · ${fmtTime(toMin(e.start))} – ${fmtTime(end)} · ${fmtDur(totalMin())}</p></div>
       <button class="btn btn--chili plan-live" onclick="openLive()">${ic('live')}Simulan</button>
     </div>
     <ol class="act-list">${BIDA.program.map((s, i) => {
-      const k = BIDA_KINDS[s.kind] || BIDA_KINDS.opening, g = s.game && gameById(s.game);
-      return `<li class="act k-${k.color}">
+      const k = BIDA_KINDS[s.kind] || BIDA_KINDS.opening, g = s.game && gameById(s.game), isNext = i === nextIdx();
+      return `<li class="act k-${k.color} ${s.done ? 'is-done' : ''} ${isNext ? 'is-next' : ''}">
+        <button class="act-check" role="checkbox" aria-checked="${!!s.done}" onclick="toggleDone(${s.id})" aria-label="${s.done ? 'Hindi pa tapos' : 'Tapos na'}: ${esc(s.title)}">${s.done ? ic('check') : ''}</button>
         <button class="act-main" onclick="editSeg(${s.id})" aria-label="Edit ${esc(s.title)}">
+          ${isNext ? '<span class="act-next-tag">Susunod</span>' : ''}
           <span class="act-time">${fmtTime(times[i])}</span>
           <span class="act-title">${esc(s.title)}</span>
           <span class="act-min">${s.min} min${g ? ' · laro' : ''}</span>
+          ${s.note ? `<span class="act-note">${ic('edit')}${esc(s.note)}</span>` : ''}
         </button>
         ${g ? `<button class="act-game" onclick="openGame('${g.id}')" aria-label="How to play ${esc(g.name)}">${ic('games')}</button>` : ''}
         <span class="act-move">
@@ -226,13 +253,20 @@ function renderPlan() {
       <button class="btn btn--ghost" onclick="resetProgram()">I-reset</button>
     </div>`;
 }
+// The next activity = the first one not checked as done
+function nextIdx() { return BIDA.program.findIndex(s => !s.done); }
+function toggleDone(id) {
+  const s = BIDA.program.find(x => x.id === id); if (!s) return;
+  s.done = !s.done; saveState(); renderPlan();
+  if (s.done) { const n = BIDA.program[nextIdx()]; toast(n ? `Susunod: ${n.title}` : 'Tapos na lahat — palakpakan!'); }
+}
 function setEv(k, v) {
   BIDA.event[k] = v; saveState(); renderHead();
   if (k === 'start') renderPlan();
 }
-function pickEventType(id) {
+async function pickEventType(id) {
   if (id === BIDA.event.type) return;
-  if (!confirm(`Palitan ang activities ng suggested para sa ${eventType(id).label}?`)) return;
+  if (!await askConfirm(`Palitan ang activities ng suggested para sa ${eventType(id).label}?`, 'Palitan')) return;
   BIDA.event.type = id; buildProgram(id); saveState(); renderPlan(); renderHead();
   toast(`Activities para sa ${eventType().label} — handa na!`);
 }
@@ -240,14 +274,14 @@ function moveSeg(i, d) {
   const j = i + d; if (j < 0 || j >= BIDA.program.length) return;
   const p = BIDA.program;[p[i], p[j]] = [p[j], p[i]]; saveState(); renderPlan();
 }
-function resetProgram() {
-  if (!confirm('I-reset sa suggested activities ng ' + eventType().label + '?')) return;
+async function resetProgram() {
+  if (!await askConfirm('I-reset sa suggested activities ng ' + eventType().label + '? Mabubura ang notes at checks.', 'I-reset')) return;
   buildProgram(BIDA.event.type); saveState(); renderPlan(); toast('Na-reset');
 }
 let segDraft = null;
 function editSeg(id) {
   const s = id ? BIDA.program.find(x => x.id === id) : null;
-  segDraft = s ? { ...s } : { kind: 'game', title: '', min: 15, game: '' };
+  segDraft = s ? { ...s } : { kind: 'game', title: '', min: 15, game: '', note: '' };
   openSheet(`
     <div class="sheet-head"><h3>${id ? 'I-edit' : 'Dagdag activity'}</h3>
       <button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
@@ -262,6 +296,9 @@ function editSeg(id) {
         <select class="input" id="sg-game" onchange="if(this.value&&!$('#sg-title').value)$('#sg-title').value=this.options[this.selectedIndex].text">
           <option value="">— Sariling laro —</option>
           ${BIDA_GAMES.map(g => `<option value="${g.id}" ${g.id === segDraft.game ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>
+      <div class="field"><label for="sg-note">Note</label>
+        <textarea class="input" id="sg-note" rows="3" maxlength="300" placeholder="hal. Si Tito Ben ang magdadala ng premyo · Banggitin ang galing Dubai">${esc(segDraft.note || '')}</textarea></div>
+      ${id ? `<label class="toggle"><input type="checkbox" id="sg-done" ${segDraft.done ? 'checked' : ''}>Tapos na ang activity na ito</label>` : ''}
     </div>
     <div class="sheet-actions">
       ${id ? `<button class="btn btn--ghost" onclick="deleteSeg(${id})">${ic('trash')}Tanggalin</button>` : ''}
@@ -284,8 +321,10 @@ function saveSeg(id) {
   let title = $('#sg-title').value.trim();
   if (!title) title = game ? gameById(game).name : BIDA_KINDS[kind].label;
   const min = clamp(parseInt($('#sg-min').value, 10) || 5, 1, 300);
-  if (id) Object.assign(BIDA.program.find(x => x.id === id), { kind, title, min, game });
-  else BIDA.program.push({ id: BIDA.nextId++, kind, title, min, game });
+  const note = $('#sg-note').value.trim().slice(0, 300);
+  title = title.slice(0, 80);
+  if (id) Object.assign(BIDA.program.find(x => x.id === id), { kind, title, min, game, note, done: !!$('#sg-done')?.checked });
+  else BIDA.program.push({ id: BIDA.nextId++, kind, title, min, game, note, done: false });
   saveState(); closeSheet(); renderPlan(); toast('Na-save!');
 }
 function deleteSeg(id) {
@@ -471,9 +510,67 @@ const SCENES = {
         <animateMotion path="M160 92 a100 30 0 1 1 -0.1 0" dur="7s" repeatCount="indefinite" keyPoints="0;.85;.85" keyTimes="0;.8;1" calcMode="linear"/></g>
       ${note(20, 40, 0)}${note(300, 40, .7)}
       <g opacity="0">${bubble(160, 26, 'STOP! Sino may hawak?', '', 160)}${vis('0;1;0', 7, '0;.8;.98')}</g>`;
+  },
+  cupstack() {
+    // three tied players walk to a table, cups appear one by one as a pyramid
+    const cup = (x, y, t) => `<g transform="translate(${x} ${y})" opacity="0"><path d="M-7 0h14l-2 -14h-10z" fill="#fff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>${vis('0;1', 6, `0;${t}`)}</g>`;
+    const rows = [[4, 0], [3, 1], [2, 2], [1, 3]]; let cups = '', k = 0;
+    rows.forEach(([n, r]) => { for (let i = 0; i < n; i++) cups += cup(230 + (i - (n - 1) / 2) * 16, 116 - r * 15, (.35 + (k++) * .055).toFixed(2)); });
+    return `${ground}<rect x="190" y="118" width="80" height="6" fill="#F6B21B" stroke="${INK}" stroke-width="2"/><path d="M196 124v26M264 124v26" stroke="${INK}" stroke-width="2.5"/>
+      ${cups}
+      <g><g transform="translate(40 148)">${person(0)}</g><g transform="translate(62 148)">${person(1)}</g><g transform="translate(84 148)">${person(2)}</g>
+        <path d="M30 128h64" stroke="#E2367A" stroke-width="4" stroke-dasharray="6 3"/>
+        <animateTransform attributeName="transform" type="translate" values="0 0;80 0;80 0;0 0" keyTimes="0;.3;.92;1" dur="6s" repeatCount="indefinite"/></g>
+      <g opacity="0">${bubble(230, 40, '4-3-2-1!')}${vis('0;1;0', 6, '0;.9;.99')}</g>`;
+  },
+  tug() {
+    return `${ground}
+      <g><g transform="translate(110 148)">${person(0, { arms: 'out' })}</g>
+        <animateTransform attributeName="transform" type="translate" values="0 0;-6 0;0 0;-6 0;-14 0" keyTimes="0;.25;.5;.75;1" dur="4s" repeatCount="indefinite"/></g>
+      <g><g transform="translate(210 148)">${person(1, { arms: 'out' })}</g>
+        <animateTransform attributeName="transform" type="translate" values="0 0;6 0;0 0;6 0;14 0" keyTimes="0;.25;.5;.75;1" dur="4s" repeatCount="indefinite"/></g>
+      <rect x="132" y="122" width="56" height="10" fill="#fff" stroke="${INK}" stroke-width="2"><animate attributeName="opacity" values="1;1;0" keyTimes="0;.8;.81" dur="4s" repeatCount="indefinite"/></rect>
+      <g opacity="0"><rect x="126" y="122" width="24" height="10" fill="#fff" stroke="${INK}" stroke-width="2"/><path d="M150 122l-4 5 4 5" fill="none" stroke="${INK}" stroke-width="2"/>${vis('0;1;0', 4, '0;.81;.99')}</g>
+      <g opacity="0">${bubble(160, 60, 'Rrrip!')}${vis('0;1;0', 4, '0;.8;.97')}</g>`;
+  },
+  cupgrab() {
+    return `${ground}
+      <g transform="translate(115 148)"><g>${person(0, { arms: 'up' })}${vis('1;0;1', 5, '0;.6;.98')}</g><g opacity="0">${person(0, { arms: 'out' })}${vis('0;1;0', 5, '0;.6;.98')}</g></g>
+      <g transform="translate(205 148)">${person(1, { arms: 'up' })}</g>
+      <g transform="translate(160 146)"><path d="M-8 0h16l-2 -16h-12z" fill="#fff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+        <animateTransform attributeName="transform" type="translate" values="160 146;160 146;138 126;138 126" keyTimes="0;.6;.66;1" dur="5s" repeatCount="indefinite"/></g>
+      <g opacity="0">${bubble(160, 40, 'Ulo! Balikat!')}${vis('1;0', 5, '0;.3')}</g>
+      <g opacity="0">${bubble(160, 40, 'Tuhod!')}${vis('0;1;0', 5, '0;.32;.58')}</g>
+      <g opacity="0">${bubble(160, 40, 'CUP!')}${vis('0;1;0', 5, '0;.58;.98')}</g>`;
+  },
+  coin() {
+    const ppl = [60, 110, 210, 260].map((x, i) => `<g transform="translate(${x} 148)"><g>${person(i + 1, { arms: i % 2 ? 'up' : 'down' })}
+      ${i % 2 ? '' : `<animateTransform attributeName="transform" type="translate" values="0 0;0 0;0 14;0 14" keyTimes="0;.6;.66;1" dur="5s" repeatCount="indefinite"/>`}</g></g>`).join('');
+    return `${ground}${ppl}<g transform="translate(160 148)">${person(0, { arms: 'up' })}</g>
+      <g transform="translate(176 100)"><ellipse rx="9" ry="9" fill="#F6B21B" stroke="${INK}" stroke-width="2"><animate attributeName="rx" values="9;1;9;1;9;1;9" dur="1s" repeatCount="indefinite"/></ellipse>
+        <animateTransform attributeName="transform" type="translate" values="176 100;176 30;176 100;176 100" keyTimes="0;.25;.5;1" dur="5s" repeatCount="indefinite"/></g>
+      <g opacity="0">${bubble(160, 40, 'HEADS!')}${vis('0;1;0', 5, '0;.55;.95')}</g>`;
+  },
+  dice() {
+    const die = (x, pips) => `<g transform="translate(${x} 96)"><rect x="-16" y="-16" width="32" height="32" rx="7" fill="#fff" stroke="${INK}" stroke-width="2.5"/>${pips.map(([a, b]) => `<circle cx="${a}" cy="${b}" r="3.5" fill="${INK}"/>`).join('')}
+      <animateTransform attributeName="transform" type="rotate" values="0;360;360" keyTimes="0;.3;1" dur="5s" additive="sum" repeatCount="indefinite"/></g>`;
+    return `<rect x="40" y="130" width="240" height="10" fill="#F6B21B" stroke="${INK}" stroke-width="2"/>
+      ${die(130, [[-8, -8], [0, 0], [8, 8]])}${die(180, [[-8, -8], [8, -8], [-8, 8], [8, 8]])}
+      <g transform="translate(250 112)"><rect x="-24" y="-30" width="44" height="54" fill="#fff" stroke="${INK}" stroke-width="2"/>
+        <text x="-2" y="-12" text-anchor="middle" font-size="10" fill="${INK}">1 2 3</text><text x="-2" y="2" text-anchor="middle" font-size="10" fill="${INK}" opacity="0">4 5 6${vis('0;1', 5, '0;.5')}</text></g>
+      <g opacity="0">${bubble(150, 40, 'SEVEN! Akin ang ballpen!', '', 170)}${vis('0;1;0', 5, '0;.32;.9')}</g>`;
+  },
+  toss() {
+    let grid = ''; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) grid += `<rect x="${170 + c * 34}" y="${82 + r * 22}" width="34" height="22" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
+    const mark = (c, r, t, ch, col) => `<text x="${187 + c * 34}" y="${98 + r * 22}" text-anchor="middle" font-size="15" fill="${col}" opacity="0">${ch}${vis('0;1', 6, `0;${t}`)}</text>`;
+    return `${ground}<g transform="translate(60 148)">${person(0, { arms: 'out' })}</g>${grid}
+      ${mark(0, 0, .2, 'X', '#E2367A')}${mark(1, 1, .45, 'X', '#E2367A')}${mark(2, 0, .35, 'O', '#0FA3A3')}${mark(2, 2, .7, 'X', '#E2367A')}
+      <g><rect x="-6" y="-5" width="12" height="10" rx="3" fill="#E4452B" stroke="${INK}" stroke-width="1.5"/>
+        <animateMotion path="M80 112 Q140 30 238 136" dur="2s" repeatCount="indefinite"/></g>
+      <g opacity="0">${bubble(150, 30, 'Tatlo sa linya!', '', 120)}${vis('0;1;0', 6, '0;.78;.98')}</g>`;
   }
 };
-const SCENE_BG = { chairs: '', paper: 'gold', henyo: 'magenta', bringme: 'leaf', freeze: 'gold', relay: 'leaf', whisper: 'magenta', charades: 'gold', hephep: '', line: 'chili', balloon: 'magenta', jakenpoy: 'gold', feud: '', pass: 'chili' };
+const SCENE_BG = { chairs: '', paper: 'gold', henyo: 'magenta', bringme: 'leaf', freeze: 'gold', relay: 'leaf', whisper: 'magenta', charades: 'gold', hephep: '', line: 'chili', balloon: 'magenta', jakenpoy: 'gold', feud: '', pass: 'chili', cupstack: 'leaf', tug: 'gold', cupgrab: 'magenta', coin: '', dice: 'chili', toss: 'leaf' };
 function sceneHTML(game) {
   const fn = SCENES[game.anim] || SCENES.chairs, bg = SCENE_BG[game.anim];
   return `<div class="scene ${bg ? 'scene--' + bg : ''}" role="img" aria-label="Animated how-to: ${esc(game.name)}">
@@ -540,6 +637,7 @@ function openGame(id) {
       <button class="btn btn--gold btn--sm" id="step-play" onclick="playSteps()">${ic('play')}Play steps</button></div>
     <ol class="gd-steps" id="gd-steps">${g.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
     ${g.tips?.length ? `<div class="sec-title">${ic('star')}Tips</div><ul class="mat-list">${g.tips.map(t => `<li>• ${esc(t)}</li>`).join('')}</ul>` : ''}
+    ${g.credit ? `<p class="muted game-credit">Laro mula kay <a href="${esc(g.credit.url)}" target="_blank" rel="noopener noreferrer">${esc(g.credit.by)}</a> (@digthegames sa TikTok) — panoorin doon ang original na video.</p>` : ''}
     <div class="sheet-actions"><button class="btn btn--magenta" onclick="addGameToProgram('${id}')">${ic('plus')}Idagdag sa activities</button></div>`);
   watchScenes($('#sheet'));
 }
@@ -575,8 +673,13 @@ function addGameToProgram(id) {
 let AC = null, SFX_BUS = null, MUSIC_BUS = null;
 function ac() {
   if (!AC) {
-    AC = new (window.AudioContext || window.webkitAudioContext)();
-    SFX_BUS = AC.createGain(); SFX_BUS.gain.value = .95; SFX_BUS.connect(AC.destination);
+    // Pads must play ON TOP of the music, never duck or pause it: mix with other audio where the browser supports it
+    try { if (navigator.audioSession && M.kind !== 'local') navigator.audioSession.type = 'ambient'; } catch (e) { }
+    AC = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    // Pads go through a limiter with extra gain so they cut through the music without distorting
+    const lim = AC.createDynamicsCompressor();
+    lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 12; lim.attack.value = .002; lim.release.value = .12;
+    SFX_BUS = AC.createGain(); SFX_BUS.gain.value = 1.8; SFX_BUS.connect(lim).connect(AC.destination);
     MUSIC_BUS = AC.createGain(); MUSIC_BUS.gain.value = BIDA.music.master; MUSIC_BUS.connect(AC.destination);
   }
   if (AC.state === 'suspended') AC.resume();
@@ -615,7 +718,7 @@ async function probeDefaults() {
   await Promise.all(DEFAULT_SOUNDS.map(async s => {
     if (s.id in SND_OK) return;
     try {
-      const r = await fetch(SOUND_DIR + s.file, { cache: 'force-cache' });
+      const r = await fetch(SOUND_DIR + s.file, { cache: 'no-cache' });   // revalidate: replaced files show up right away
       if (!r.ok) { SND_OK[s.id] = false; return; }
       const buf = await r.arrayBuffer();
       SND_OK[s.id] = true;
@@ -722,7 +825,7 @@ async function uploadSounds(files) {
   renderSounds(); if (added) toast(added > 1 ? `${added} sounds nadagdag!` : 'Nadagdag ang sound!');
 }
 async function delSound(id) {
-  if (!confirm('Tanggalin ang sound na ito?')) return;
+  if (!await askConfirm('Tanggalin ang sound na ito?', 'Tanggalin')) return;
   await dbDel(id); CUSTOM = CUSTOM.filter(s => s.id !== id); delete BUF_CACHE[id]; renderSounds();
 }
 let recorder, recChunks = [];
@@ -742,7 +845,7 @@ async function toggleRecord() {
       clearInterval(tick);
       stream.getTracks().forEach(t => t.stop());
       const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/webm' });
-      const name = String(prompt('Pangalan ng sound?', 'Recording ' + (CUSTOM.filter(isRec).length + 1)) || 'Recording').slice(0, 20);
+      const name = String(await askText('Pangalan ng sound?', 'Recording ' + (CUSTOM.filter(isRec).length + 1)) || 'Recording').slice(0, 20);
       const s = { id: 'r' + Date.now().toString(36), name, blob, c: 'magenta', created: Date.now() };
       await dbPut(s); CUSTOM.push(s); renderSounds(); toast('Na-save ang recording!');
     };
@@ -760,7 +863,7 @@ async function toggleRecord() {
    MUSIC — sources, fade/duck engine, and the always-on music bar.
    The Music tab is only setup; playback controls live in #mbar.
    ============================================================ */
-const M = { kind: null, playing: false, title: '', current: .8, ducked: false, faded: false, raf: 0, fadeT: 0, yt: null, ytReady: false, sp: null, spDevice: null, spMode: null, audio: null, mediaSrc: null, queue: [], qi: 0, lastSpSet: 0, upNext: [], pos: '' };
+const M = { wantPlay: false, resumeT: 0, duckT: 0, kind: null, playing: false, title: '', current: .8, ducked: false, faded: false, raf: 0, fadeT: 0, yt: null, ytReady: false, sp: null, spDevice: null, spMode: null, audio: null, mediaSrc: null, queue: [], qi: 0, lastSpSet: 0, upNext: [], pos: '' };
 
 function liveTarget() { return M.faded ? 0 : M.ducked ? BIDA.music.master * BIDA.music.duck : BIDA.music.master; }
 function applyVolume(v) {
@@ -791,13 +894,20 @@ function needSource() {
 /* Talk = quick duck while speaking */
 function duckDown() {
   if (needPro('Talk fader')) return;
+  clearTimeout(M.duckT);                       // speaking again during the wait: stay down
   M.ducked = true; if (!M.faded) fadeTo(liveTarget(), BIDA.music.fade);
-  $$('.talk-btn').forEach(b => b.classList.add('on'));
+  $$('.talk-btn').forEach(b => { b.classList.add('on'); b.classList.remove('waiting'); });
 }
 function duckUp() {
   if (!M.ducked) return;
-  M.ducked = false; if (!M.faded) fadeTo(liveTarget(), Math.round(BIDA.music.fade * 1.6));
-  $$('.talk-btn').forEach(b => b.classList.remove('on'));
+  M.ducked = false;
+  $$('.talk-btn').forEach(b => { b.classList.remove('on'); if (BIDA.music.delay) b.classList.add('waiting'); });
+  clearTimeout(M.duckT);
+  // Optional wait, then bring the music back over fadeUp ms
+  M.duckT = setTimeout(() => {
+    $$('.talk-btn').forEach(b => b.classList.remove('waiting'));
+    if (!M.ducked && !M.faded) fadeTo(liveTarget(), BIDA.music.fadeUp);
+  }, BIDA.music.delay);
 }
 function bindTalk(btn) {
   if (!btn || btn._bound) return; btn._bound = true;
@@ -819,10 +929,10 @@ function fadeToggle() {
   if (M.faded || !M.playing) {
     M.faded = false;
     if (!M.playing) { applyVolume(0); musicPlay(); }
-    fadeTo(liveTarget(), 1500);
+    fadeTo(liveTarget(), BIDA.music.fadeBtn);
   } else {
     M.faded = true;
-    fadeTo(0, 1500, () => { if (M.faded) musicPause(); });
+    fadeTo(0, BIDA.music.fadeBtn, () => { if (M.faded) musicPause(); });
   }
   updateBar();
 }
@@ -868,14 +978,17 @@ async function loadYouTube() {
   // The player lives in the music bar's preview area so it keeps playing on every tab
   $('#yt-dock').innerHTML = '<div id="yt-player"></div>';
   M.ytReady = false; M.kind = 'youtube'; M.faded = false;
-  const vars = { playsinline: 1, rel: 0, modestbranding: 1 };
+  // controls:0 — play/pause only from the music bar, so a stray tap on the preview can't stop the party
+  const vars = { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1 };
   if (p.list) { vars.listType = 'playlist'; vars.list = p.list; }
   M.yt = new YT.Player('yt-player', {
     videoId: p.id || undefined, playerVars: vars,
     events: {
-      onReady: e => { M.ytReady = true; applyVolume(liveTarget()); e.target.playVideo(); },
+      onReady: e => { M.ytReady = true; M.wantPlay = true; applyVolume(liveTarget()); e.target.playVideo(); },
       onStateChange: e => {
         M.playing = e.data === YT.PlayerState.PLAYING;
+        if (e.data === YT.PlayerState.PAUSED) guardResume('youtube');
+        if (M.playing) setMediaSession();
         try { M.title = M.yt.getVideoData().title || 'YouTube'; } catch (x) { M.title = 'YouTube'; }
         try { const pl = M.yt.getPlaylist(); M.pos = pl ? `${M.yt.getPlaylistIndex() + 1} / ${pl.length}` : ''; } catch (x) { M.pos = ''; }
         M.upNext = [];
@@ -900,8 +1013,8 @@ function ensureAudio() {
   if (M.audio) return M.audio;
   const a = new Audio(); a.preload = 'auto';
   a.addEventListener('ended', () => playLocal(M.qi + 1));
-  a.addEventListener('play', () => { M.playing = true; updateBar(); });
-  a.addEventListener('pause', () => { M.playing = false; updateBar(); });
+  a.addEventListener('play', () => { M.playing = true; setMediaSession(); updateBar(); });
+  a.addEventListener('pause', () => { M.playing = false; updateBar(); if (!a.ended) guardResume('local'); });
   M.audio = a; ac();
   M.mediaSrc = AC.createMediaElementSource(a); M.mediaSrc.connect(MUSIC_BUS);
   return a;
@@ -913,7 +1026,7 @@ function playLocal(i) {
   M.pos = `${M.qi + 1} / ${M.queue.length}`;
   M.upNext = M.queue.slice(M.qi + 1, M.qi + 4).map(q => q.name);
   applyVolume(liveTarget());
-  a.play().catch(() => { }); updateBar('Sariling files');
+  M.wantPlay = true; a.play().catch(() => { }); updateBar('Sariling files');
 }
 
 /* ---- Spotify (Web Playback SDK on desktop · Connect control on mobile) ---- */
@@ -978,6 +1091,7 @@ async function spPlay() {
         M.sp.addListener('ready', ({ device_id }) => { M.spDevice = device_id; });
         M.sp.addListener('player_state_changed', s => {
           if (!s) return; M.playing = !s.paused; M.title = s.track_window?.current_track?.name || 'Spotify';
+          if (s.paused) guardResume('spotify');
           M.upNext = (s.track_window?.next_tracks || []).map(t => t.name); updateBar();
         });
         M.sp.addListener('account_error', () => toast('Spotify Premium ang kailangan para dito'));
@@ -993,7 +1107,7 @@ async function spPlay() {
       if (r.status === 404) { toast('Buksan muna ang Spotify app at mag-play ng kahit ano, tapos subukan ulit'); return; }
       M.playing = true; M.title = 'Spotify';
     }
-    updateBar('Spotify');
+    M.wantPlay = true; updateBar('Spotify');
   } catch (e) { toast('May problema sa Spotify — i-connect ulit'); }
 }
 let spVolT;
@@ -1010,12 +1124,35 @@ function stopOtherSources(keep) {
   if (keep !== 'spotify' && M.sp) M.sp.pause().catch(() => { });
   if (keep !== 'spotify' && M.spMode === 'connect') spApi('/me/player/pause', { method: 'PUT' }).catch(() => { });
 }
+/* Music keeps playing unless the host presses Pause or Fade out.
+   M.wantPlay = what the host asked for. If anything else pauses the player (a dialog, a file
+   picker, a re-render, the phone briefly backgrounding the page), we quietly resume it. */
+function guardResume(src) {
+  if (!M.wantPlay || M.faded || M.kind !== src) return;
+  clearTimeout(M.resumeT);
+  M.resumeT = setTimeout(() => { if (M.wantPlay && !M.faded && !M.playing && M.kind === src) { applyVolume(liveTarget()); musicPlay(); } }, 350);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && M.wantPlay && !M.faded && !M.playing && M.kind) { if (AC?.state === 'suspended') AC.resume(); musicPlay(); }
+});
+function setMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: M.title || 'Bida-Vibe', artist: 'Bida-Vibe', album: BIDA.event.name || eventType().label });
+    navigator.mediaSession.setActionHandler('play', () => { M.wantPlay = true; musicPlay(); });
+    navigator.mediaSession.setActionHandler('pause', () => musicPause());
+    navigator.mediaSession.setActionHandler('nexttrack', () => musicSkip(1));
+    navigator.mediaSession.setActionHandler('previoustrack', () => musicSkip(-1));
+  } catch (e) { }
+}
 function musicPlay() {
+  M.wantPlay = true;
   if (M.kind === 'youtube' && M.yt) M.yt.playVideo();
   else if (M.kind === 'local' && M.audio) M.audio.play().catch(() => { });
   else if (M.kind === 'spotify') { if (M.spMode === 'sdk' && M.sp) M.sp.resume(); else { spApi('/me/player/play', { method: 'PUT' }).catch(() => { }); M.playing = true; updateBar(); } }
 }
 function musicPause() {
+  M.wantPlay = false; clearTimeout(M.resumeT);
   if (M.kind === 'youtube' && M.yt) M.yt.pauseVideo();
   else if (M.kind === 'local' && M.audio) M.audio.pause();
   else if (M.kind === 'spotify') { if (M.spMode === 'sdk' && M.sp) M.sp.pause(); else { spApi('/me/player/pause', { method: 'PUT' }).catch(() => { }); M.playing = false; updateBar(); } }
@@ -1136,13 +1273,30 @@ function renderMusic() {
         <button class="${m.mode === 'toggle' ? 'on' : ''}" onclick="setTalkMode('toggle')">Tap on / off</button></div>
       <div class="slider-row"><label for="sl-duck">Pag nagsasalita, hihina hanggang</label><output class="o-duck">${Math.round(m.duck * 100)}%</output>
         <input type="range" id="sl-duck" min="0" max="0.6" step="0.01" value="${m.duck}" oninput="setDuck(+this.value)"></div>
-      <div class="slider-row"><label for="sl-fade">Bilis ng fade</label><output id="o-fade">${(m.fade / 1000).toFixed(1)}s</output>
-        <input type="range" id="sl-fade" min="100" max="2500" step="50" value="${m.fade}" oninput="BIDA.music.fade=+this.value;saveState();$('#o-fade').textContent=(this.value/1000).toFixed(1)+'s'"></div>
+      ${timeSliders('tab')}
       <label class="toggle"><input type="checkbox" ${m.autoDuck ? 'checked' : ''} onchange="setAutoDuck(this.checked)">Auto-fade gamit ang mic (beta)</label>
       ${m.autoDuck ? `<div class="vu"><i></i></div>
       <div class="slider-row"><label for="sl-sens">Mic sensitivity</label><output id="o-sens">${Math.round(m.sens * 100)}%</output>
         <input type="range" id="sl-sens" min="0.05" max="1" step="0.05" value="${m.sens}" oninput="BIDA.music.sens=+this.value;saveState();$('#o-sens').textContent=Math.round(this.value*100)+'%'"></div>` : ''}
     </div>`;
+}
+/* Fade timing sliders (seconds). Same controls in the Music tab and the music bar panel; they stay in sync. */
+const TIME_SLIDERS = [
+  ['fade', 'Talk: hihina sa loob ng', 100, 3000, 100],
+  ['delay', 'Hintay bago bumalik ang music', 0, 5000, 250],
+  ['fadeUp', 'Babalik ang music sa loob ng', 200, 6000, 100],
+  ['fadeBtn', 'Fade in / Fade out button', 500, 8000, 250]
+];
+const secs = ms => (ms / 1000).toFixed(ms % 1000 && ms < 10000 ? (ms % 100 ? 2 : 1) : 0) + 's';
+function timeSliders(where, keys) {
+  return TIME_SLIDERS.filter(([k]) => !keys || keys.includes(k)).map(([k, label, min, max, step]) => `
+    <div class="slider-row"><label for="ts-${where}-${k}">${label}</label><output class="o-time" data-k="${k}">${k === 'delay' && !BIDA.music[k] ? 'wala' : secs(BIDA.music[k])}</output>
+      <input type="range" class="ts" data-k="${k}" id="ts-${where}-${k}" min="${min}" max="${max}" step="${step}" value="${BIDA.music[k]}" oninput="setMusicTime('${k}',+this.value)"></div>`).join('');
+}
+function setMusicTime(k, ms) {
+  BIDA.music[k] = ms; saveState();
+  $$(`.o-time[data-k="${k}"]`).forEach(o => o.textContent = k === 'delay' && !ms ? 'wala' : secs(ms));
+  $$(`input.ts[data-k="${k}"]`).forEach(r => { if (+r.value !== ms) r.value = ms; });
 }
 function setTalkMode(mode) { BIDA.music.mode = mode; saveState(); renderMusic(); }
 function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
@@ -1166,8 +1320,13 @@ function paymentsReady() { return !!(authReady() && BIDA_CONFIG.workerUrl); }
 function isAdmin() { return !!AUTH.admin; }
 function fmtDay(ms) { return new Date(ms).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function passActive() { return BIDA.premiumUntil > Date.now(); }
+// Nothing saved in the browser can grant access on its own:
+//  - admin only from THIS session's verified Google sign-in (AUTH.admin), never from storage
+//  - a cached pass counts only if the signed-in Google account is the one that paid
 function applyEntitlement() {
-  BIDA.premium = BIDA.proKind === 'admin' || passActive() || !!BIDA.devPro;
+  const u = AUTH.user;
+  const ownPass = !!(u && BIDA.premiumUid === u.uid && passActive());
+  BIDA.premium = !!AUTH.admin || ownPass || (IS_LOCAL && !!BIDA.devPro);
 }
 function initAuth() {
   if (!authReady()) { AUTH.ready = true; return; }
@@ -1182,8 +1341,8 @@ function initAuth() {
         await refreshPremium();
       } else {
         AUTH.admin = false;
-        if (BIDA.premiumUid) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; applyEntitlement(); saveState(); }
-        rerenderPremiumViews();
+        BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = '';
+        applyEntitlement(); saveState(); rerenderPremiumViews();
       }
       if (!$('#sheet-wrap').hidden && $('#sheet [data-acct]')) openAccount();
       if (!$('#sheet-wrap').hidden && $('#sheet .pro-hero')) openPremium(PRO_FEATURE);
@@ -1197,6 +1356,8 @@ async function sha256Hex(text) {
 // Admin = Google-verified email whose fingerprint is in adminHashes, or with a Firestore admins/{email} doc.
 async function checkAdmin(u) {
   if (!u || !u.emailVerified || !u.email) return false;
+  // Must be a real Google sign-in (not some other provider claiming the same email)
+  if (!(u.providerData || []).some(p => p && p.providerId === 'google.com')) return false;
   if ((BIDA_CONFIG.adminHashes || []).includes(await sha256Hex(u.email.trim().toLowerCase()))) return true;
   try { return await checkAdminDoc(u); } catch (e) { return false; }
 }
@@ -1219,18 +1380,17 @@ async function workerFetch(path, opts = {}) {
 }
 async function refreshPremium() {
   const u = AUTH.user; if (!u) return false;
+  // Admin comes from the verified Google account in this session (works offline: the check is local)
+  AUTH.admin = await checkAdmin(u).catch(() => false);
   try {
-    let admin = false, until = 0;
-    admin = await checkAdmin(u);
-    if (paymentsReady()) { const j = await workerFetch('/status'); admin = admin || !!j.admin; until = j.until || 0; }
-    AUTH.admin = admin;
-    BIDA.proKind = admin ? 'admin' : until > Date.now() ? 'pass' : '';
-    BIDA.premiumUntil = until;
-    BIDA.premiumUid = BIDA.proKind ? u.uid : '';
-  } catch (e) {
-    // Offline at the venue: keep the cached unlock (a pass still ends on its date)
-    AUTH.admin = BIDA.proKind === 'admin';
-  }
+    if (paymentsReady()) {
+      const j = await workerFetch('/status');
+      if (j.admin) AUTH.admin = true;
+      BIDA.premiumUntil = j.until || 0;
+      BIDA.premiumUid = BIDA.premiumUntil ? u.uid : '';
+    }
+  } catch (e) { /* offline at the venue: keep this account's cached pass until its end date */ }
+  BIDA.proKind = AUTH.admin ? 'admin' : passActive() && BIDA.premiumUid === u.uid ? 'pass' : '';
   applyEntitlement(); saveState(); rerenderPremiumViews();
   return BIDA.premium;
 }
@@ -1280,7 +1440,7 @@ async function handlePaidReturn() {
 }
 
 function passLine() {
-  if (isAdmin() || BIDA.proKind === 'admin') return '<span class="badge-pro">Admin</span> Test account — lahat naka-unlock';
+  if (isAdmin()) return '<span class="badge-pro">Admin</span> Test account — lahat naka-unlock';
   if (passActive()) return `<span class="badge-pro">Premium</span> Hanggang <b>${esc(fmtDay(BIDA.premiumUntil))}</b>`;
   if (BIDA.premiumUntil) return `Natapos ang Premium noong ${esc(fmtDay(BIDA.premiumUntil))}`;
   return '';
@@ -1288,7 +1448,7 @@ function passLine() {
 let PRO_FEATURE = '';
 function openPremium(feature) {
   PRO_FEATURE = feature || PRO_FEATURE;
-  const u = AUTH.user, admin = isAdmin() || BIDA.proKind === 'admin', days = BIDA_CONFIG.passDays;
+  const u = AUTH.user, admin = isAdmin(), days = BIDA_CONFIG.passDays;
   let action;
   if (admin) action = `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`;
   else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google para mag-subscribe</button>
@@ -1324,7 +1484,7 @@ function openAccount() {
       ${!authReady() ? '<p class="note">Hindi pa bukas ang Google sign-in — malapit na!</p>'
         : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
           : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>`}
-      ${BIDA.proKind !== 'admin' ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">${passActive() ? `Dagdag ${BIDA_CONFIG.passDays} araw` : 'Mag-subscribe'} · ${esc(BIDA_CONFIG.price)} / ${BIDA_CONFIG.passDays} araw</button>` : ''}
+      ${!isAdmin() ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">${passActive() ? `Dagdag ${BIDA_CONFIG.passDays} araw` : 'Mag-subscribe'} · ${esc(BIDA_CONFIG.price)} / ${BIDA_CONFIG.passDays} araw</button>` : ''}
     </div>`);
 }
 function googleG() {
@@ -1344,7 +1504,8 @@ function redeem() {
 const LIVE = { timerStart: 0, running: false, elapsed: 0, iv: 0 };
 function openLive() {
   if (!BIDA.program.length) { toast('Wala pang activities'); return; }
-  BIDA.liveIdx = clamp(BIDA.liveIdx || 0, 0, BIDA.program.length - 1);
+  // Open on the next activity that isn't done yet
+  BIDA.liveIdx = nextIdx() >= 0 ? nextIdx() : clamp(BIDA.liveIdx || 0, 0, BIDA.program.length - 1);
   $('#live').hidden = false; document.body.style.overflow = 'hidden'; document.body.classList.add('in-live');
   requestAnimationFrame(renderAllBunting);
   renderLive(); clearInterval(LIVE.iv); LIVE.iv = setInterval(tickLive, 500); tickLive();
@@ -1360,7 +1521,9 @@ function renderLive() {
   $('#live-count').textContent = `${i + 1} / ${BIDA.program.length}`;
   $('#live-now').className = 'live-now ks-' + k.color;
   $('#live-now').innerHTML = `<div class="ln-kind">${esc(k.label)} · ${fmtTime(times[i])}</div><h2>${esc(s.title)}</h2>
-    <div class="ln-meta"><span class="ln-timer" id="ln-timer">${s.min}:00</span><span class="pill">${s.min} min</span></div>`;
+    <div class="ln-meta"><span class="ln-timer" id="ln-timer">${s.min}:00</span><span class="pill">${s.min} min</span>
+      <button class="pill ${s.done ? 'pill--done' : ''}" onclick="toggleDone(${s.id});renderLive()">${s.done ? ic('check') + 'Tapos na' : 'Markahang tapos'}</button></div>
+    ${s.note ? `<p class="ln-note">${ic('edit')}${esc(s.note)}</p>` : ''}`;
   const upcoming = BIDA.program.slice(i + 1, i + 4);
   $('#live-script').innerHTML = (g ? `
     <div class="lg-head"><b>${esc(g.name)}</b><button class="btn btn--gold btn--sm" onclick="openGame('${g.id}')">${ic('play')}Animated how-to</button></div>
@@ -1374,7 +1537,9 @@ function renderLive() {
   LIVE.running = false; LIVE.elapsed = 0; updateTimerBtn();
 }
 function liveStep(d) {
+  if (d > 0) { const cur = BIDA.program[BIDA.liveIdx]; if (cur) cur.done = true; }   // Next = this one is done
   const n = clamp(BIDA.liveIdx + d, 0, BIDA.program.length - 1);
+  if (d > 0 && n === BIDA.liveIdx) saveState();
   if (n === BIDA.liveIdx) { if (d > 0) toast('Tapos na ang program — palakpakan!'); return; }
   BIDA.liveIdx = n; saveState(); renderLive();
   $('.live-body').scrollTop = 0;
@@ -1451,6 +1616,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyEntitlement(); saveState();   // a 30-day pass locks again on its end date, even offline
   M.current = BIDA.music.master;
   bindTalk($('#talk-bar'));
+  $('#mb-times').innerHTML = timeSliders('bar', ['delay', 'fadeUp', 'fadeBtn']);
   initAuth();
   handlePaidReturn();
   await spHandleRedirect();
@@ -1467,11 +1633,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 /* ---------- exports for inline handlers ---------- */
 Object.assign(window, {
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
-  moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin,
+  moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, recordClick,
   loadYouTube, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
-  toggleBar, barInfoClick, setAutoDuck, setTalkMode, setMusicSrc, openExt,
+  toggleBar, barInfoClick, setMusicTime, setAutoDuck, setTalkMode, setMusicSrc, openExt,
   openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
   openSheet, closeSheet, saveState
 });

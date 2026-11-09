@@ -46,6 +46,7 @@
     <symbol id="i-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="currentColor"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><path d="M8 8h11v12H8zM5 16V4h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20a6 6 0 0 1 12 0M16 5.5a3 3 0 0 1 0 5.6M18 14.5a5 5 0 0 1 3 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-box" viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v9l-8 4-8-4zM4 8l8 4 8-4M12 12v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
@@ -73,7 +74,7 @@
     </div>
     <ul class="land-stats fade-up" style="--d:.7s">
       <li><b data-count="9">9</b><span>event types</span></li>
-      <li><b data-count="14">14</b><span>Pinoy party games</span></li>
+      <li><b data-count="26">26</b><span>party games</span></li>
       <li><b data-count="20">20</b><span>sound pads</span></li>
     </ul>
     <div class="land-cards fade-up" style="--d:.5s" aria-hidden="true">
@@ -121,6 +122,7 @@
           <input type="range" class="mb-vol" id="mb-vol-2" min="0" max="1" step="0.01" oninput="setMaster(+this.value)"></div>
         <div class="slider-row"><label for="mb-duck">Pag Talk, hihina hanggang</label><output class="o-duck"></output>
           <input type="range" id="mb-duck" min="0" max="0.6" step="0.01" oninput="setDuck(+this.value)"></div>
+        <div id="mb-times"></div>
         <div class="field-label" style="margin-top:12px">Susunod</div>
         <ul class="queue" id="mb-upnext"></ul>
         <button class="btn btn--ghost btn--sm" style="margin-top:10px" onclick="goTab('music');closeLive();toggleBar(false)">Music setup</button>
@@ -166,6 +168,18 @@
 <!-- ============ SHEET (modal) ============ -->
 <div class="sheet-wrap" id="sheet-wrap" hidden onclick="if(event.target===this)closeSheet()">
   <div class="sheet" role="dialog" aria-modal="true" id="sheet"></div>
+</div>
+
+<!-- In-app confirm / text dialog (native confirm()/prompt() freeze the page and can pause the music) -->
+<div class="dlg-wrap" id="dlg-wrap" hidden>
+  <div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-msg">
+    <p id="dlg-msg"></p>
+    <input class="input" id="dlg-input" hidden maxlength="20">
+    <div class="dlg-actions">
+      <button class="btn btn--ghost" id="dlg-no">Huwag</button>
+      <button class="btn btn--ink" id="dlg-yes">Oo</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

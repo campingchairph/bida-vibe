@@ -317,8 +317,46 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .note code { background: #fff; border-radius: 4px; padding: 1px 5px; font-size: 12.5px; }
 
 /* ---------- Plan (event + activity list) ---------- */
-.plan-top { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plan-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.plan-top .field { min-width: 0; }
 .plan-top .field:first-child { grid-column: 1 / -1; }
+/* Date/time inputs have a built-in minimum width in some browsers — let them shrink inside their column */
+.input { min-width: 0; max-width: 100%; }
+input[type=date].input, input[type=time].input { -webkit-appearance: none; appearance: none; display: block; padding-right: 8px; }
+input[type=date]::-webkit-date-and-time-value, input[type=time]::-webkit-date-and-time-value { text-align: left; }
+
+/* Activity checks, notes and the highlighted next activity */
+.act-check { flex: none; width: 52px; border: 0; border-right: 2px solid var(--ink); background: #fff; display: grid; place-items: center; cursor: pointer; }
+.act-check::before { content: ""; grid-area: 1 / 1; width: 24px; height: 24px; border: 2.5px solid var(--ink); border-radius: 7px; background: #fff; }
+.act-check .ic { grid-area: 1 / 1; width: 18px; height: 18px; color: var(--ink); position: relative; z-index: 1; }
+.act.is-done .act-check::before { background: var(--leaf); }
+.act.is-done .act-check .ic { color: #fff; }
+.act.is-done .act-title { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--ink-3); }
+.act.is-done .act-time, .act.is-done .act-min { opacity: .55; }
+.act-note { grid-column: 1 / -1; display: flex; gap: 6px; align-items: flex-start; font: 600 13.5px/1.4 var(--f); color: var(--ink-2); background: var(--cream); border-radius: 8px; padding: 6px 8px; margin-top: 2px; overflow-wrap: anywhere; }
+.act-note .ic { width: 14px; height: 14px; flex: none; margin-top: 2px; }
+.act.is-next { background: var(--gold-soft); border-width: 3px; box-shadow: var(--shadow); transform: scale(1.015); margin: 6px 0; }
+.act.is-next .act-main { min-height: 84px; padding-top: 16px; padding-bottom: 16px; position: relative; }
+.act.is-next .act-title { font-size: 20px; font-family: var(--f2); letter-spacing: -.02em; }
+.act.is-next .act-time { font-size: 15px; }
+.act.is-next .act-check, .act.is-next .act-move button { background: var(--gold-soft); }
+.act-next-tag { position: absolute; top: -1px; left: 10px; font: 800 10.5px/1 var(--f); letter-spacing: .14em; text-transform: uppercase; background: var(--ink); color: var(--gold); padding: 4px 8px; border-radius: 0 0 8px 8px; }
+.ln-note { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; padding: 10px 12px; background: rgba(255,255,255,.7); border: 2px dashed var(--ink); border-radius: 12px; font-weight: 700; font-size: 16px; }
+.ln-note .ic { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.pill { cursor: pointer; }
+.pill--done { background: var(--leaf); color: #fff; }
+.pill--done .ic { width: 14px; height: 14px; }
+.game-credit { margin-top: 16px; }
+.game-credit a { color: var(--magenta); font-weight: 800; }
+.talk-btn.waiting { background: var(--turq); }
+
+/* In-app dialog */
+.dlg-wrap { position: fixed; inset: 0; z-index: 80; background: rgba(30,26,22,.55); display: grid; place-items: center; padding: 20px; }
+.dlg { width: min(420px, 100%); background: var(--cream); border: 2px solid var(--ink); border-radius: var(--r-lg); box-shadow: 6px 6px 0 var(--ink); padding: 20px; animation: sheetUp .25s var(--ease-out) both; }
+.dlg p { font: 800 18px/1.35 var(--f2); letter-spacing: -.01em; }
+.dlg .input { margin-top: 14px; }
+.dlg-actions { display: flex; gap: 10px; margin-top: 18px; }
+.dlg-actions .btn { flex: 1; }
 .type-strip { display: flex; gap: 8px; overflow-x: auto; padding: 14px 2px 6px; margin: 0 -2px; scrollbar-width: none; }
 .type-strip::-webkit-scrollbar { display: none; }
 .type-chip { flex: none; white-space: nowrap; min-height: 40px; padding: 8px 14px; border: 2px solid var(--ink); border-radius: 999px; background: #fff; font: 800 14px/1 var(--f); }
@@ -469,8 +507,6 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
   .tabs { display: flex; justify-content: center; gap: 8px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); }
   .tabs button { flex: 0 1 160px; flex-direction: row; justify-content: center; gap: 8px; font-size: 15px; min-height: 54px; }
   .app-main { max-width: 900px; padding: 28px 32px 32px; }
-  .plan-top { grid-template-columns: 2fr 1fr 1fr; }
-  .plan-top .field:first-child { grid-column: auto; }
   .act-main { grid-template-columns: 90px minmax(0, 1fr) auto; padding: 14px 14px; min-height: 64px; }
   .act-title { font-size: 17px; }
   .act-move button { width: 48px; }
@@ -489,6 +525,11 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
   .live-top { padding: 8px 24px 12px; }
   .live-body { padding: 20px 24px; }
   .live-nav { padding: 12px 24px; grid-template-columns: 1fr 1.3fr 1fr; }
+}
+/* Event name + date + time on one row only when there's truly room */
+@media (min-width: 960px) {
+  .plan-top { grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 1fr); }
+  .plan-top .field:first-child { grid-column: auto; }
 }
 @media (min-width: 840px) {
   .pads { grid-template-columns: repeat(5, 1fr); }

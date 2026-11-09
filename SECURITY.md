@@ -20,7 +20,8 @@ Bida-Vibe is a static site (GitHub Pages). Anything that runs in the browser can
 | Third-party scripts | Firebase scripts are pinned to `10.7.1` with SRI `integrity` hashes. YouTube and Spotify players load only when the user picks that source. |
 | Clickjacking | The page blanks itself if another site loads it inside a frame. |
 | Secrets in code | Only public-by-design values (Firebase web config). Nothing else. |
-| Offline use | A cached Premium pass still ends on its end date, even with no internet. A different Google account on the same device does not inherit the last user's unlock. |
+| Offline use | A cached Premium pass still ends on its end date, even with no internet. It only counts while the same Google account that paid is signed in. |
+| Tampering with saved data | Nothing in browser storage can grant access by itself. Admin comes only from this session's verified Google sign-in (Google provider, verified email, fingerprint match), never from storage. Editing local storage to say "admin" or "premium" does nothing (tested). |
 
 Not applicable here: SQL injection, CSRF, session cookies, password hashing, server debug mode, npm packages (no server pages, no cookies, no npm).
 
