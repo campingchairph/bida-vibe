@@ -22,8 +22,11 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 - **Plan** — pick the event type, get a timed activity list. Notes on each activity, check them off as done; the next one is bigger and highlighted. Tap to edit, arrows to reorder.
 - **Games** — 26 party games with animated how-to, materials checklist and steps. 12 come from [Dig the Games](https://digthegames.com) (@digthegames), rewritten in Taglish and credited with a link.
 - **Sound pads** — 20 default sounds from `sounds/` + upload or record your own (recordings stop at 3 seconds). Keys 1–0, Q–P.
-- **Music bar (always on screen)** — play / pause, previous / next, **Fade out / Fade in**, volume, **Talk** (hold to lower the music while you speak), and an expandable panel with the YouTube preview and what's up next. Space bar = Talk. Talk timing: how fast it drops, optional wait, how fast it comes back; Fade button length. Sound pads play on top of the music (no ducking), and the music only stops when the host presses Pause or Fade out.
-- **Music tab** — setup only: YouTube / YouTube Music, Spotify, local files, link-out; talk mode, how low Talk goes, fade speed, mic auto-fade.
+- **Music bar (always on screen)** — play / pause, previous / next, **Fade out / Fade in**, volume, **Talk** (hold to lower the music while you speak), and an expandable panel with the YouTube preview and what's up next. Space bar = Talk. Sound pads play on top of the music (no ducking), and the music only stops when the host presses Pause or Fade out.
+- **Talk settings (only three)** — how low the volume goes, how fast (same speed down and back up), and a checkbox "music returns after talking" (checked = hold Talk, music comes back when released; unchecked = tap Talk to lower, tap again to bring it back).
+- **YouTube links** — save several links (5 free, more with Premium); titles and thumbnails load automatically. With 2+ links a floating **Playlist** button lets the host jump to any of them. A single video that ends moves on to the next saved link; Next/Previous also move between links.
+- **Music tab** — setup: YouTube / YouTube Music, Spotify, local files, link-out; Talk settings; mic auto-fade. Includes a tip to use Brave, whose Shields usually block YouTube ads.
+- **Mic help** — if the mic is blocked, the app shows how to allow it for that phone/browser (iPhone Safari, iPhone Chrome/Brave, Android Chrome/Brave, desktop, and in-app browsers like Facebook/Messenger/TikTok), with a "Try again" button.
 - **Live mode** — current activity + timer, game materials and steps, what's next, sound pads, with the music bar underneath.
 
 ## Free vs Premium
@@ -34,7 +37,9 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 | Default sound pads | first 4 | all 20 |
 | Own uploads | 2 | unlimited |
 | Recordings (max 3s each) | 2 | unlimited |
-| Music bar, Talk, Fade | — | ✓ |
+| YouTube links in the music bar | 5 | unlimited |
+| Spotify, own music files | — | ✓ |
+| Talk, Fade in/out, mic auto-fade | — | ✓ |
 
 **Admin test account:** set by a SHA-256 fingerprint of its Google email in `BIDA_CONFIG.adminHashes` (the email itself is never in the code). Signing in with that verified Google account unlocks everything free; the Worker re-checks it. See [SECURITY.md](SECURITY.md).
 

@@ -112,6 +112,15 @@
   </main>
 </div>
 
+<!-- ============ FLOATING PLAYLIST (shows when 2+ YouTube links are saved) ============ -->
+<button class="pl-fab" id="pl-fab" hidden onclick="togglePlaylist()" aria-expanded="false" aria-controls="pl-panel" aria-label="Playlists">
+  <svg class="ic"><use href="#i-program"/></svg><span>Playlist</span><b id="pl-count">0</b>
+</button>
+<div class="pl-panel" id="pl-panel" hidden role="dialog" aria-label="Playlists">
+  <div class="pl-head"><b>Pumili ng music</b><button class="icon-btn icon-btn--plain" onclick="togglePlaylist(false)" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button></div>
+  <div id="pl-list"></div>
+</div>
+
 <!-- ============ MUSIC BAR (always on screen in the app and Live mode) ============ -->
 <div class="mbar" id="mbar" aria-label="Music controls">
   <div class="mbar-panel" id="mbar-panel">
@@ -120,9 +129,7 @@
       <div class="mbp-side">
         <div class="slider-row"><label for="mb-vol-2">Volume</label><output></output>
           <input type="range" class="mb-vol" id="mb-vol-2" min="0" max="1" step="0.01" oninput="setMaster(+this.value)"></div>
-        <div class="slider-row"><label for="mb-duck">Pag Talk, hihina hanggang</label><output class="o-duck"></output>
-          <input type="range" id="mb-duck" min="0" max="0.6" step="0.01" oninput="setDuck(+this.value)"></div>
-        <div id="mb-times"></div>
+        <div id="mb-talk"></div>
         <div class="field-label" style="margin-top:12px">Susunod</div>
         <ul class="queue" id="mb-upnext"></ul>
         <button class="btn btn--ghost btn--sm" style="margin-top:10px" onclick="goTab('music');closeLive();toggleBar(false)">Music setup</button>

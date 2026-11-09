@@ -31,6 +31,7 @@ const BIDA_CONFIG = {
   freeUploads: 2,     // uploaded sound pads a free user can add
   freeRecordings: 2,  // recorded sound pads a free user can add (separate from uploads)
   recordMaxSec: 3,    // every recording stops automatically after this many seconds
+  freeYtLinks: 5,     // saved YouTube links a free user can play; more needs Premium
   // Test unlock — only works on localhost, never on the live site.
   devUnlockCode: 'BIDATEST',
   // Spotify: create an app at developer.spotify.com, add this page's URL as a Redirect URI, paste the Client ID.
@@ -57,9 +58,10 @@ function defaultState() {
     premiumUntil: 0,  // end of the paid pass (ms); 0 = none
     proKind: '',      // 'admin' | 'pass' | '' — cached so the venue works offline
     devPro: false,    // localhost-only test unlock
-    // fade = Talk fade-down ms · fadeUp = how long the music takes to come back · delay = wait before it comes back
-    // fadeBtn = length of the Fade out / Fade in button
-    music: { master: 0.8, duck: 0.2, fade: 500, fadeUp: 1000, delay: 0, fadeBtn: 1500, mode: 'hold', src: 'youtube', ytUrl: '', spUrl: '', link: '', autoDuck: false, sens: 0.5 },
+    // duck = how low Talk takes the music · fade = Talk speed (same down and back up)
+    // mode 'hold' = music returns by itself after talking · 'toggle' = tap Talk again to bring it back
+    // ytLinks = saved YouTube links [{ v, list, title, thumb }] — 5 free, more with Premium
+    music: { master: 0.8, duck: 0.2, fade: 500, mode: 'hold', src: 'youtube', ytLinks: [], ytIdx: -1, spUrl: '', link: '', autoDuck: false, sens: 0.5 },
     seenLanding: false,
     tab: 'plan',
     gameChecks: {},
@@ -78,9 +80,19 @@ function loadState() {
       BIDA.event = Object.assign(def.event, d.event || {});
       BIDA.music = Object.assign(def.music, d.music || {});
       // Any missing / broken number falls back to its default (never NaN in the sliders)
-      for (const k of ['master', 'duck', 'fade', 'fadeUp', 'delay', 'fadeBtn', 'sens']) {
+      for (const k of ['master', 'duck', 'fade', 'sens']) {
         if (!Number.isFinite(BIDA.music[k])) BIDA.music[k] = defaultState().music[k];
       }
+      delete BIDA.music.fadeUp; delete BIDA.music.delay; delete BIDA.music.fadeBtn;
+      // YouTube links: keep only well-formed entries (ids are YouTube's own [A-Za-z0-9_-] format)
+      const okId = s => typeof s === 'string' && /^[\w-]{0,64}$/.test(s);
+      BIDA.music.ytLinks = (Array.isArray(BIDA.music.ytLinks) ? BIDA.music.ytLinks : [])
+        .filter(l => l && okId(l.v) && okId(l.list) && (l.v || l.list))
+        .map(l => ({ v: l.v, list: l.list, title: String(l.title || '').slice(0, 120), thumb: /^https:\/\/i\.ytimg\.com\//.test(l.thumb) ? l.thumb : '' }));
+      // carry over the single link from the old version
+      if (d.music?.ytUrl && !BIDA.music.ytLinks.length) { const p = parseYouTube(d.music.ytUrl); if (p) BIDA.music.ytLinks.push({ v: p.id, list: p.list, title: '', thumb: p.id ? `https://i.ytimg.com/vi/${p.id}/mqdefault.jpg` : '' }); }
+      delete BIDA.music.ytUrl;
+      if (!Number.isInteger(BIDA.music.ytIdx) || BIDA.music.ytIdx >= BIDA.music.ytLinks.length) BIDA.music.ytIdx = -1;
       // v3: scripts/guide removed, tabs simplified
       delete BIDA.scriptEdits; delete BIDA.tones; delete BIDA.rulesOpen;
       if (!['plan', 'games', 'sounds', 'music'].includes(BIDA.tab)) BIDA.tab = 'plan';
@@ -198,6 +210,7 @@ function goTab(name) {
   $$('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   RENDER[name]();
   renderHead();
+  document.body.classList.toggle('on-music', name === 'music');   // the Music tab already lists the links
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 }
 function renderHead() {
@@ -828,6 +841,47 @@ async function delSound(id) {
   if (!await askConfirm('Tanggalin ang sound na ito?', 'Tanggalin')) return;
   await dbDel(id); CUSTOM = CUSTOM.filter(s => s.id !== id); delete BUF_CACHE[id]; renderSounds();
 }
+/* ---- Microphone permission help: explains how to turn it on for THIS phone/browser, then retry ---- */
+let micRetry = null;
+async function micDenied() {
+  try { return (await navigator.permissions?.query({ name: 'microphone' }))?.state === 'denied'; } catch (e) { return false; }
+}
+function micHelp(err, retry) {
+  micRetry = retry || null;
+  const ua = navigator.userAgent;
+  const inApp = /FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\/|TikTok|musical_ly|Snapchat|GSA\//i.test(ua);
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const iosOther = ios && /CriOS|FxiOS|EdgiOS|Brave/i.test(ua);
+  const android = /Android/i.test(ua), brave = !!navigator.brave;
+  const name = err && err.name;
+  let why = 'Naka-block ang mic para sa Bida-Vibe sa browser na ito.', steps = [];
+  if (!window.isSecureContext) why = 'Gumagana lang ang mic sa https:// na link.';
+  else if (name === 'NotFoundError') why = 'Walang nakitang mic sa device na ito.';
+  else if (name === 'NotReadableError') why = 'Ginagamit ng ibang app ang mic (hal. tawag o video call). Isara muna iyon.';
+  if (inApp) {
+    why = 'Binuksan mo ang Bida-Vibe sa loob ng Facebook, Messenger, TikTok o ibang app — hindi nila pinapayagan ang mic.';
+    steps = ['I-tap ang ⋮ o … sa itaas na kanan.', `Piliin ang "Open in browser" / "Buksan sa ${ios ? 'Safari' : 'Chrome'}".`, 'Doon pindutin ulit ang Record.'];
+  } else if (ios && !iosOther) {
+    steps = ['I-tap ang "aA" sa address bar ng Safari.', 'Piliin ang "Website Settings".', 'Microphone → Allow.', 'Bumalik dito at pindutin ang "Subukan ulit".',
+      'Kung wala: buksan ang Settings app → Safari (o Apps → Safari) → Microphone → Ask o Allow.'];
+  } else if (ios) {
+    steps = ['Buksan ang Settings app ng iPhone.', `Hanapin ang ${brave ? 'Brave' : 'browser mo (hal. Chrome)'} → i-ON ang Microphone.`, 'Bumalik dito, i-reload ang page, at pindutin ulit ang Record.'];
+  } else if (android) {
+    steps = ['I-tap ang icon sa kaliwa ng address bar (lock o settings icon).', `Piliin ang "Permissions" o "Site settings".`, 'Microphone → Allow.', 'Pindutin ang "Subukan ulit".',
+      `Kung naka-block pa rin: Settings ng phone → Apps → ${brave ? 'Brave' : 'Chrome'} → Permissions → Microphone → Allow.`];
+  } else {
+    steps = ['I-click ang icon sa kaliwa ng address bar.', 'Microphone → Allow.', 'I-reload ang page kung kailangan, tapos pindutin ang "Subukan ulit".'];
+  }
+  openSheet(`
+    <div class="sheet-head"><h3>Kailangan ng mic</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <div class="card"><p style="font-weight:700">${esc(why)}</p>
+      ${steps.length ? `<span class="field-label" style="display:block;margin-top:14px">Paano i-on</span><ol class="mic-steps">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}</div>
+    <div class="sheet-actions">
+      <button class="btn btn--ghost" onclick="closeSheet()">Isara</button>
+      ${micRetry ? `<button class="btn btn--ink" onclick="closeSheet();micRetryNow()">${ic('mic')}Subukan ulit</button>` : ''}
+    </div>`);
+}
+function micRetryNow() { const f = micRetry; micRetry = null; f?.(); }
 let recorder, recChunks = [];
 function recordClick() {
   if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
@@ -836,6 +890,8 @@ function recordClick() {
 }
 async function toggleRecord() {
   const btn = $('#rec-btn'), max = BIDA_CONFIG.recordMaxSec;
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { toast('Hindi kayang mag-record ng browser na ito — subukan sa Chrome o Safari'); return; }
+  if (await micDenied()) { micHelp({ name: 'NotAllowedError' }, toggleRecord); return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recChunks = []; recorder = new MediaRecorder(stream);
@@ -856,7 +912,7 @@ async function toggleRecord() {
     const show = () => { sub.textContent = Math.max(0, max - (Date.now() - t0) / 1000).toFixed(1) + 's'; };
     show(); tick = setInterval(show, 100);
     setTimeout(() => recorder?.state === 'recording' && recorder.stop(), max * 1000);
-  } catch (e) { toast('Kailangan ng mic permission'); }
+  } catch (e) { micHelp(e, toggleRecord); }
 }
 
 /* ============================================================
@@ -888,6 +944,7 @@ function fadeTo(target, ms, done) {
 function needPro(feature) { if (BIDA.premium) return false; openPremium(feature); return true; }
 function needSource() {
   if (M.kind) return false;
+  if (ytLinks().length) { playYouTube(Math.max(0, BIDA.music.ytIdx)); return true; }   // play the saved list
   goTab('music'); if (!$('#live').hidden) closeLive();
   toast('Pumili muna ng music dito'); return true;
 }
@@ -900,14 +957,10 @@ function duckDown() {
 }
 function duckUp() {
   if (!M.ducked) return;
-  M.ducked = false;
-  $$('.talk-btn').forEach(b => { b.classList.remove('on'); if (BIDA.music.delay) b.classList.add('waiting'); });
-  clearTimeout(M.duckT);
-  // Optional wait, then bring the music back over fadeUp ms
-  M.duckT = setTimeout(() => {
-    $$('.talk-btn').forEach(b => b.classList.remove('waiting'));
-    if (!M.ducked && !M.faded) fadeTo(liveTarget(), BIDA.music.fadeUp);
-  }, BIDA.music.delay);
+  M.ducked = false; clearTimeout(M.duckT);
+  $$('.talk-btn').forEach(b => b.classList.remove('on'));
+  // Music comes back at the same speed it went down
+  if (!M.faded) fadeTo(liveTarget(), BIDA.music.fade);
 }
 function bindTalk(btn) {
   if (!btn || btn._bound) return; btn._bound = true;
@@ -922,17 +975,18 @@ function bindTalk(btn) {
   btn.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') up(); });
   btn.addEventListener('contextmenu', e => e.preventDefault());
 }
-/* Fade = smooth stop / smooth start */
+/* Fade = smooth stop / smooth start (fixed length) */
+const FADE_BTN_MS = 1500;
 function fadeToggle() {
   if (needPro('Fade in / out') || needSource()) return;
   clearTimeout(M.fadeT);
   if (M.faded || !M.playing) {
     M.faded = false;
     if (!M.playing) { applyVolume(0); musicPlay(); }
-    fadeTo(liveTarget(), BIDA.music.fadeBtn);
+    fadeTo(liveTarget(), FADE_BTN_MS);
   } else {
     M.faded = true;
-    fadeTo(0, BIDA.music.fadeBtn, () => { if (M.faded) musicPause(); });
+    fadeTo(0, FADE_BTN_MS, () => { if (M.faded) musicPause(); });
   }
   updateBar();
 }
@@ -945,6 +999,31 @@ function setDuck(v) {
   BIDA.music.duck = v; saveState();
   if (M.ducked && !M.faded) fadeTo(liveTarget(), 120);
   $$('.o-duck').forEach(o => o.textContent = Math.round(v * 100) + '%');
+  $$('input.duck-r').forEach(r => { if (+r.value !== v) r.value = v; });
+}
+/* Talk settings — only three, same controls in the Music tab and the music bar panel:
+   how low, how fast (down AND back up), and whether the music comes back by itself. */
+function talkControls(where) {
+  const m = BIDA.music;
+  return `
+    <div class="slider-row"><label for="duck-${where}">Hihina ang volume hanggang</label><output class="o-duck">${Math.round(m.duck * 100)}%</output>
+      <input type="range" class="duck-r" id="duck-${where}" min="0" max="0.6" step="0.01" value="${m.duck}" oninput="setDuck(+this.value)"></div>
+    <div class="slider-row"><label for="spd-${where}">Bilis ng paghina</label><output class="o-spd">${(m.fade / 1000).toFixed(1)}s</output>
+      <input type="range" class="spd-r" id="spd-${where}" min="100" max="3000" step="100" value="${m.fade}" oninput="setTalkSpeed(+this.value)"></div>
+    <label class="toggle"><input type="checkbox" class="ar-cb" ${m.mode === 'hold' ? 'checked' : ''} onchange="setAutoReturn(this.checked)">
+      Babalik ang music pagkatapos magsalita</label>
+    <p class="muted ar-hint">${m.mode === 'hold' ? 'Pindutin nang matagal ang Talk; babalik ang music pag binitawan.' : 'Tap ang Talk para humina; tap ulit para bumalik.'} Pareho ang bilis ng paghina at pagbalik.</p>`;
+}
+function setTalkSpeed(ms) {
+  BIDA.music.fade = ms; saveState();
+  $$('.o-spd').forEach(o => o.textContent = (ms / 1000).toFixed(1) + 's');
+  $$('input.spd-r').forEach(r => { if (+r.value !== ms) r.value = ms; });
+}
+function setAutoReturn(on) {
+  BIDA.music.mode = on ? 'hold' : 'toggle'; saveState();
+  if (on && M.ducked) duckUp();
+  $$('input.ar-cb').forEach(c => c.checked = on);
+  $$('.ar-hint').forEach(p => p.textContent = (on ? 'Pindutin nang matagal ang Talk; babalik ang music pag binitawan.' : 'Tap ang Talk para humina; tap ulit para bumalik.') + ' Pareho ang bilis ng paghina at pagbalik.');
 }
 
 /* ---- YouTube (IFrame API: full volume control) ---- */
@@ -968,35 +1047,112 @@ function ytApi() {
   });
   return ytApiP;
 }
-async function loadYouTube() {
-  if (needPro('Music player')) return;
-  const url = $('#yt-url').value; const p = parseYouTube(url);
-  if (!p) { toast('Hindi valid ang YouTube link'); return; }
-  BIDA.music.ytUrl = url; saveState();
+/* Saved YouTube links: 5 free, more with Premium. With 2+ links a floating playlist panel appears. */
+function ytLinks() { return BIDA.music.ytLinks; }
+function ytCanUse(i) { return BIDA.premium || i < BIDA_CONFIG.freeYtLinks; }
+function ytLabel(l, i) { return l.title || (l.list ? `YouTube playlist ${i + 1}` : `YouTube video ${i + 1}`); }
+async function addYouTube() {
+  const inp = $('#yt-url'), p = parseYouTube(inp.value || '');
+  if (!p || !/^[\w-]{0,64}$/.test(p.id) || !/^[\w-]{0,64}$/.test(p.list)) { toast('Hindi valid ang YouTube link'); return; }
+  const links = ytLinks();
+  const dup = links.findIndex(l => l.v === p.id && l.list === p.list);
+  if (dup >= 0) { inp.value = ''; playYouTube(dup); return; }
+  if (!BIDA.premium && links.length >= BIDA_CONFIG.freeYtLinks) { openPremium(`Higit sa ${BIDA_CONFIG.freeYtLinks} YouTube links`); return; }
+  const link = { v: p.id, list: p.list, title: '', thumb: p.id ? `https://i.ytimg.com/vi/${p.id}/mqdefault.jpg` : '' };
+  links.push(link); inp.value = ''; saveState();
+  fetchYtInfo(link);
+  renderMusic(); renderPlaylist();
+  playYouTube(links.length - 1);
+}
+// Title + thumbnail from YouTube's public oEmbed endpoint (no key). Falls back quietly if blocked.
+async function fetchYtInfo(link) {
+  try {
+    const u = link.list && !link.v ? `https://www.youtube.com/playlist?list=${link.list}` : `https://www.youtube.com/watch?v=${link.v}`;
+    const r = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(u));
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j.title) link.title = String(j.title).slice(0, 120);
+    if (/^https:\/\/i\.ytimg\.com\//.test(j.thumbnail_url || '')) link.thumb = j.thumbnail_url;
+    saveState(); if (BIDA.tab === 'music' && !$('#app').hidden) renderMusic(); renderPlaylist();
+  } catch (e) { }
+}
+async function delYouTube(i) {
+  const l = ytLinks()[i]; if (!l) return;
+  if (!await askConfirm(`Tanggalin ang "${ytLabel(l, i)}"?`, 'Tanggalin')) return;
+  ytLinks().splice(i, 1);
+  if (BIDA.music.ytIdx === i) BIDA.music.ytIdx = -1; else if (BIDA.music.ytIdx > i) BIDA.music.ytIdx--;
+  saveState(); renderMusic(); renderPlaylist();
+}
+async function playYouTube(i) {
+  const l = ytLinks()[i]; if (!l) return;
+  if (!ytCanUse(i)) { openPremium(`Higit sa ${BIDA_CONFIG.freeYtLinks} YouTube links`); return; }
+  BIDA.music.ytIdx = i; saveState();
   stopOtherSources('youtube');
   await ytApi();
+  try { M.yt?.destroy?.(); } catch (e) { }
   // The player lives in the music bar's preview area so it keeps playing on every tab
   $('#yt-dock').innerHTML = '<div id="yt-player"></div>';
-  M.ytReady = false; M.kind = 'youtube'; M.faded = false;
+  M.ytReady = false; M.kind = 'youtube'; M.faded = false; M.title = ytLabel(l, i);
   // controls:0 — play/pause only from the music bar, so a stray tap on the preview can't stop the party
   const vars = { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1 };
-  if (p.list) { vars.listType = 'playlist'; vars.list = p.list; }
+  if (l.list) { vars.listType = 'playlist'; vars.list = l.list; }
   M.yt = new YT.Player('yt-player', {
-    videoId: p.id || undefined, playerVars: vars,
+    videoId: l.v || undefined, playerVars: vars,
     events: {
       onReady: e => { M.ytReady = true; M.wantPlay = true; applyVolume(liveTarget()); e.target.playVideo(); },
       onStateChange: e => {
         M.playing = e.data === YT.PlayerState.PLAYING;
         if (e.data === YT.PlayerState.PAUSED) guardResume('youtube');
+        if (e.data === YT.PlayerState.ENDED && M.wantPlay) ytAdvance();
         if (M.playing) setMediaSession();
-        try { M.title = M.yt.getVideoData().title || 'YouTube'; } catch (x) { M.title = 'YouTube'; }
+        try { M.title = M.yt.getVideoData().title || ytLabel(l, i); } catch (x) { }
+        if (M.playing && !l.title && !l.list && M.title) { l.title = M.title.slice(0, 120); saveState(); renderPlaylist(); }
         try { const pl = M.yt.getPlaylist(); M.pos = pl ? `${M.yt.getPlaylistIndex() + 1} / ${pl.length}` : ''; } catch (x) { M.pos = ''; }
         M.upNext = [];
-        updateBar();
+        updateBar(); renderPlaylist();
       }
     }
   });
-  openBar(true); updateBar('YouTube');
+  updateBar('YouTube'); renderPlaylist();
+  if (BIDA.tab === 'music' && !$('#app').hidden) renderMusic();
+}
+// A single video ended (or a playlist finished): continue with the next saved link the user can use
+function ytAdvance(dir = 1) {
+  const n = ytLinks().length; if (n < 2) return false;
+  for (let s = 1; s < n; s++) {
+    const j = (BIDA.music.ytIdx + dir * s + n) % n;
+    if (ytCanUse(j)) { playYouTube(j); return true; }
+  }
+  return false;
+}
+function ytListHTML() {
+  const links = ytLinks();
+  if (!links.length) return '<p class="muted">Wala pang naka-save. I-paste ang link sa itaas.</p>';
+  return `<ul class="yt-list">${links.map((l, i) => {
+    const now = i === BIDA.music.ytIdx && M.kind === 'youtube', ok = ytCanUse(i);
+    return `<li class="${now ? 'now' : ''} ${ok ? '' : 'locked'}">
+      <button class="yt-play" onclick="playYouTube(${i})" aria-label="I-play ${esc(ytLabel(l, i))}">
+        ${l.thumb ? `<img src="${esc(l.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="yt-ph">${ic('music')}</span>`}
+        <span class="yt-t"><b>${esc(ytLabel(l, i))}</b><small>${l.list ? 'Playlist' : 'Video'}${now ? (M.playing ? ' · tumutugtog' : ' · naka-pause') : ''}${ok ? '' : ' · Premium'}</small></span>
+        ${ok ? ic(now && M.playing ? 'pause' : 'play') : ic('lock')}
+      </button>
+      <button class="icon-btn icon-btn--plain yt-del" onclick="delYouTube(${i})" aria-label="Tanggalin">${ic('trash')}</button></li>`;
+  }).join('')}</ul>`;
+}
+/* Floating playlist panel (shows when 2+ links are saved) */
+function renderPlaylist() {
+  const fab = $('#pl-fab'), panel = $('#pl-panel'); if (!fab) return;
+  const n = ytLinks().length;
+  fab.hidden = n < 2;
+  $('#pl-count').textContent = n;
+  if (n < 2) { panel.hidden = true; return; }
+  if (!panel.hidden) $('#pl-list').innerHTML = ytListHTML();
+}
+function togglePlaylist(force) {
+  const panel = $('#pl-panel'), open = force ?? panel.hidden;
+  panel.hidden = !open;
+  $('#pl-fab').setAttribute('aria-expanded', open);
+  if (open) { toggleBar(false); $('#pl-list').innerHTML = ytListHTML(); }
 }
 
 /* ---- Local files (Web Audio gain) ---- */
@@ -1157,14 +1313,20 @@ function musicPause() {
   else if (M.kind === 'local' && M.audio) M.audio.pause();
   else if (M.kind === 'spotify') { if (M.spMode === 'sdk' && M.sp) M.sp.pause(); else { spApi('/me/player/pause', { method: 'PUT' }).catch(() => { }); M.playing = false; updateBar(); } }
 }
+// YouTube (up to 5 links) is free; Spotify and local files can only be loaded with Premium in the first place
 function musicToggle() {
-  if (needPro('Music player') || needSource()) return;
+  if (needSource()) return;
   if (M.playing) musicPause();
   else { if (M.faded) { M.faded = false; applyVolume(liveTarget()); } musicPlay(); }
 }
 function musicSkip(d) {
-  if (needPro('Music player') || needSource()) return;
-  if (M.kind === 'youtube' && M.yt) { try { d > 0 ? M.yt.nextVideo() : M.yt.previousVideo(); } catch (e) { } }
+  if (needSource()) return;
+  if (M.kind === 'youtube' && M.yt) {
+    const cur = ytLinks()[BIDA.music.ytIdx];
+    // A single video: next/previous moves through the saved links. A playlist: through its videos.
+    if (!cur || !cur.list) { if (!ytAdvance(d)) { try { M.yt.seekTo(0); } catch (e) { } } return; }
+    try { d > 0 ? M.yt.nextVideo() : M.yt.previousVideo(); } catch (e) { }
+  }
   else if (M.kind === 'local') playLocal(M.qi + d);
   else if (M.kind === 'spotify') {
     if (M.spMode === 'sdk' && M.sp) d > 0 ? M.sp.nextTrack() : M.sp.previousTrack();
@@ -1178,11 +1340,10 @@ function updateBar(src) {
   if (src) barSrc = src;
   const has = !!M.kind;
   $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang tumutugtog';
-  $('#mb-sub').textContent = has ? [barSrc, M.pos, M.faded ? 'faded out' : ''].filter(Boolean).join(' · ') : (BIDA.premium ? 'Tap para pumili ng playlist' : 'Premium · tap para sa detalye');
+  $('#mb-sub').textContent = has ? [barSrc, M.pos, M.faded ? 'faded out' : ''].filter(Boolean).join(' · ') : (ytLinks().length ? 'Tap para i-play ang naka-save' : 'Tap para pumili ng music');
   $$('.mb-play-ic').forEach(u => u.setAttribute('href', M.playing ? '#i-pause' : '#i-play'));
   $$('.mb-fade').forEach(b => { b.classList.toggle('on', M.faded); b.querySelector('span').textContent = M.faded || (has && !M.playing) ? 'Fade in' : 'Fade out'; });
   $$('.mb-vol').forEach(r => r.value = BIDA.music.master);
-  const dk = $('#mb-duck'); if (dk) dk.value = BIDA.music.duck;
   $$('.o-duck').forEach(o => o.textContent = Math.round(BIDA.music.duck * 100) + '%');
   const up = $('#mb-upnext');
   if (up) up.innerHTML = has
@@ -1200,7 +1361,10 @@ function toggleBar(force) {
 }
 function openBar(v) { toggleBar(v); }
 function barInfoClick() {
-  if (!M.kind) { if (!BIDA.premium) { openPremium('Music player'); return; } goTab('music'); if (!$('#live').hidden) closeLive(); return; }
+  if (!M.kind) {
+    if (ytLinks().length) { playYouTube(Math.max(0, BIDA.music.ytIdx)); return; }
+    goTab('music'); if (!$('#live').hidden) closeLive(); return;
+  }
   toggleBar();
 }
 
@@ -1226,7 +1390,7 @@ async function setAutoDuck(on) {
     };
     MIC.raf = requestAnimationFrame(loop);
     renderMusic(); toast('Auto-fade ON — hihina ang music pag nagsalita ka');
-  } catch (e) { BIDA.music.autoDuck = false; saveState(); toast('Kailangan ng mic permission'); renderMusic(); }
+  } catch (e) { BIDA.music.autoDuck = false; saveState(); renderMusic(); micHelp(e, () => setAutoDuck(true)); }
 }
 
 /* ---- Music tab: setup only ---- */
@@ -1234,17 +1398,19 @@ function renderMusic() {
   const m = BIDA.music;
   $('#panel-music').innerHTML = `
     <div class="panel-head"><div><h2>Music setup</h2>
-      <p>Pumili ng music dito. Ang controls — play, next, fade at Talk — ay nasa music bar sa ibaba, kahit anong tab.</p></div>
-      ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Music player')">${ic('lock')}Premium</button>`}</div>
+      <p>Pumili ng music dito. Ang controls — play, next, fade at Talk — ay nasa music bar sa ibaba, kahit anong tab.</p></div></div>
     <div class="src-tabs" role="tablist">
-      ${[['youtube', 'YouTube', 'May fade'], ['spotify', 'Spotify', 'Premium acct'], ['local', 'Sariling files', 'May fade'], ['link', 'Iba pa', 'Link lang']].map(([id, l, s]) =>
+      ${[['youtube', 'YouTube', BIDA.premium ? 'Walang limit' : `${BIDA_CONFIG.freeYtLinks} libre`], ['spotify', 'Spotify', 'Premium'], ['local', 'Sariling files', 'Premium'], ['link', 'Iba pa', 'Link lang']].map(([id, l, s]) =>
         `<button class="src-tab ${m.src === id ? 'on' : ''}" role="tab" aria-selected="${m.src === id}" onclick="setMusicSrc('${id}')">${l}<small>${s}</small></button>`).join('')}
     </div>
     <div class="card stack">
       <div ${m.src === 'youtube' ? '' : 'hidden'}>
         <div class="field"><label for="yt-url">YouTube o YouTube Music link (video o playlist)</label>
-          <input class="input" id="yt-url" placeholder="https://www.youtube.com/playlist?list=…" value="${esc(m.ytUrl)}"></div>
-        <button class="btn btn--chili btn--block" style="margin-top:12px" onclick="loadYouTube()">${ic('play')}I-load</button>
+          <div class="yt-add"><input class="input" id="yt-url" placeholder="https://www.youtube.com/…" onkeydown="if(event.key==='Enter')addYouTube()">
+          <button class="btn btn--chili" onclick="addYouTube()">${ic('plus')}Idagdag</button></div></div>
+        <div class="yt-head"><span class="field-label">Naka-save</span><small class="muted">${m.ytLinks.length}${BIDA.premium ? '' : ` / ${BIDA_CONFIG.freeYtLinks} libre`}</small></div>
+        ${ytListHTML()}
+        <p class="note" style="margin-top:14px"><b>Tip:</b> Buksan ang Bida-Vibe sa <b>Brave browser</b> — kadalasang hinaharangan ng Brave Shields ang YouTube ads, kaya hindi maiistorbo ang party.</p>
       </div>
       <div ${m.src === 'spotify' ? '' : 'hidden'}>
         ${BIDA_CONFIG.spotifyClientId ? `
@@ -1267,38 +1433,14 @@ function renderMusic() {
       </div>
     </div>
     <div class="card stack">
-      <h3>Talk at fade</h3>
-      <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Talk button mode">
-        <button class="${m.mode === 'hold' ? 'on' : ''}" onclick="setTalkMode('hold')">Hold to talk</button>
-        <button class="${m.mode === 'toggle' ? 'on' : ''}" onclick="setTalkMode('toggle')">Tap on / off</button></div>
-      <div class="slider-row"><label for="sl-duck">Pag nagsasalita, hihina hanggang</label><output class="o-duck">${Math.round(m.duck * 100)}%</output>
-        <input type="range" id="sl-duck" min="0" max="0.6" step="0.01" value="${m.duck}" oninput="setDuck(+this.value)"></div>
-      ${timeSliders('tab')}
+      <h3>Talk</h3>
+      ${talkControls('tab')}
       <label class="toggle"><input type="checkbox" ${m.autoDuck ? 'checked' : ''} onchange="setAutoDuck(this.checked)">Auto-fade gamit ang mic (beta)</label>
       ${m.autoDuck ? `<div class="vu"><i></i></div>
       <div class="slider-row"><label for="sl-sens">Mic sensitivity</label><output id="o-sens">${Math.round(m.sens * 100)}%</output>
         <input type="range" id="sl-sens" min="0.05" max="1" step="0.05" value="${m.sens}" oninput="BIDA.music.sens=+this.value;saveState();$('#o-sens').textContent=Math.round(this.value*100)+'%'"></div>` : ''}
     </div>`;
 }
-/* Fade timing sliders (seconds). Same controls in the Music tab and the music bar panel; they stay in sync. */
-const TIME_SLIDERS = [
-  ['fade', 'Talk: hihina sa loob ng', 100, 3000, 100],
-  ['delay', 'Hintay bago bumalik ang music', 0, 5000, 250],
-  ['fadeUp', 'Babalik ang music sa loob ng', 200, 6000, 100],
-  ['fadeBtn', 'Fade in / Fade out button', 500, 8000, 250]
-];
-const secs = ms => (ms / 1000).toFixed(ms % 1000 && ms < 10000 ? (ms % 100 ? 2 : 1) : 0) + 's';
-function timeSliders(where, keys) {
-  return TIME_SLIDERS.filter(([k]) => !keys || keys.includes(k)).map(([k, label, min, max, step]) => `
-    <div class="slider-row"><label for="ts-${where}-${k}">${label}</label><output class="o-time" data-k="${k}">${k === 'delay' && !BIDA.music[k] ? 'wala' : secs(BIDA.music[k])}</output>
-      <input type="range" class="ts" data-k="${k}" id="ts-${where}-${k}" min="${min}" max="${max}" step="${step}" value="${BIDA.music[k]}" oninput="setMusicTime('${k}',+this.value)"></div>`).join('');
-}
-function setMusicTime(k, ms) {
-  BIDA.music[k] = ms; saveState();
-  $$(`.o-time[data-k="${k}"]`).forEach(o => o.textContent = k === 'delay' && !ms ? 'wala' : secs(ms));
-  $$(`input.ts[data-k="${k}"]`).forEach(r => { if (+r.value !== ms) r.value = ms; });
-}
-function setTalkMode(mode) { BIDA.music.mode = mode; saveState(); renderMusic(); }
 function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
 function openExt() {
   const u = ($('#ext-url').value || '').trim(); if (!/^https?:\/\//.test(u)) { toast('I-paste muna ang link'); return; }
@@ -1463,7 +1605,7 @@ function openPremium(feature) {
       <h4>Para sa handaan mo ngayong buwan.</h4>
       <ul class="pro-list">
         <li>${ic('star')}Lahat ng 20 sound pads + walang limit na sariling upload at recording</li>
-        <li>${ic('star')}Music bar: YouTube, Spotify at sariling files</li>
+        <li>${ic('star')}Walang limit na YouTube links, Spotify at sariling music files</li>
         <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
       </ul>
       <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">/ ${days} araw · walang auto-charge</small></p>
@@ -1616,7 +1758,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyEntitlement(); saveState();   // a 30-day pass locks again on its end date, even offline
   M.current = BIDA.music.master;
   bindTalk($('#talk-bar'));
-  $('#mb-times').innerHTML = timeSliders('bar', ['delay', 'fadeUp', 'fadeBtn']);
+  $('#mb-talk').innerHTML = talkControls('bar');
+  renderPlaylist();
   initAuth();
   handlePaidReturn();
   await spHandleRedirect();
@@ -1635,9 +1778,9 @@ Object.assign(window, {
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
-  playSound, uploadSounds, delSound, addSoundClick, recordClick,
-  loadYouTube, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
-  toggleBar, barInfoClick, setMusicTime, setAutoDuck, setTalkMode, setMusicSrc, openExt,
+  playSound, uploadSounds, delSound, addSoundClick, recordClick, micRetryNow,
+  addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
+  toggleBar, barInfoClick, setTalkSpeed, setAutoReturn, setAutoDuck, setMusicSrc, openExt,
   openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
   openSheet, closeSheet, saveState
 });
