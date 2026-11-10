@@ -1,3 +1,5 @@
+> **Looking for the 8 free pads named after their file?** Those go in [sounds/free/](free/README.md) — any file name works there.
+
 # Default sound pads
 
 Put **20 mp3 files** in this `sounds/` folder, named **exactly** like this (lowercase, with the number in front). The app reads the file name to know which pad it belongs to. If a file is missing, that pad just doesn't show.

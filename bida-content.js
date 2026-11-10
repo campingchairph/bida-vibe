@@ -416,6 +416,7 @@ window.BIDA_GAMES = [
       'Dapat sa banig lumapag ang jumper — pag tumapak sa sahig, balik sa start.',
       'Ang unang pares na makatawid sa finish line, panalo.'
     ],
+    tips: ['Ibang bersyon ("Floor is lava"): lahat nakatayo sa upuan, unan o banig. Pag may music, lilipat-lipat sila nang hindi tumatapak sa sahig — ang tumapak, out. Ang huling natira, panalo.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/cant-touch-the-floor' }
   },
   {
@@ -540,5 +541,189 @@ window.BIDA_GAMES = [
     ],
     tips: ['Lagyan ng tanong ang bawat kahon na kailangang sagutin bago makuha.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/toss-boss' }
+  },
+
+  /* ---------- More from Dig the Games (TikTok) — summarized in Taglish ---------- */
+  {
+    id: 'hurdles', name: 'Balloon Hurdles', alias: 'Lobo sa mga hula hoop',
+    players: '2+ teams', time: '5–10 min', age: 'Lahat', place: 'Maluwag na lugar', energy: 3, anim: 'hoops',
+    materials: ['Isang lobo bawat team', 'Hula hoops (isa bawat kasama sa linya)'],
+    steps: [
+      'Pumila ang bawat team; bawat isa may hawak na hula hoop — ito ang "hurdles".',
+      'Isang player mula sa bawat team ang nasa simula ng linya, may lobo.',
+      'Tatapikin niya ang lobo (kamay o ulo lang) para dumaan sa bawat hoop, sunod-sunod.',
+      'Bawal bumagsak ang lobo sa sahig — pag bumagsak, balik sa unang hoop.',
+      'Ang unang makapagdaan ng lobo sa huling hoop, panalo ang team.'
+    ],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'flatten', name: 'Plantsahan ng Papel', alias: 'Paper Flattening Challenge',
+    players: 'Pares (2+ pares)', time: '3–5 min', age: '7+', place: 'Mesa', energy: 2, anim: 'flatten',
+    materials: ['Ilang nilukot na papel bawat pares (pareho ang bilang)', 'Garden gloves (opsyonal, pang-hirap)'],
+    steps: [
+      'Magpares-pares. Ang isa, kanang kamay lang ang gamit; ang isa, kaliwang kamay lang.',
+      'Bawat pares may tambak ng nilukot na papel sa harap.',
+      'Sa hudyat, sabay nilang aayusin at papatagin ang bawat papel — parang iisang tao.',
+      'Ang unang pares na mapatag lahat ng papel, panalo.'
+    ],
+    tips: ['Mas mahirap at mas nakakatawa: pagsuotin sila ng makapal na garden gloves.'],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'toejam', name: 'Toe Jam Challenge', alias: 'Donut sa hinlalaki ng paa',
+    players: '2–6 sabay', time: '3–5 min', age: '8+', place: 'Kahit saan na may sabitan', energy: 2, anim: 'donut',
+    materials: ['Donut bawat player', 'Tali o yarn', 'Bar o patpat sa itaas (hal. walis na nakapatong sa dalawang upuan)'],
+    steps: [
+      'Itali ang donut sa dulo ng tali, isabit sa bar sa itaas, at itali ang kabilang dulo sa hinlalaki ng paa.',
+      'Iangat ang paa para bumaba ang donut papunta sa bibig.',
+      'Pag ibinaba ang paa, aangat ulit ang donut — kaya kailangang balanse!',
+      'Bawal ang kamay. Ang unang makaubos, panalo — o mag-timer at bilangin kung sino ang pinakamaraming nakagat.'
+    ],
+    tips: ['Pwedeng pandesal o mamon ang gamitin.'],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'mirrorstraw', name: 'Straw sa Bote — Salamin Lang', alias: 'Mirror Straw-in-a-Bottle Relay',
+    players: '2+ teams (tig-2 pataas)', time: '5–8 min', age: '8+', place: 'Kahit saan', energy: 2, anim: 'mirror',
+    materials: ['Isang straw at isang walang lamang bote bawat team', 'Salamin o phone na naka-selfie camera bawat team', 'Timer'],
+    steps: [
+      'Ilagay ang bote sa likod ng player; nasa harap niya ang salamin o selfie camera.',
+      'Hawak ang straw, ipapasok niya ito sa bote gamit lang ang nakikita sa salamin — bawal lumingon!',
+      'Pag pumasok, ang susunod na kakampi naman. Pag nahulog ang straw, tapos ang turn niya.',
+      'Pagkatapos ng 3–5 minuto, ang team na pinakamaraming naipasok, panalo.'
+    ],
+    tips: ['Mas mahirap: ilayo ang bote o pahabain ang straw.', 'Pwedeng i-coach ng kakampi (kung payag ang host).', 'Bawal lumingon — ang lumingon, sayang ang turn.'],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'balloonstick', name: 'Ilang Lobo ang Didikit?', alias: 'How Many Balloons Will Stick?',
+    players: '2+', time: '3–5 min', age: 'Lahat', place: 'Indoor (may pader)', energy: 2, anim: 'stick',
+    materials: ['Maraming lobo', 'Makinis na pader o pinto'],
+    steps: [
+      'Hipan ang mga lobo at hatiin sa mga players.',
+      'Ikiskis ang lobo sa buhok o damit para magka-static.',
+      'Idikit ang mga lobo sa pader sa loob ng takdang oras (hal. 1 minuto).',
+      'Pagkatapos ng oras, bilangin ang mga lobong nakadikit pa — bawal hawakan.',
+      'Pinakamarami, panalo. Pag tabla, isang mabilisang sudden-death round.'
+    ],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'numberhunt', name: 'Number Hunt', alias: 'Unahan sa numero',
+    players: '2–4 teams', time: '5–10 min', age: '5+', place: 'May pader o mesa', energy: 3, anim: 'numbers',
+    materials: ['Malaking poster na puno ng numero', 'Marker na iba-iba ang kulay (isa bawat team)', 'Isang taga-tawag'],
+    steps: [
+      'Bawat team may sariling kulay ng marker. Ilagay ang poster kung saan maaabot ng lahat.',
+      'Tatawag ang host ng isang numero.',
+      'Tig-isang player mula sa bawat team ang tatakbo at bibilugan ang numero gamit ang kulay nila.',
+      'Ang unang tamang bilog ang may puntos. Bumalik sa team at ulitin.',
+      'Sa dulo, bilangin ang bilog ng bawat kulay — pinakamarami, panalo.'
+    ],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'chopstick', name: 'Higanteng Chopsticks Relay', alias: 'Giant Chopsticks Relay',
+    players: '2+ teams', time: '5–10 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'relay',
+    materials: ['Dalawang hawakan ng walis o PVC pipe bawat team (higanteng chopsticks)', 'Isang bola bawat team', 'Marker ng start at balikan'],
+    steps: [
+      'Bawat team, pumila sa start. Ang una ay may hawak na dalawang "chopsticks".',
+      'Iipitin ng chopsticks ang bola at dadalhin ito hanggang sa balikan at pabalik.',
+      'Pag nahulog ang bola, damputin ulit gamit lang ang chopsticks — bawal ang kamay.',
+      'Ipasa ang chopsticks at bola sa susunod. Ang unang team na matapos, panalo.'
+    ],
+    tips: ['Pwedeng pares: tig-isang chopstick ang bawat isa.'],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'threeinrow', name: 'Three in a Row', alias: 'Tic-tac-toe relay',
+    players: '2 teams ng 3+', time: '5–10 min', age: 'Lahat', place: 'Maluwag na lugar', energy: 3, anim: 'toss',
+    materials: ['3x3 grid sa sahig (tape o 9 na paper plates)', '3 piraso bawat team (hal. pulang tsinelas vs asul na tsinelas)'],
+    steps: [
+      'Pumila ang dalawang team sa malayo, magkatapat sa grid.',
+      'Sa hudyat, tatakbo ang una sa bawat team at maglalagay ng isang piraso sa kahit anong kahon.',
+      'Babalik at magta-tag sa susunod. Pag naubos na ang 3 piraso, ang susunod ay maglilipat ng isa sa sariling piraso.',
+      'Ang unang team na makatatlo nang diretso (pahiga, patayo o pahilis), panalo.'
+    ],
+    tips: ['Ito ang karaniwang bersyon ng "three in a row" relay — baguhin kung iba ang nakita mo sa video.'],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'tablechairs', name: 'Musical Mesa', alias: 'Musical chairs, gamit ang mesa',
+    players: '5+', time: '5–10 min', age: 'Lahat', place: 'Kahit saan', energy: 3, anim: 'chairs',
+    materials: ['Isang mesa', 'Maliliit na bagay (isang kulang sa bilang ng players)', 'Music'],
+    steps: [
+      'Ilagay ang mga bagay sa mesa. Iikot ang players sa mesa habang may music.',
+      'Habang naglalakad, magbibigay ng utos ang host: "Bilisan!", "Pa-side step!", "Paatras!".',
+      'Pag tumigil ang music, kukuha ang bawat isa ng isang bagay sa mesa.',
+      'Ang walang nakuha o hindi sumunod sa utos, out. Bawasan ng isang bagay.',
+      'Ulitin hanggang isa na lang — siya ang panalo.'
+    ],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'saytheirname', name: 'Sabihin ang Pangalan!', alias: 'You Know Them… Say Their Name!',
+    players: '4+', time: '5–10 min', age: 'Lahat', place: 'Kahit saan', energy: 2, anim: 'charades',
+    materials: ['Wala! (opsyonal: listahan ng mga sikat na tao o kamag-anak)'],
+    steps: [
+      'Bilog ang lahat.',
+      'Ang isang player ay maglalarawan ng tao — kamag-anak, kaibigan o artista — nang hindi sinasabi ang pangalan.',
+      'Unahan ang iba sa pagsigaw ng tamang pangalan.',
+      'Ang pinakamabilis, may puntos. Ang mabagal, may maliit na parusa (hal. sumayaw ng 5 segundo).'
+    ],
+    tips: ['Perfect sa reunion: ilarawan ang mga tito at tita!'],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'wigsnatch', name: 'Agawan ng Wig', alias: 'Wig Snatch',
+    players: '2 (one-on-one)', time: '3–5 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'duel',
+    materials: ['Dalawang wig o kahit anong maisusuot sa ulo (hal. makukulay na plastic bag)'],
+    steps: [
+      'Magkaharap ang dalawang player, may suot na "wig" sa ulo.',
+      'Sa hudyat, susubukan nilang agawin ang wig ng kalaban.',
+      'Protektahan ang sarili mong wig — bawal ang hawakan nang matagal o manulak.',
+      'Ang unang makaagaw, panalo. Palitan agad ng bagong challenger.'
+    ],
+    tips: ['Gumawa ng bracket para may champion sa dulo.'],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'cupnoodle', name: 'Cup Noodle Challenge', alias: 'Pool noodle + cup',
+    players: '2+', time: '3–5 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'duel',
+    materials: ['Dalawang pool noodle bawat player', 'Isang plastic cup bawat player'],
+    steps: [
+      'Bawat player: isang noodle na may cup sa dulo, at isang noodle na pang-hampas.',
+      'Hawakan nang patayo ang noodle na may cup — bawal hawakan ang cup.',
+      'Gamitin ang kabilang noodle para patumbahin ang cup ng iba, habang binabantayan ang sa iyo.',
+      'Pag nahulog ang cup mo, out ka. Ang huling may cup, panalo.'
+    ],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'dodgerodeo', name: 'Dodgeball Rodeo', alias: 'Isa laban sa lahat',
+    players: '6+', time: '5–10 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'pass',
+    materials: ['Malambot na bola', 'Maliliit na bagay na hawak ng mga nasa bilog (hal. panyo, tsinelas)'],
+    steps: [
+      'Bilog ang lahat; isang player sa gitna.',
+      'Ihahagis ng mga nasa bilog ang bola papunta sa nasa gitna — iiwas siya.',
+      'Habang umiiwas, kukuha ang nasa gitna ng mga bagay na hawak ng mga nasa bilog.',
+      'Pag natamaan, tapos ang turn niya. Bilangin ang nakuha niyang bagay.',
+      'Paikutin hanggang lahat nakapasok sa gitna — pinakamaraming nakuha, panalo.'
+    ],
+    tips: ['Gumamit ng malambot na bola lang, at bawal tumama sa ulo.'],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
+  },
+  {
+    id: 'updown', name: 'Up or Down', alias: 'Baligtaran ng cups',
+    players: '2 teams', time: '2–5 min', age: 'Lahat', place: 'Maluwag na sahig', energy: 3, anim: 'flip',
+    materials: ['Maraming plastic cups (20+), nakakalat sa sahig — kalahati nakataob, kalahati nakatihaya'],
+    steps: [
+      'Hatiin sa dalawang team: Team UP (itatayo ang cups) at Team DOWN (itataob ang cups).',
+      'Ikalat ang mga cup sa sahig.',
+      'Sa hudyat: Team UP, itayo ang mga cup; Team DOWN, itaob — kahit ang kakabaligtad lang ng kalaban.',
+      'Pag tapos ang oras (hal. 1 minuto), bilangin: mas maraming cup na nakatayo o nakataob?',
+      'Ang team na may mas maraming cup sa posisyon nila, panalo.'
+    ],
+    credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   }
 ];

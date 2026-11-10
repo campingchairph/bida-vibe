@@ -581,9 +581,81 @@ const SCENES = {
       <g><rect x="-6" y="-5" width="12" height="10" rx="3" fill="#E4452B" stroke="${INK}" stroke-width="1.5"/>
         <animateMotion path="M80 112 Q140 30 238 136" dur="2s" repeatCount="indefinite"/></g>
       <g opacity="0">${bubble(150, 30, 'Tatlo sa linya!', '', 120)}${vis('0;1;0', 6, '0;.78;.98')}</g>`;
+  },
+  hoops() {
+    const hoop = x => `<ellipse cx="${x}" cy="96" rx="15" ry="24" fill="none" stroke="#E2367A" stroke-width="4"/>`;
+    return `${ground}${[120, 180, 240].map((x, i) => `<g transform="translate(${x + 18} 148)">${person(i + 1, { arms: 'out' })}</g>${hoop(x)}`).join('')}
+      <g transform="translate(50 148)">${person(0, { arms: 'up' })}</g>
+      <circle r="10" fill="#F6B21B" stroke="${INK}" stroke-width="2"><animateMotion path="M60 90 Q90 60 120 96 Q150 70 180 96 Q210 70 240 96 Q262 80 285 70" dur="4s" repeatCount="indefinite"/></circle>
+      <g opacity="0">${bubble(160, 34, 'Lusot lahat!', '', 110)}${vis('0;1;0', 4, '0;.85;.99')}</g>`;
+  },
+  flatten() {
+    return `${ground}<rect x="80" y="122" width="160" height="8" fill="#F6B21B" stroke="${INK}" stroke-width="2"/>
+      <g transform="translate(120 148)">${person(0, { arms: 'out' })}</g><g transform="translate(200 148)">${person(1, { arms: 'out' })}</g>
+      <g transform="translate(160 112)">
+        <g><path d="M-10 -6l6 -6 8 4 6 -4 2 10 -6 6 -10 2z" fill="#fff" stroke="${INK}" stroke-width="2"/>${vis('1;0', 5, '0;.5')}</g>
+        <g opacity="0"><rect x="-22" y="-4" width="44" height="6" fill="#fff" stroke="${INK}" stroke-width="2"/>${vis('0;1', 5, '0;.5')}</g></g>
+      <g opacity="0">${bubble(160, 46, 'Kanan + kaliwa!', '', 120)}${vis('1;0', 5, '0;.45')}</g>
+      <g opacity="0">${bubble(160, 46, 'Plantsado!')}${vis('0;1;0', 5, '0;.55;.98')}</g>`;
+  },
+  donut() {
+    return `${ground}<path d="M60 40H260" stroke="${INK}" stroke-width="4"/><path d="M80 40V150M240 40V150" stroke="${INK}" stroke-width="3"/>
+      <g transform="translate(150 148)">${person(0)}</g>
+      <g><path d="M150 40V70" stroke="${INK}" stroke-width="1.5"/><circle cx="150" cy="80" r="9" fill="#E2367A" stroke="${INK}" stroke-width="2"/><circle cx="150" cy="80" r="3" fill="#FFF6E5"/>
+        <animateTransform attributeName="transform" type="translate" values="0 -10;0 14;0 -10" dur="2.4s" repeatCount="indefinite"/></g>
+      <path d="M150 40Q186 60 172 150" fill="none" stroke="${INK}" stroke-width="1.5"/>
+      <g transform="translate(172 150)"><rect x="-6" y="-8" width="12" height="8" rx="3" fill="#E8B48A" stroke="${INK}" stroke-width="1.5">
+        <animateTransform attributeName="transform" type="translate" values="0 0;0 -22;0 0" dur="2.4s" repeatCount="indefinite"/></rect></g>
+      <g opacity="0">${bubble(230, 70, 'Konti na lang!', '', 110)}${vis('0;1;0', 2.4, '0;.4;.6')}</g>`;
+  },
+  mirror() {
+    return `${ground}<rect x="210" y="70" width="40" height="60" rx="4" fill="#C9EEEC" stroke="${INK}" stroke-width="2.5"/><path d="M218 78l10 -4M222 92l14 -6" stroke="#fff" stroke-width="3"/>
+      <g transform="translate(170 148)">${person(0, { arms: 'out' })}</g>
+      <g transform="translate(90 148)"><path d="M-7 0V-26q0 -6 7 -6t7 6V0z" fill="#fff" stroke="${INK}" stroke-width="2"/><rect x="-3" y="-36" width="6" height="5" fill="${INK}"/></g>
+      <g><path d="M150 118L124 96" stroke="#E4452B" stroke-width="3" stroke-linecap="round"/>
+        <animateTransform attributeName="transform" type="translate" values="0 0;-18 4;-6 -6;-30 10;-30 10" keyTimes="0;.25;.5;.75;1" dur="4s" repeatCount="indefinite"/></g>
+      <g opacity="0">${bubble(150, 40, 'Bawal lumingon!', '', 120)}${vis('1;0', 4, '0;.7')}</g>
+      <g opacity="0">${bubble(150, 40, 'Pasok!')}${vis('0;1;0', 4, '0;.75;.98')}</g>`;
+  },
+  stick() {
+    const ball = (x, y, c, t) => `<g opacity="0"><circle cx="${x}" cy="${y}" r="11" fill="${c}" stroke="${INK}" stroke-width="2"/><path d="M${x} ${y + 11}l-2 5h4z" fill="${c}" stroke="${INK}" stroke-width="1.5"/>${vis('0;1;1', 5, `0;${t};1`)}</g>`;
+    return `${ground}<rect x="150" y="20" width="150" height="130" fill="#FFF6E5" stroke="${INK}" stroke-width="2"/>
+      <g transform="translate(90 148)">${person(0, { arms: 'up' })}</g>
+      ${ball(180, 50, '#E2367A', .15)}${ball(215, 70, '#0FA3A3', .3)}${ball(255, 48, '#F6B21B', .45)}${ball(195, 100, '#3E9B4F', .6)}${ball(245, 105, '#E4452B', .75)}
+      <g opacity="0">${bubble(225, 136, 'Lima!')}${vis('0;1;0', 5, '0;.85;.99')}</g>`;
+  },
+  numbers() {
+    let cells = '', n = [7, 3, 12, 5, 9, 1, 15, 4, 8, 2, 11, 6];
+    n.forEach((v, i) => { const x = 170 + (i % 4) * 30, y = 44 + Math.floor(i / 4) * 30; cells += `<text x="${x}" y="${y}" text-anchor="middle" font-size="15" fill="${INK}">${v}</text>`; });
+    return `${ground}<rect x="150" y="22" width="130" height="96" fill="#fff" stroke="${INK}" stroke-width="2.5"/>${cells}
+      <circle cx="230" cy="69" r="12" fill="none" stroke="#E2367A" stroke-width="3" opacity="0">${vis('0;1;0', 5, '0;.55;.98')}</circle>
+      <g><g transform="translate(40 148)">${person(0)}</g><animateTransform attributeName="transform" type="translate" values="0 0;0 0;150 0;150 0;0 0" keyTimes="0;.2;.5;.8;1" dur="5s" repeatCount="indefinite"/></g>
+      <g><g transform="translate(20 148)">${person(1)}</g><animateTransform attributeName="transform" type="translate" values="0 0;0 0;120 0;120 0;0 0" keyTimes="0;.2;.55;.8;1" dur="5s" repeatCount="indefinite"/></g>
+      <g opacity="0">${bubble(80, 40, 'Numero 12!', '', 96)}${vis('1;0', 5, '0;.3')}</g>`;
+  },
+  duel() {
+    return `${ground}
+      <g><g transform="translate(120 148)">${person(0, { arms: 'out', extra: `<path d="M-10 -42q10 -12 20 0z" fill="#E2367A" stroke="${INK}" stroke-width="2"/>` })}</g>
+        <animateTransform attributeName="transform" type="translate" values="0 0;10 0;-4 0;0 0" dur="2s" repeatCount="indefinite"/></g>
+      <g><g transform="translate(200 148)">${person(1, { arms: 'out' })}</g>
+        <animateTransform attributeName="transform" type="translate" values="0 0;-12 0;4 0;0 0" dur="2s" repeatCount="indefinite"/></g>
+      <g transform="translate(200 106)"><g><path d="M-10 0q10 -12 20 0z" fill="#0FA3A3" stroke="${INK}" stroke-width="2"/>
+        <animateTransform attributeName="transform" type="translate" values="0 0;0 0;-60 -10;-60 -10" keyTimes="0;.6;.7;1" dur="4s" repeatCount="indefinite"/></g></g>
+      <g opacity="0">${bubble(160, 40, 'Naagaw!')}${vis('0;1;0', 4, '0;.7;.98')}</g>`;
+  },
+  flip() {
+    let cups = '';
+    [[60, 0], [100, 1], [140, 0], [180, 1], [220, 0], [260, 1]].forEach(([x, up], i) => {
+      const t = (.2 + i * .1).toFixed(2), down = `M${x - 8} 150h16l-2 -14h-12z`, upp = `M${x - 6} 150h12l2 -14h-16z`;
+      cups += `<path d="${up ? upp : down}" fill="#fff" stroke="${INK}" stroke-width="2"><animate attributeName="d" values="${up ? upp : down};${up ? down : upp}" keyTimes="0;${t}" dur="5s" repeatCount="indefinite" calcMode="discrete"/></path>`;
+    });
+    return `${ground}${cups}
+      <g><g transform="translate(70 128)">${person(0)}</g><animateTransform attributeName="transform" type="translate" values="0 0;180 0;0 0" dur="5s" repeatCount="indefinite"/></g>
+      <g opacity="0">${bubble(110, 40, 'UP!')}${vis('0;1;0', 5, '0;.1;.5')}</g>
+      <g opacity="0">${bubble(210, 40, 'DOWN!')}${vis('0;1;0', 5, '0;.5;.95')}</g>`;
   }
 };
-const SCENE_BG = { chairs: '', paper: 'gold', henyo: 'magenta', bringme: 'leaf', freeze: 'gold', relay: 'leaf', whisper: 'magenta', charades: 'gold', hephep: '', line: 'chili', balloon: 'magenta', jakenpoy: 'gold', feud: '', pass: 'chili', cupstack: 'leaf', tug: 'gold', cupgrab: 'magenta', coin: '', dice: 'chili', toss: 'leaf' };
+const SCENE_BG = { chairs: '', paper: 'gold', henyo: 'magenta', bringme: 'leaf', freeze: 'gold', relay: 'leaf', whisper: 'magenta', charades: 'gold', hephep: '', line: 'chili', balloon: 'magenta', jakenpoy: 'gold', feud: '', pass: 'chili', cupstack: 'leaf', tug: 'gold', cupgrab: 'magenta', coin: '', dice: 'chili', toss: 'leaf', hoops: 'gold', flatten: 'leaf', donut: 'magenta', mirror: 'gold', stick: 'turq', numbers: 'leaf', duel: 'chili', flip: 'gold' };
 function sceneHTML(game) {
   const fn = SCENES[game.anim] || SCENES.chairs, bg = SCENE_BG[game.anim];
   return `<div class="scene ${bg ? 'scene--' + bg : ''}" role="img" aria-label="Animated how-to: ${esc(game.name)}">
@@ -727,6 +799,48 @@ const SND_OK = {};            // id → true (file exists) / false (missing)
 const BUF_CACHE = {};
 const PAD_KEYS = '1234567890qwertyuiopasdfghjkl'.split('');
 
+/* ---- 8 free pads from the sounds/free/ folder: drop any audio file in, the pad is named after the file ----
+   A static site can't list a folder, so we ask: (1) an optional sounds/free/list.json, (2) the local dev
+   server's folder listing, or (3) GitHub's public contents API for this repo (cached for an hour). */
+const FREE_DIR = 'sounds/free/';
+const FREE_MAX = 8;
+const FREE_COLORS = ['gold', 'magenta', 'turq', 'leaf', 'chili', 'paper', 'magenta', 'gold'];
+const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|webm)$/i;
+let FREE_PADS = [];
+function padNameFromFile(f) {
+  let n = f; try { n = decodeURIComponent(f); } catch (e) { }
+  return n.replace(AUDIO_EXT, '').replace(/^\d{1,3}[\s._-]+/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 22) || 'Sound';
+}
+async function listFreeFiles() {
+  try {
+    const r = await fetch(FREE_DIR + 'list.json', { cache: 'no-cache' });
+    if (r.ok) { const j = await r.json(); if (Array.isArray(j)) return j.map(String); }
+  } catch (e) { }
+  if (IS_LOCAL) {
+    try {
+      const html = await (await fetch(FREE_DIR, { cache: 'no-cache' })).text();
+      return [...html.matchAll(/href="([^"?#/]+)"/g)].map(m => m[1]);
+    } catch (e) { return []; }
+  }
+  const gh = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split('/')[1];
+  if (!gh || !repo) return [];
+  const KEY = 'bidavibe_freepads';
+  try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.at < 36e5 && Array.isArray(c.files)) return c.files; } catch (e) { }
+  try {
+    const r = await fetch(`https://api.github.com/repos/${gh[1]}/${encodeURIComponent(repo)}/contents/${FREE_DIR.replace(/\/$/, '')}`, { headers: { Accept: 'application/vnd.github+json' } });
+    if (!r.ok) throw new Error('gh ' + r.status);
+    const files = (await r.json()).filter(x => x && x.type === 'file' && x.size < 3e6).map(x => String(x.name));
+    try { localStorage.setItem(KEY, JSON.stringify({ at: Date.now(), files })); } catch (e) { }
+    return files;
+  } catch (e) {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}').files || []; } catch (x) { return []; }
+  }
+}
+async function loadFreePads() {
+  const files = (await listFreeFiles()).filter(f => AUDIO_EXT.test(f) && f.length < 120)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).slice(0, FREE_MAX);
+  FREE_PADS = files.map((file, i) => ({ id: 'f' + (i + 1), file, name: padNameFromFile(file), c: FREE_COLORS[i] }));
+}
 async function probeDefaults() {
   await Promise.all(DEFAULT_SOUNDS.map(async s => {
     if (s.id in SND_OK) return;
@@ -763,6 +877,8 @@ async function loadCustom() {
 }
 
 function soundEntry(id) {
+  const f = FREE_PADS.find(s => s.id === id);
+  if (f) return { ...f, kind: 'free' };
   const d = DEFAULT_SOUNDS.find(s => s.id === id);
   if (d) return { ...d, kind: 'default' };
   const c = CUSTOM.find(s => s.id === id); if (!c) return null;
@@ -773,6 +889,7 @@ const isRec = s => s.id[0] === 'r';
 function canPlaySound(id) {
   if (BIDA.premium) return true;
   const s = soundEntry(id); if (!s) return false;
+  if (s.kind === 'free') return true;                       // the 8 folder pads are free for everyone
   if (s.kind === 'default') return s.n <= BIDA_CONFIG.freeSounds;
   return s.idx < (s.type === 'rec' ? BIDA_CONFIG.freeRecordings : BIDA_CONFIG.freeUploads);
 }
@@ -783,7 +900,8 @@ async function playSound(id, padEl) {
   try {
     if (!BUF_CACHE[id]) {
       const s = soundEntry(id);
-      const ab = s.kind === 'default' ? await (await fetch(SOUND_DIR + s.file)).arrayBuffer() : await s.blob.arrayBuffer();
+      const ab = s.kind === 'free' ? await (await fetch(FREE_DIR + encodeURIComponent(s.file))).arrayBuffer()
+        : s.kind === 'default' ? await (await fetch(SOUND_DIR + s.file)).arrayBuffer() : await s.blob.arrayBuffer();
       BUF_CACHE[id] = await x.decodeAudioData(ab);
     }
     const src = x.createBufferSource(); src.buffer = BUF_CACHE[id]; src.connect(SFX_BUS); src.start();
@@ -792,7 +910,8 @@ async function playSound(id, padEl) {
 function padList() {
   const defs = DEFAULT_SOUNDS.filter(s => SND_OK[s.id]).map(s => ({ id: s.id, name: s.name, c: s.c, kind: 'default' }));
   const cust = CUSTOM.map(s => ({ id: s.id, name: s.name, c: s.c || 'paper', kind: 'custom' }));
-  return [...defs, ...cust];
+  const free = FREE_PADS.map(s => ({ id: s.id, name: s.name, c: s.c, kind: 'free' }));
+  return [...free, ...defs, ...cust];
 }
 function padsHTML(limit) {
   const list = limit ? padList().slice(0, limit) : padList();
@@ -821,7 +940,8 @@ async function renderSounds() {
       <button class="pad pad--add" id="rec-btn" onclick="recordClick()">${ic('rec')}<span class="pad-name">Record</span>
         <small>${leftLabel(recordingsLeft(), `max ${max}s`)}${recordingsLeft() !== Infinity && recordingsLeft() ? ` · max ${max}s` : ''}</small></button></div>
     <input type="file" id="snd-file" accept="audio/*" multiple hidden onchange="uploadSounds(this.files);this.value=''">
-    ${isAdmin() && missing.length ? `<div class="note" style="margin-top:18px"><b>Admin:</b> ${missing.length} default sound${missing.length > 1 ? 's' : ''} wala pa sa <code>sounds/</code> folder: ${missing.map(s => `<code>${s.file}</code>`).join(' ')}</div>` : ''}`;
+    ${isAdmin() ? `<div class="note" style="margin-top:18px"><b>Admin:</b> ${FREE_PADS.length}/${FREE_MAX} libreng pads mula sa <code>sounds/free/</code>${FREE_PADS.length ? ': ' + FREE_PADS.map(s => `<code>${esc(s.file)}</code>`).join(' ') : ''}.
+      ${missing.length ? `<br>${missing.length} default sound${missing.length > 1 ? 's' : ''} wala pa sa <code>sounds/</code>: ${missing.map(s => `<code>${s.file}</code>`).join(' ')}` : ''}</div>` : ''}`;
 }
 function addSoundClick() {
   if (!uploadsLeft()) { openPremium('Dagdag sounds'); return; }
@@ -1764,7 +1884,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   handlePaidReturn();
   await spHandleRedirect();
   await loadCustom();
-  const probing = probeDefaults().then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
+  const probing = Promise.all([probeDefaults(), loadFreePads()]).then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
   const startTab = new URLSearchParams(location.search).get('tab');
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
