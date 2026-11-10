@@ -47,7 +47,7 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 
 - `firebase` — Google sign-in config (needed for **admin login** and for buyers). See PAYMENTS.md step 2.
 - `workerUrl` — the payments Worker. See [PAYMENTS.md](PAYMENTS.md).
-- `price` / `passDays` (display only — the Worker sets the real price), `freeSounds` (4), `freeUploads` (2), `freeRecordings` (2), `recordMaxSec` (3).
+- `price` / `passDays` (display only — the Worker sets the real price), `freeUploads` (2), `freeYtLinks` (5).
 - `firestore.rules` — publish in the Firebase Console.
 - `devUnlockCode` — `BIDATEST`, works on localhost only.
 - `spotifyClientId` — create an app at developer.spotify.com, add the page URL as a Redirect URI. Listeners need Spotify Premium; phones control the Spotify app that's already open.
