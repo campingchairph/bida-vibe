@@ -1,11 +1,30 @@
-# Sound pads
+# Sound pads — how the admin uploads them
 
-**Sounds are now uploaded in the app by the admin**, not by putting files in this folder.
+Uploads happen **inside the app** (same idea as Morphii's admin page). The app saves each file into `sounds/free/` in this GitHub repo, and GitHub Pages publishes it within about 1–2 minutes.
 
-1. Sign in on Bida-Vibe with the admin Google account.
-2. Go to **Sounds**, scroll to **Admin: Sound manager**, choose **Libre sa lahat** (max 8) or **Premium lang**, then tap **Mag-upload**.
-3. The pad name is taken from the file name, and you can rename, reorder, switch Libre/Premium, or delete later.
+## One-time setup (about 5 minutes)
 
-The files are stored on the payment server (Cloudflare Worker), so premium sounds are never public. Only the server decides who gets them: a signed-in account with an active pass, or admin. Max 1.5 MB per sound, and up to 40 pads.
+**1. Publish the Firestore rules**
+- Firebase Console → **bidavibe** → **Databases & Storage → Firestore → Rules**.
+- Replace everything with the contents of [`firestore.rules`](../firestore.rules) → **Publish**.
 
-This needs the Worker to be set up first (PAYMENTS.md, step 3). Until then, free pads can still come from [`sounds/free/`](free/README.md).
+**2. Make a GitHub token** (lets the app save files to this repo)
+- github.com → your profile picture → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+- **Repository access:** *Only select repositories* → `bida-vibe`.
+- **Permissions → Repository permissions → Contents:** *Read and write*.
+- **Expiration:** 90 days (you'll paste a new one when it expires).
+- Generate, then copy the token (starts with `github_pat_`).
+
+**3. Paste it in the app, once**
+- Open Bida-Vibe → account icon → sign in with the admin Google account.
+- **Sounds** → **Admin: Sound manager** → paste the token → **I-save**.
+
+The token is stored in Firestore `bida_secrets/github`, which the rules let **only the admin** read. It is never saved in the browser.
+
+## Uploading
+**Sounds → Admin: Sound manager → Mag-upload**, then pick files (several at once is fine).
+- **Pad name:** taken from the file name. You can rename later.
+- **Arrows:** change the order.
+- **Trash icon:** deletes for everyone.
+- **Limits:** max **8** pads and **1.5 MB** each. Files must really be audio (mp3, wav, ogg, m4a, webm); anything else is refused.
+- These pads are **free for everyone**. Premium-only sounds need the Cloudflare Worker (PAYMENTS.md), because files in this repo are public.

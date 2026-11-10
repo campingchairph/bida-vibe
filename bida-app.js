@@ -838,7 +838,7 @@ async function loadFolderPads() {
   if (!files.length) {
     const gh = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split('/')[1], KEY = 'bidavibe_freepads';
     if (gh && repo) {
-      try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.at < 36e5) files = c.files || []; } catch (e) { }
+      try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.at < 6e5) files = c.files || []; } catch (e) { }
       if (!files.length) try {
         const r = await fetch(`https://api.github.com/repos/${gh[1]}/${encodeURIComponent(repo)}/contents/sounds/free`);
         if (r.ok) { files = (await r.json()).filter(x => x && x.type === 'file' && x.size < 3e6).map(x => String(x.name)); localStorage.setItem(KEY, JSON.stringify({ at: Date.now(), files })); }
@@ -862,7 +862,13 @@ function canPlaySound(id) {
 }
 async function padBytes(s) {
   if (s.kind === 'custom') return s.blob.arrayBuffer();
-  if (s.src === 'folder') return (await fetch('sounds/free/' + encodeURIComponent(s.file))).arrayBuffer();
+  if (s.src === 'folder') {
+    // GitHub Pages takes ~1 min to publish a new upload; until then, read it straight from the repo
+    let r = await fetch('sounds/free/' + encodeURIComponent(s.file));
+    if (!r.ok) { const { owner, repo } = ghRepo(); r = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/main/sounds/free/${encodeURIComponent(s.file)}`); }
+    if (!r.ok) throw new Error('pad ' + r.status);
+    return r.arrayBuffer();
+  }
   const c = await cacheGet(s.id);
   if (c && c.v === s.v && c.buf && (s.tier === 'free' || c.uid === AUTH.user?.uid)) return c.buf;
   const headers = {};
@@ -933,11 +939,168 @@ async function delSound(id) {
   await dbDel(id); CUSTOM = CUSTOM.filter(s => s.id !== id); delete BUF_CACHE[id]; renderSounds();
 }
 
-/* ---- Admin: Sound manager (the server re-checks admin on every request) ---- */
+/* ---- Admin: Sound manager ----
+   Without the Worker: Morphii-style — files are committed to sounds/free/ in the GitHub repo using a
+   GitHub token that lives in Firestore bida_secrets/github, which the Firestore rules let ONLY the
+   verified admin read. With the Worker: pads live on the Worker and can be Free or Premium. */
 let ADMIN_TIER = 'free';
-function adminSoundsHTML() {
-  if (!BIDA_CONFIG.workerUrl) return `<div class="card admin-card" style="margin-top:20px"><h3>${ic('lock')}Admin: Sound manager</h3>
-    <p class="note">Para mag-upload sa app, kailangan munang i-setup ang Cloudflare Worker (PAYMENTS.md, hakbang 3) at ilagay ang <code>workerUrl</code>. Habang wala pa, gumagana ang mga file sa <code>sounds/free/</code>.</p></div>`;
+function adminSoundsHTML() { return BIDA_CONFIG.workerUrl ? adminWorkerHTML() : adminGitHubHTML(); }
+
+const GH = { state: '', token: null, files: [], busy: false, msg: '' };
+function ghRepo() {
+  const gh = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split('/')[1];
+  return gh && repo ? { owner: gh[1], repo } : { owner: 'campingchairph', repo: 'bida-vibe' };
+}
+const secretUrl = () => `https://firestore.googleapis.com/v1/projects/${BIDA_CONFIG.firebase.projectId}/databases/(default)/documents/bida_secrets/github`;
+async function fsAuth() { return { Authorization: 'Bearer ' + await AUTH.user.getIdToken() }; }
+// Token comes from Firestore (rules: admin only). Kept in memory only — never saved in this browser.
+async function ghLoadToken() {
+  const r = await fetch(secretUrl(), { headers: await fsAuth() });
+  if (r.status === 404) return null;
+  if (r.status === 403) throw new Error('rules');
+  if (!r.ok) throw new Error('fs_' + r.status);
+  return (await r.json()).fields?.token?.stringValue || null;
+}
+async function ghSaveToken() {
+  const t = ($('#gh-token')?.value || '').trim();
+  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(t)) { toast('Hindi mukhang GitHub token ito'); return; }
+  try {
+    const r = await fetch(secretUrl() + '?updateMask.fieldPaths=token', { method: 'PATCH', headers: { ...(await fsAuth()), 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { token: { stringValue: t } } }) });
+    if (r.status === 403) throw new Error('rules');
+    if (!r.ok) throw new Error('fs_' + r.status);
+    GH.token = t; GH.state = ''; toast('Na-save ang token'); adminInit();
+  } catch (e) { GH.state = e.message === 'rules' ? 'rules' : 'error'; GH.msg = e.message; renderSounds(); }
+}
+function ghChangeToken() { GH.token = null; GH.state = 'need-token'; renderSounds(); }
+async function ghApi(path, opts = {}) {
+  const { owner, repo } = ghRepo();
+  const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/${path}`, { ...opts, headers: { Authorization: 'Bearer ' + GH.token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.headers || {}) } });
+  if (r.status === 401) throw new Error('gh_token');
+  if (r.status === 403 || (r.status === 404 && opts.method && opts.method !== 'GET')) throw new Error('gh_perm');
+  return r;
+}
+async function ghRefresh() {
+  const r = await ghApi('contents/sounds/free');
+  const list = r.status === 404 ? [] : await r.json();
+  GH.files = list.filter(f => f.type === 'file' && AUDIO_EXT.test(f.name)).map(f => ({ name: f.name, sha: f.sha, size: f.size }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  try { localStorage.removeItem('bidavibe_freepads'); } catch (e) { }
+  PADS = GH.files.slice(0, 8).map((f, i) => ({ id: 'f' + (i + 1), name: padNameFromFile(f.name), tier: 'free', v: 0, src: 'folder', file: f.name }));
+  Object.keys(BUF_CACHE).filter(k => /^f\d+$/.test(k)).forEach(k => delete BUF_CACHE[k]);
+}
+async function adminInit() {
+  if (!isAdmin() || BIDA_CONFIG.workerUrl || GH.busy) return;
+  GH.state = 'loading'; renderSounds();
+  try {
+    if (!GH.token) GH.token = await ghLoadToken();
+    if (!GH.token) { GH.state = 'need-token'; renderSounds(); return; }
+    await ghRefresh(); GH.state = 'ready';
+  } catch (e) {
+    GH.state = e.message === 'rules' ? 'rules' : e.message === 'gh_token' ? 'bad-token' : 'error'; GH.msg = e.message;
+    if (GH.state === 'bad-token') GH.token = null;
+  }
+  renderSounds();
+}
+const b64 = buf => { let s = ''; const b = new Uint8Array(buf); for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
+function sniffAudio(b) {
+  const s = (i, n) => String.fromCharCode(...b.slice(i, i + n));
+  if (s(0, 3) === 'ID3' || (b[0] === 0xFF && (b[1] & 0xE0) === 0xE0)) return 'mp3';
+  if (s(0, 4) === 'RIFF' && s(8, 4) === 'WAVE') return 'wav';
+  if (s(0, 4) === 'OggS') return 'ogg';
+  if (s(4, 4) === 'ftyp') return 'm4a';
+  if (b[0] === 0x1A && b[1] === 0x45 && b[2] === 0xDF && b[3] === 0xA3) return 'webm';
+  return '';
+}
+// File names in the public folder: letters, numbers, spaces and a few symbols only; audio extension forced
+const safeBase = s => String(s).replace(AUDIO_EXT, '').replace(/[^\p{L}\p{N} ._()'!&-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 40) || 'Sound';
+async function ghPut(path, contentB64, message, sha) {
+  const r = await ghApi('contents/' + path.split('/').map(encodeURIComponent).join('/'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, content: contentB64, ...(sha ? { sha } : {}) }) });
+  if (!r.ok) throw new Error('gh_' + r.status);
+  return r.json();
+}
+async function ghDel(path, sha, message) {
+  const r = await ghApi('contents/' + path.split('/').map(encodeURIComponent).join('/'), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, sha }) });
+  if (!r.ok) throw new Error('gh_' + r.status);
+}
+const GH_ERR = { gh_token: 'Hindi tanggap ng GitHub ang token (expired o mali). Palitan ang token.', gh_perm: 'Walang permiso ang token na mag-edit ng bida-vibe repo (kailangan: Contents → Read and write).', rules: 'Hindi pa naka-publish ang Firestore rules (firestore.rules).' };
+async function ghWork(fn, okMsg) {
+  if (GH.busy) return; GH.busy = true; renderSounds();
+  try { await fn(); await ghRefresh(); if (okMsg) toast(okMsg); }
+  catch (e) { toast(GH_ERR[e.message] || 'Hindi natuloy — subukan ulit'); if (e.message === 'gh_token') { GH.token = null; GH.state = 'bad-token'; } }
+  finally { GH.busy = false; renderSounds(); }
+}
+function ghUpload(files) {
+  return ghWork(async () => {
+    for (const f of files) {
+      if (GH.files.length >= 8) { toast('Puno na ang 8 libreng pads — magtanggal muna'); break; }
+      if (f.size > 1500000) { toast(`${f.name}: max 1.5 MB`); continue; }
+      const buf = await f.arrayBuffer(), ext = sniffAudio(new Uint8Array(buf.slice(0, 16)));
+      if (!ext) { toast(`${f.name}: hindi audio file`); continue; }
+      const next = String(GH.files.length + 1).padStart(2, '0');
+      let name = `${next}-${safeBase(f.name)}.${ext}`;
+      if (GH.files.some(x => x.name.toLowerCase() === name.toLowerCase())) name = `${next}-${safeBase(f.name)} ${Date.now() % 1000}.${ext}`;
+      await ghPut('sounds/free/' + name, b64(buf), `Add sound pad: ${padNameFromFile(name)}`);
+      GH.files.push({ name, sha: '', size: f.size });
+    }
+  }, 'Na-upload! Lalabas sa lahat ng users sa loob ng 1–2 minuto.');
+}
+async function ghRenameFile(f, newName, why) {
+  if (f.name === newName) return;
+  const r = await ghApi('contents/sounds/free/' + encodeURIComponent(f.name));
+  const j = await r.json();
+  await ghPut('sounds/free/' + newName, String(j.content || '').replace(/\s/g, ''), why);
+  await ghDel('sounds/free/' + f.name, j.sha, why);
+}
+async function ghRename(i) {
+  const f = GH.files[i]; if (!f) return;
+  const nn = await askText('Bagong pangalan ng pad', padNameFromFile(f.name)); if (!nn) return;
+  const prefix = (f.name.match(/^\d{1,3}[\s._-]+/) || [''])[0], ext = f.name.match(AUDIO_EXT)[0];
+  ghWork(() => ghRenameFile(f, `${prefix}${safeBase(nn)}${ext}`, `Rename sound pad: ${safeBase(nn)}`), 'Napalitan ang pangalan');
+}
+function ghMove(i, d) {
+  const j = i + d, a = GH.files[i], b = GH.files[j]; if (!a || !b) return;
+  // Order = the number at the front of the file name; swap the two numbers
+  const base = f => f.name.replace(/^\d{1,3}[\s._-]+/, '');
+  ghWork(async () => {
+    await ghRenameFile(a, `${String(j + 1).padStart(2, '0')}-${base(a)}`, 'Reorder sound pads');
+    await ghRenameFile(b, `${String(i + 1).padStart(2, '0')}-${base(b)}`, 'Reorder sound pads');
+  });
+}
+async function ghDelete(i) {
+  const f = GH.files[i]; if (!f) return;
+  if (!await askConfirm(`Tanggalin ang "${padNameFromFile(f.name)}" para sa lahat ng users?`, 'Tanggalin')) return;
+  ghWork(() => ghDel('sounds/free/' + f.name, f.sha, `Remove sound pad: ${padNameFromFile(f.name)}`), 'Natanggal');
+}
+function adminGitHubHTML() {
+  if (!GH.state && !GH.busy) setTimeout(adminInit, 0);
+  const head = `<h3>${ic('lock')}Admin: Sound manager</h3><p class="muted">Ikaw lang ang nakakakita nito. Ang mga in-upload dito ay libre para sa lahat (max 8).</p>`;
+  let body = '';
+  if (GH.state === 'loading' || !GH.state) body = '<p class="muted" style="margin-top:12px">Kinukuha…</p>';
+  else if (GH.state === 'rules') body = `<p class="note" style="margin-top:12px">Hindi pa naka-publish ang Firestore rules. Firebase Console → Databases &amp; Storage → Firestore → <b>Rules</b> → i-paste ang laman ng <code>firestore.rules</code> → Publish. Tapos i-refresh ito.</p>`;
+  else if (GH.state === 'need-token' || GH.state === 'bad-token') body = `
+    ${GH.state === 'bad-token' ? '<p class="note" style="margin-top:12px">Hindi na gumagana ang dating token (expired o binura). Maglagay ng bago.</p>' : ''}
+    <p style="margin-top:12px;font-weight:700">Isang beses lang: ilagay ang GitHub token para makapag-upload.</p>
+    <ol class="mic-steps"><li>Sa github.com → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token.</li>
+      <li>Repository access: <b>Only select repositories → bida-vibe</b>. Permissions: <b>Contents → Read and write</b>. Expiration: 90 days.</li>
+      <li>I-copy ang token at i-paste dito.</li></ol>
+    <div class="yt-add" style="margin-top:10px"><input class="input" id="gh-token" type="password" autocomplete="off" placeholder="github_pat_…"><button class="btn btn--ink" onclick="ghSaveToken()">I-save</button></div>
+    <p class="muted" style="margin-top:6px">Naka-save ito sa Firestore na ikaw lang ang makakabasa — hindi sa browser na ito.</p>`;
+  else if (GH.state === 'ready') body = `
+    <div class="admin-up"><button class="btn btn--ink" ${GH.busy || GH.files.length >= 8 ? 'disabled' : ''} onclick="$('#gh-snd').click()">${ic('upload')}${GH.busy ? 'Sandali…' : 'Mag-upload'}</button>
+      <span class="muted"><b>${GH.files.length}/8</b> · max 1.5 MB · pangalan ng pad = pangalan ng file</span></div>
+    <input type="file" id="gh-snd" accept="audio/*" multiple hidden onchange="ghUpload([...this.files]);this.value=''">
+    ${GH.files.length ? `<ul class="admin-list">${GH.files.map((f, i) => `<li><span class="admin-n">${i + 1}</span><b>${esc(padNameFromFile(f.name))}</b>
+      <span class="admin-act">
+        <button class="icon-btn icon-btn--plain" onclick="ghMove(${i},-1)" aria-label="Taas" ${i === 0 || GH.busy ? 'disabled' : ''}>${ic('up')}</button>
+        <button class="icon-btn icon-btn--plain" onclick="ghMove(${i},1)" aria-label="Baba" ${i === GH.files.length - 1 || GH.busy ? 'disabled' : ''}>${ic('down')}</button>
+        <button class="icon-btn icon-btn--plain" onclick="ghRename(${i})" aria-label="Palitan ang pangalan" ${GH.busy ? 'disabled' : ''}>${ic('edit')}</button>
+        <button class="icon-btn icon-btn--plain" onclick="ghDelete(${i})" aria-label="Tanggalin" ${GH.busy ? 'disabled' : ''}>${ic('trash')}</button></span></li>`).join('')}</ul>` : '<p class="muted" style="margin-top:12px">Wala pang naka-upload.</p>'}
+    <p class="muted" style="margin-top:10px">Lalabas ang pagbabago sa lahat ng users sa loob ng 1–2 minuto. <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="ghChangeToken()">Palitan ang token</button></p>`;
+  else body = `<p class="note" style="margin-top:12px">May problema: ${esc(GH.msg || '')}. <button class="btn btn--ghost btn--sm" onclick="GH_retry()">Subukan ulit</button></p>`;
+  return `<div class="card admin-card" style="margin-top:20px">${head}${body}</div>`;
+}
+function GH_retry() { GH.state = ''; adminInit(); }
+function adminWorkerHTML() {
   const freeN = PADS.filter(p => p.tier === 'free').length;
   return `<div class="card admin-card" style="margin-top:20px">
     <h3>${ic('lock')}Admin: Sound manager</h3>
@@ -1658,7 +1821,8 @@ async function refreshPremium() {
   return BIDA.premium;
 }
 function rerenderPremiumViews() {
-  purgePremiumCache();   // premium audio leaves this device when the pass ends or another account signs in
+  purgePremiumCache();
+  if (!isAdmin()) { GH.token = null; GH.state = ''; GH.files = []; }   // the GitHub token never outlives the admin's sign-in   // premium audio leaves this device when the pass ends or another account signs in
   if (!$('#app').hidden && RENDER[BIDA.tab]) RENDER[BIDA.tab]();
   if (!$('#live').hidden) renderLive();
   renderHead(); updateBar();
@@ -1900,7 +2064,7 @@ Object.assign(window, {
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
-  playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete,
+  playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
   toggleBar, barInfoClick, setTalkSpeed, setAutoReturn, setAutoDuck, setMusicSrc, openExt,
   openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,

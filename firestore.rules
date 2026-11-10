@@ -1,15 +1,27 @@
 rules_version = '2';
 // Bida-Vibe — Firestore security rules.
 // The rules are the lock: page code is never trusted.
-// Publish: Firebase Console → Firestore Database → Rules → paste this whole file → Publish.
+// Publish: Firebase Console → Databases & Storage → Firestore → Rules → paste this whole file → Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Admin test accounts: document ID = the Google email in lowercase
-    // (e.g. admins/you@gmail.com). Add/remove them in the Console only.
-    // Optional: the main admin is set by fingerprint in BIDA_CONFIG.adminHashes instead.
-    // A signed-in user with a Google-verified email may read ONLY their own document,
-    // which is how the app and the payment Worker check "am I an admin?".
+    // Admin = a real Google sign-in, Google-verified email, whose SHA-256 fingerprint matches.
+    // (The email itself is not written here, so this public file doesn't reveal it.)
+    function isBidaAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && hashing.sha256(request.auth.token.email.lower()).toHexString().lower()
+           == '291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd';
+    }
+
+    // The GitHub token the admin page uses to upload sound pads (same idea as Morphii's morphii_secrets).
+    // Only the admin can read or change it. Nobody else — not even signed-in users — can see it.
+    match /bida_secrets/{docId} {
+      allow read, write: if isBidaAdmin();
+    }
+
+    // Optional extra admins: document ID = Google email in lowercase. A verified user may read ONLY their own.
     match /admins/{email} {
       allow get: if request.auth != null
                  && request.auth.token.email_verified == true
@@ -17,7 +29,7 @@ service cloud.firestore {
       allow list, write: if false;
     }
 
-    // Everything else is closed. Premium passes live in the Cloudflare Worker (KV), not here.
+    // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;
     }
