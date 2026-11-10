@@ -689,7 +689,7 @@ window.BIDA_GAMES = [
   },
   {
     id: 'cupnoodle', name: 'Cup Noodle Challenge', alias: 'Pool noodle + cup',
-    players: '2+', time: '3–5 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'duel',
+    players: '2+', time: '3–5 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'noodles',
     materials: ['Dalawang pool noodle bawat player', 'Isang plastic cup bawat player'],
     steps: [
       'Bawat player: isang noodle na may cup sa dulo, at isang noodle na pang-hampas.',

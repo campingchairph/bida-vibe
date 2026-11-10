@@ -26,5 +26,5 @@ The token is stored in Firestore `bida_secrets/github`, which the rules let **on
 - **Pad name:** taken from the file name. You can rename later.
 - **Arrows:** change the order.
 - **Trash icon:** deletes for everyone.
-- **Limits:** max **8** pads and **1.5 MB** each. Files must really be audio (mp3, wav, ogg, m4a, webm); anything else is refused.
+- **Limits:** max **8** pads, **3 seconds** and **500 KB** each. Files must really be audio (mp3, wav, ogg, m4a, webm); anything else is refused.
 - These pads are **free for everyone**. Premium-only sounds need the Cloudflare Worker (PAYMENTS.md), because files in this repo are public.

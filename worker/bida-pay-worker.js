@@ -167,7 +167,7 @@ async function handleWebhook(req, env) {
 }
 
 /* ---------- Sound pads (stored in KV; admin uploads in the app) ---------- */
-const PAD_MAX_BYTES = 1500000;   // ~1.5 MB per sound
+const PAD_MAX_BYTES = 512000;    // 500 KB per sound (the app also limits sounds to 3 seconds)
 const PAD_FREE_MAX = 8;          // free pads everyone can play
 const PAD_TOTAL_MAX = 40;
 async function padIndex(env) { return (await env.PREMIUM.get('pad:index', 'json')) || []; }

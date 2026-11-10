@@ -640,6 +640,23 @@ const SCENES = {
         <animateTransform attributeName="transform" type="translate" values="0 0;0 0;-60 -10;-60 -10" keyTimes="0;.6;.7;1" dur="4s" repeatCount="indefinite"/></g></g>
       <g opacity="0">${bubble(160, 40, 'Naagaw!')}${vis('0;1;0', 4, '0;.7;.98')}</g>`;
   },
+  noodles() {
+    // Two players, each with TWO pool noodles: one held upright with a cup on top, one to swing
+    const noodle = (x1, y1, x2, y2, col) => `<path d="M${x1} ${y1}L${x2} ${y2}" stroke="${INK}" stroke-width="9" stroke-linecap="round"/><path d="M${x1} ${y1}L${x2} ${y2}" stroke="${col}" stroke-width="6" stroke-linecap="round"/>`;
+    const cup = (x, y) => `<path d="M${x - 8} ${y}h16l-2.5 -15h-11z" fill="#fff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    return `${ground}
+      <g transform="translate(112 148)">${person(0, { arms: 'out' })}</g>
+      <g transform="translate(208 148)">${person(1, { arms: 'out' })}</g>
+      ${noodle(90, 140, 90, 72, '#3E9B4F')}
+      <g>${cup(90, 72)}
+        <animateTransform attributeName="transform" type="translate" values="0 0;0 0;-26 -14;-44 72;-44 72" keyTimes="0;.52;.6;.72;1" dur="4s" repeatCount="indefinite"/></g>
+      ${noodle(134, 126, 152, 94, '#F6B21B')}
+      ${noodle(230, 140, 230, 72, '#0FA3A3')}${cup(230, 72)}
+      <g>${noodle(186, 126, 154, 80, '#E2367A')}
+        <animateTransform attributeName="transform" type="rotate" values="0 186 126;0 186 126;-34 186 126;8 186 126;0 186 126" keyTimes="0;.35;.55;.7;1" dur="4s" repeatCount="indefinite"/></g>
+      <g opacity="0">${bubble(160, 34, 'Patumbahin ang cup!', '', 140)}${vis('1;0', 4, '0;.5')}</g>
+      <g opacity="0">${bubble(160, 34, 'Out! Nahulog ang cup!', '', 150)}${vis('0;1;0', 4, '0;.62;.97')}</g>`;
+  },
   flip() {
     let cups = '';
     [[60, 0], [100, 1], [140, 0], [180, 1], [220, 0], [260, 1]].forEach(([x, up], i) => {
@@ -652,7 +669,7 @@ const SCENES = {
       <g opacity="0">${bubble(210, 40, 'DOWN!')}${vis('0;1;0', 5, '0;.5;.95')}</g>`;
   }
 };
-const SCENE_BG = { chairs: '', paper: 'gold', henyo: 'magenta', bringme: 'leaf', freeze: 'gold', relay: 'leaf', whisper: 'magenta', charades: 'gold', hephep: '', line: 'chili', balloon: 'magenta', jakenpoy: 'gold', feud: '', pass: 'chili', cupstack: 'leaf', tug: 'gold', cupgrab: 'magenta', coin: '', dice: 'chili', toss: 'leaf', hoops: 'gold', flatten: 'leaf', donut: 'magenta', mirror: 'gold', stick: 'turq', numbers: 'leaf', duel: 'chili', flip: 'gold' };
+const SCENE_BG = { chairs: '', paper: 'gold', henyo: 'magenta', bringme: 'leaf', freeze: 'gold', relay: 'leaf', whisper: 'magenta', charades: 'gold', hephep: '', line: 'chili', balloon: 'magenta', jakenpoy: 'gold', feud: '', pass: 'chili', cupstack: 'leaf', tug: 'gold', cupgrab: 'magenta', coin: '', dice: 'chili', toss: 'leaf', hoops: 'gold', flatten: 'leaf', donut: 'magenta', mirror: 'gold', stick: 'turq', numbers: 'leaf', duel: 'chili', flip: 'gold', noodles: 'leaf' };
 function sceneHTML(game) {
   const fn = SCENES[game.anim] || SCENES.chairs, bg = SCENE_BG[game.anim];
   return `<div class="scene ${bg ? 'scene--' + bg : ''}" role="img" aria-label="Animated how-to: ${esc(game.name)}">
@@ -880,16 +897,62 @@ async function padBytes(s) {
   cachePut({ id: s.id, v: s.v, tier: s.tier, uid: AUTH.user?.uid || '', buf: buf.slice(0) });
   return buf;
 }
-async function playSound(id, padEl) {
+/* ---- Zero-delay playback ----
+   1) every playable pad is downloaded + decoded ahead of time (preloadPads), so a tap never waits on the network
+   2) silence at the start of a file is cut off, so the sound starts the instant the pad is hit
+   3) the audio engine is woken up on the first touch anywhere, so the first pad isn't slow either */
+const DECODING = {};
+const MAX_SOUND_SEC = 3, MAX_SOUND_BYTES = 500 * 1024;
+function trimSilence(buf) {
+  const ch = [...Array(buf.numberOfChannels)].map((_, i) => buf.getChannelData(i));
+  let start = 0;
+  outer: for (; start < buf.length; start++) for (const d of ch) if (Math.abs(d[start]) > 0.01) break outer;
+  start = Math.max(0, start - Math.round(buf.sampleRate * 0.004));      // keep 4 ms so the attack isn't clipped
+  if (start < buf.sampleRate * 0.01 || start >= buf.length) return buf;  // nothing worth trimming
+  const out = ac().createBuffer(buf.numberOfChannels, buf.length - start, buf.sampleRate);
+  ch.forEach((d, i) => out.copyToChannel(d.subarray(start), i));
+  return out;
+}
+function decodePad(id) {
+  if (BUF_CACHE[id]) return Promise.resolve(BUF_CACHE[id]);
+  if (!DECODING[id]) DECODING[id] = (async () => {
+    const raw = await ac().decodeAudioData(await padBytes(soundEntry(id)));
+    return (BUF_CACHE[id] = trimSilence(raw));
+  })().finally(() => { delete DECODING[id]; });
+  return DECODING[id];
+}
+let preloadRun = 0;
+async function preloadPads() {
+  const run = ++preloadRun;
+  for (const p of padList()) {
+    if (run !== preloadRun) return;                 // a newer preload started (list changed)
+    if (canPlaySound(p.id) && !BUF_CACHE[p.id]) { try { await decodePad(p.id); } catch (e) { } }
+  }
+}
+// Wake the audio engine on the first touch/click anywhere (iPhone needs this inside a user gesture)
+['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, function wake() {
+  const x = ac();
+  try { const b = x.createBuffer(1, 1, 22050), s = x.createBufferSource(); s.buffer = b; s.connect(x.destination); s.start(0); } catch (e) { }
+  document.removeEventListener(ev, wake, true);
+}, { capture: true, once: true }));
+
+/* ---- One pad at a time: a new pad stops the one still playing (10 ms fade, no click) ---- */
+let CUR_PAD = null;
+function playBuffer(buf) {
+  const x = ac(), now = x.currentTime;
+  if (CUR_PAD) { try { CUR_PAD.g.gain.setTargetAtTime(0, now, 0.004); CUR_PAD.src.stop(now + 0.03); } catch (e) { } }
+  const g = x.createGain(); g.connect(SFX_BUS);
+  const src = x.createBufferSource(); src.buffer = buf; src.connect(g); src.start(now);
+  const me = CUR_PAD = { src, g };
+  src.onended = () => { if (CUR_PAD === me) CUR_PAD = null; };
+}
+function playSound(id, padEl) {
   if (!canPlaySound(id)) { openPremium('Sound pads'); return; }
   if (padEl) { padEl.classList.add('hit'); setTimeout(() => padEl.classList.remove('hit'), 120); }
-  const x = ac();
-  try {
-    if (!BUF_CACHE[id]) BUF_CACHE[id] = await x.decodeAudioData(await padBytes(soundEntry(id)));
-    const src = x.createBufferSource(); src.buffer = BUF_CACHE[id]; src.connect(SFX_BUS); src.start();
-  } catch (e) {
+  if (BUF_CACHE[id]) { playBuffer(BUF_CACHE[id]); return; }    // the normal, instant path
+  decodePad(id).then(playBuffer).catch(e => {
     if (e.code === 403) openPremium('Sound pads'); else toast('Hindi ma-play ang sound na ito');
-  }
+  });
 }
 function padList() {
   return [...PADS.map((s, i) => ({ id: s.id, name: s.name, c: PAD_COLORS[i % PAD_COLORS.length], kind: 'pad' })),
@@ -916,7 +979,7 @@ function renderSounds() {
       ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}I-unlock lahat</button>`}</div>
     <div class="pads" id="pads">${padsHTML()}
       <button class="pad pad--add" onclick="addSoundClick()">${ic('upload')}<span class="pad-name">Upload</span>
-        <small>${leftLabel(uploadsLeft(), 'mp3 · m4a · wav')}</small></button></div>
+        <small>${leftLabel(uploadsLeft(), 'max 3 seg')}</small></button></div>
     <input type="file" id="snd-file" accept="audio/*" multiple hidden onchange="uploadSounds(this.files);this.value=''">
     ${isAdmin() ? adminSoundsHTML() : ''}`;
 }
@@ -924,13 +987,24 @@ function addSoundClick() {
   if (!uploadsLeft()) { openPremium('Dagdag sounds'); return; }
   $('#snd-file').click();
 }
+// Checks a sound file: max 500 KB and max 3 seconds (after the silent start is cut). Returns the decoded buffer.
+async function checkSoundFile(f) {
+  if (f.size > MAX_SOUND_BYTES) throw new Error(`${f.name}: masyadong malaki — max 500 KB`);
+  let buf;
+  try { buf = trimSilence(await ac().decodeAudioData(await f.arrayBuffer())); }
+  catch (e) { throw new Error(`${f.name}: hindi ma-play ang file na ito`); }
+  if (buf.duration > MAX_SOUND_SEC + 0.05) throw new Error(`${f.name}: ${buf.duration.toFixed(1)} segundo — hanggang ${MAX_SOUND_SEC} segundo lang`);
+  return buf;
+}
+// The user's own sounds are saved ONLY on this device (browser storage / IndexedDB) — never uploaded anywhere.
 async function uploadSounds(files) {
   let added = 0;
   for (const f of files) {
     if (!uploadsLeft()) { openPremium('Dagdag sounds'); break; }
-    if (f.size > 8 * 1024 * 1024) { toast(`${f.name}: masyadong malaki (max 8MB)`); continue; }
+    let buf;
+    try { buf = await checkSoundFile(f); } catch (e) { toast(e.message); continue; }
     const s = { id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: f.name.replace(/\.[^.]+$/, '').slice(0, 20), blob: f, c: ['magenta', 'turq', 'gold', 'leaf', 'chili'][CUSTOM.length % 5], created: Date.now() };
-    await dbPut(s); CUSTOM.push(s); added++;
+    await dbPut(s); CUSTOM.push(s); BUF_CACHE[s.id] = buf; added++;
   }
   renderSounds(); if (added) toast(added > 1 ? `${added} sounds nadagdag!` : 'Nadagdag ang sound!');
 }
@@ -1025,7 +1099,7 @@ async function ghDel(path, sha, message) {
 const GH_ERR = { gh_token: 'Hindi tanggap ng GitHub ang token (expired o mali). Palitan ang token.', gh_perm: 'Walang permiso ang token na mag-edit ng bida-vibe repo (kailangan: Contents → Read and write).', rules: 'Hindi pa naka-publish ang Firestore rules (firestore.rules).' };
 async function ghWork(fn, okMsg) {
   if (GH.busy) return; GH.busy = true; renderSounds();
-  try { await fn(); await ghRefresh(); if (okMsg) toast(okMsg); }
+  try { await fn(); await ghRefresh(); preloadPads(); if (okMsg) toast(okMsg); }
   catch (e) { toast(GH_ERR[e.message] || 'Hindi natuloy — subukan ulit'); if (e.message === 'gh_token') { GH.token = null; GH.state = 'bad-token'; } }
   finally { GH.busy = false; renderSounds(); }
 }
@@ -1033,7 +1107,7 @@ function ghUpload(files) {
   return ghWork(async () => {
     for (const f of files) {
       if (GH.files.length >= 8) { toast('Puno na ang 8 libreng pads — magtanggal muna'); break; }
-      if (f.size > 1500000) { toast(`${f.name}: max 1.5 MB`); continue; }
+      try { await checkSoundFile(f); } catch (e) { toast(e.message); continue; }
       const buf = await f.arrayBuffer(), ext = sniffAudio(new Uint8Array(buf.slice(0, 16)));
       if (!ext) { toast(`${f.name}: hindi audio file`); continue; }
       const next = String(GH.files.length + 1).padStart(2, '0');
@@ -1087,7 +1161,7 @@ function adminGitHubHTML() {
     <p class="muted" style="margin-top:6px">Naka-save ito sa Firestore na ikaw lang ang makakabasa — hindi sa browser na ito.</p>`;
   else if (GH.state === 'ready') body = `
     <div class="admin-up"><button class="btn btn--ink" ${GH.busy || GH.files.length >= 8 ? 'disabled' : ''} onclick="$('#gh-snd').click()">${ic('upload')}${GH.busy ? 'Sandali…' : 'Mag-upload'}</button>
-      <span class="muted"><b>${GH.files.length}/8</b> · max 1.5 MB · pangalan ng pad = pangalan ng file</span></div>
+      <span class="muted"><b>${GH.files.length}/8</b> · max 3 segundo at 500 KB · pangalan ng pad = pangalan ng file</span></div>
     <input type="file" id="gh-snd" accept="audio/*" multiple hidden onchange="ghUpload([...this.files]);this.value=''">
     ${GH.files.length ? `<ul class="admin-list">${GH.files.map((f, i) => `<li><span class="admin-n">${i + 1}</span><b>${esc(padNameFromFile(f.name))}</b>
       <span class="admin-act">
@@ -1104,7 +1178,7 @@ function adminWorkerHTML() {
   const freeN = PADS.filter(p => p.tier === 'free').length;
   return `<div class="card admin-card" style="margin-top:20px">
     <h3>${ic('lock')}Admin: Sound manager</h3>
-    <p class="muted">Ikaw lang ang nakakakita nito. Libre: <b>${freeN}/8</b> · Premium: <b>${PADS.length - freeN}</b> · max 1.5 MB bawat sound.</p>
+    <p class="muted">Ikaw lang ang nakakakita nito. Libre: <b>${freeN}/8</b> · Premium: <b>${PADS.length - freeN}</b> · max 3 segundo at 500 KB bawat sound.</p>
     <div class="admin-up">
       <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Para kanino">
         <button class="${ADMIN_TIER === 'free' ? 'on' : ''}" onclick="adminTier('free')">Libre sa lahat</button>
@@ -1124,7 +1198,7 @@ function adminWorkerHTML() {
       : '<p class="muted" style="margin-top:12px">Wala pang naka-upload.</p>'}
   </div>`;
 }
-const ADMIN_ERR = { too_big: 'Masyadong malaki — max 1.5 MB', not_audio: 'Hindi audio file ito', free_full: 'Puno na ang 8 libreng pads — gawing Premium o magtanggal muna', too_many: 'Umabot na sa 40 pads', admin_only: 'Admin lang ang pwede dito', no_token: 'Mag-sign in muna' };
+const ADMIN_ERR = { too_big: 'Masyadong malaki — max 500 KB', not_audio: 'Hindi audio file ito', free_full: 'Puno na ang 8 libreng pads — gawing Premium o magtanggal muna', too_many: 'Umabot na sa 40 pads', admin_only: 'Admin lang ang pwede dito', no_token: 'Mag-sign in muna' };
 async function adminReq(path, method, body, type) {
   if (!AUTH.user) throw new Error('no_token');
   const r = await fetch(workerBase() + path, { method, body, headers: { Authorization: 'Bearer ' + await AUTH.user.getIdToken(), ...(type ? { 'Content-Type': type } : {}) } });
@@ -1137,11 +1211,11 @@ function adminTier(t) { ADMIN_TIER = t; renderSounds(); }
 async function adminUpload(files) {
   let ok = 0;
   for (const f of files) {
-    if (f.size > 1500000) { toast(`${f.name}: max 1.5 MB`); continue; }
+    try { await checkSoundFile(f); } catch (e) { toast(e.message); continue; }
     try { await adminReq(`/pads?tier=${ADMIN_TIER}&name=${encodeURIComponent(padNameFromFile(f.name))}`, 'POST', f, f.type || 'application/octet-stream'); ok++; }
     catch (e) { adminFail(e); if (e.message === 'free_full' || e.message === 'admin_only') break; }
   }
-  await loadPads(); renderSounds(); if (ok) toast(ok > 1 ? `${ok} sounds na-upload!` : 'Na-upload!');
+  await loadPads(); renderSounds(); preloadPads(); if (ok) toast(ok > 1 ? `${ok} sounds na-upload!` : 'Na-upload!');
 }
 async function adminPatch(id, body) {
   try { await adminReq('/pads/' + id, 'PATCH', JSON.stringify(body), 'application/json'); delete BUF_CACHE[id]; await loadPads(); renderSounds(); } catch (e) { adminFail(e); }
@@ -1821,8 +1895,9 @@ async function refreshPremium() {
   return BIDA.premium;
 }
 function rerenderPremiumViews() {
-  purgePremiumCache();
-  if (!isAdmin()) { GH.token = null; GH.state = ''; GH.files = []; }   // the GitHub token never outlives the admin's sign-in   // premium audio leaves this device when the pass ends or another account signs in
+  purgePremiumCache();   // premium audio leaves this device when the pass ends or another account signs in
+  if (!isAdmin()) { GH.token = null; GH.state = ''; GH.files = []; }   // the GitHub token never outlives the admin's sign-in
+  setTimeout(preloadPads, 0);                                          // newly unlocked pads get ready to play instantly
   if (!$('#app').hidden && RENDER[BIDA.tab]) RENDER[BIDA.tab]();
   if (!$('#live').hidden) renderLive();
   renderHead(); updateBar();
@@ -2050,7 +2125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   handlePaidReturn();
   await spHandleRedirect();
   await loadCustom();
-  const probing = loadPads().then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
+  const probing = loadPads().then(() => { preloadPads(); return null; }).then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
   const startTab = new URLSearchParams(location.search).get('tab');
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
