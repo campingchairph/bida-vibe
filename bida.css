@@ -386,6 +386,22 @@ body.in-live .pl-panel { bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)
   .pl-panel { bottom: calc(var(--bar-h) + 76px); }
 }
 
+/* Admin sound manager */
+.admin-card { border-style: dashed; }
+.admin-card h3 { display: flex; align-items: center; gap: 8px; }
+.admin-card h3 .ic { color: var(--magenta); }
+.admin-up { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.admin-up .seg-ctrl { margin-top: 0; }
+.admin-list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.admin-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 2px solid var(--ink); border-radius: 12px; background: #fff; }
+.admin-list b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; }
+.admin-n { width: 24px; height: 24px; border-radius: 50%; background: var(--cream); border: 1.5px solid var(--ink); display: grid; place-items: center; font: 800 12px/1 var(--f); flex: none; }
+.admin-act { display: flex; flex: none; }
+.admin-act .icon-btn { width: 32px; height: 32px; }
+.admin-act .icon-btn:disabled { opacity: .25; }
+.pill--pro { background: var(--gold); }
+@media (max-width: 420px) { .admin-list li { flex-wrap: wrap; } .admin-list b { flex-basis: calc(100% - 40px); } .admin-act { margin-left: auto; } }
+
 /* Mic permission help */
 .mic-steps { margin: 10px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-weight: 700; }
 .mic-steps li::marker { font-weight: 800; color: var(--magenta); }

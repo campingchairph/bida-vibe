@@ -12,8 +12,8 @@ No build step, no npm. Open `index.html` or push to GitHub Pages.
 | `bida.css` | Flat fiesta styles (no gradients). Phone < 600px · tablet 600–1099px (touch-first, bottom tabs) · desktop ≥ 1100px (sidebar) |
 | `bida-content.js` | Event types → suggested activities, 40 party games (26 credited to Dig the Games) |
 | `bida-app.js` | State (`BIDA`, localStorage `bidavibe_data`), Plan, game animations, sound pads, music + fades, accounts, Live mode |
-| `sounds/` | The 20 default sound pad files — see [sounds/README.md](sounds/README.md) for exact names |
-| `worker/bida-pay-worker.js` | Cloudflare Worker: PayMongo checkout, webhook verification, Premium + admin check |
+| `sounds/free/` | Temporary free pads until the Worker is set up — see [sounds/README.md](sounds/README.md) |
+| `worker/bida-pay-worker.js` | Cloudflare Worker: PayMongo checkout, webhook verification, Premium + admin check, sound-pad storage (admin-only upload) |
 
 Custom sounds are stored in IndexedDB (`bidavibe_media`).
 
@@ -21,7 +21,7 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 
 - **Plan** — pick the event type, get a timed activity list. Notes on each activity, check them off as done; the next one is bigger and highlighted. Tap to edit, arrows to reorder.
 - **Games** — 40 party games with animated how-to, materials checklist and steps. 26 come from [Dig the Games](https://digthegames.com) (@digthegames), rewritten in Taglish and credited with a link.
-- **Sound pads** — 8 free pads from `sounds/free/` (named after the file — see [sounds/free/README.md](sounds/free/README.md)), 20 default sounds from `sounds/`, + upload or record your own (recordings stop at 3 seconds). Keys 1–0, Q–P.
+- **Sound pads** — uploaded by the admin in the app (Sounds → Admin: Sound manager), stored on the Worker: up to 8 **free** pads for everyone + **Premium** pads the server only sends to pass holders/admin. Pad name = file name. Users can also add 2 sounds of their own on their device. Keys 1–0, Q–P. (Before the Worker is set up, free pads can come from `sounds/free/`.)
 - **Music bar (always on screen)** — play / pause, previous / next, **Fade out / Fade in**, volume, **Talk** (hold to lower the music while you speak), and an expandable panel with the YouTube preview and what's up next. Space bar = Talk. Sound pads play on top of the music (no ducking), and the music only stops when the host presses Pause or Fade out.
 - **Talk settings (only three)** — how low the volume goes, how fast (same speed down and back up), and a checkbox "music returns after talking" (checked = hold Talk, music comes back when released; unchecked = tap Talk to lower, tap again to bring it back).
 - **YouTube links** — save several links (5 free, more with Premium); titles and thumbnails load automatically. With 2+ links a floating **Playlist** button lets the host jump to any of them. A single video that ends moves on to the next saved link; Next/Previous also move between links.
@@ -34,10 +34,9 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 | | Free | Premium (₱50 / 30 days, sign-in required, no auto-charge) |
 |---|---|---|
 | Plan, games, Live mode | ✓ | ✓ |
-| Pads from `sounds/free/` (named after the file) | all 8 | all 8 |
-| Default sound pads | first 4 | all 20 |
+| Free pads (admin uploads, max 8) | ✓ | ✓ |
+| Premium pads (admin uploads) — sent only by the server | — | ✓ |
 | Own uploads | 2 | unlimited |
-| Recordings (max 3s each) | 2 | unlimited |
 | YouTube links in the music bar | 5 | unlimited |
 | Spotify, own music files | — | ✓ |
 | Talk, Fade in/out, mic auto-fade | — | ✓ |

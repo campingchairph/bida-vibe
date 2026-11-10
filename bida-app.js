@@ -27,10 +27,7 @@ const BIDA_CONFIG = {
   // (Firestore admins/{email} documents also still work, if you ever add them.)
   adminHashes: ['291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd'],
   // Free tier limits
-  freeSounds: 4,      // first N default pads are free
   freeUploads: 2,     // uploaded sound pads a free user can add
-  freeRecordings: 2,  // recorded sound pads a free user can add (separate from uploads)
-  recordMaxSec: 3,    // every recording stops automatically after this many seconds
   freeYtLinks: 5,     // saved YouTube links a free user can play; more needs Premium
   // Test unlock — only works on localhost, never on the live site.
   devUnlockCode: 'BIDATEST',
@@ -751,9 +748,12 @@ function addGameToProgram(id) {
 
 
 /* ============================================================
-   SOUND PADS — 20 default sounds loaded from /sounds/*.mp3
-   (see sounds/README.md for the exact file names) + uploads.
-   Free: first BIDA_CONFIG.freeSounds defaults, freeUploads uploads.
+   SOUND PADS
+   - Pads are uploaded by the admin in the app and stored on the server (Worker).
+     Free pads (max 8) play for everyone; Premium pads are only SENT by the server
+     to a signed-in account with an active pass (or admin) — editing the page can't
+     get them. Until the Worker is set up, free pads can also come from sounds/free/.
+   - Users can also add their own sounds on their device (2 free).
    ============================================================ */
 let AC = null, SFX_BUS = null, MUSIC_BUS = null;
 function ac() {
@@ -770,104 +770,37 @@ function ac() {
   if (AC.state === 'suspended') AC.resume();
   return AC;
 }
-
-// The file name is the contract: put exactly these files in /sounds.
-const DEFAULT_SOUNDS = [
-  { file: '01-boink.mp3',     name: 'Boink',        c: 'gold' },
-  { file: '02-tawa.mp3',      name: 'Tawa',         c: 'magenta' },
-  { file: '03-faah.mp3',      name: 'Faah',         c: 'chili' },
-  { file: '04-drumroll.mp3',  name: 'Drumroll',     c: 'turq' },
-  { file: '05-palakpak.mp3',  name: 'Palakpak',     c: 'leaf' },
-  { file: '06-badumtss.mp3',  name: 'Ba-dum-tss',   c: 'gold' },
-  { file: '07-airhorn.mp3',   name: 'Air horn',     c: 'chili' },
-  { file: '08-tama.mp3',      name: 'Tama! (ding)', c: 'leaf' },
-  { file: '09-mali.mp3',      name: 'Mali! (buzzer)', c: 'chili' },
-  { file: '10-tada.mp3',      name: 'Ta-da!',       c: 'gold' },
-  { file: '11-kuliglig.mp3',  name: 'Kuliglig',     c: 'leaf' },
-  { file: '12-giggle.mp3',    name: 'Giggle',       c: 'magenta' },
-  { file: '13-bruh.mp3',      name: 'Bruh',         c: 'paper' },
-  { file: '14-wahwah.mp3',    name: 'Wah-wah',      c: 'turq' },
-  { file: '15-wow.mp3',       name: 'Wow',          c: 'magenta' },
-  { file: '16-dundun.mp3',    name: 'Dun dun DUN',  c: 'chili' },
-  { file: '17-kaching.mp3',   name: 'Ka-ching',     c: 'gold' },
-  { file: '18-whoosh.mp3',    name: 'Whoosh',       c: 'paper' },
-  { file: '19-pop.mp3',       name: 'Pop',          c: 'turq' },
-  { file: '20-countdown.mp3', name: 'Countdown',    c: 'leaf' }
-].map((s, i) => ({ ...s, id: 'd' + (i + 1), n: i + 1 }));
-const SOUND_DIR = 'sounds/';
-const SND_OK = {};            // id → true (file exists) / false (missing)
 const BUF_CACHE = {};
 const PAD_KEYS = '1234567890qwertyuiopasdfghjkl'.split('');
+const PAD_COLORS = ['gold', 'magenta', 'turq', 'leaf', 'chili', 'paper'];
+const workerBase = () => BIDA_CONFIG.workerUrl.replace(/\/$/, '');
 
-/* ---- 8 free pads from the sounds/free/ folder: drop any audio file in, the pad is named after the file ----
-   A static site can't list a folder, so we ask: (1) an optional sounds/free/list.json, (2) the local dev
-   server's folder listing, or (3) GitHub's public contents API for this repo (cached for an hour). */
-const FREE_DIR = 'sounds/free/';
-const FREE_MAX = 8;
-const FREE_COLORS = ['gold', 'magenta', 'turq', 'leaf', 'chili', 'paper', 'magenta', 'gold'];
-const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|webm)$/i;
-let FREE_PADS = [];
-function padNameFromFile(f) {
-  let n = f; try { n = decodeURIComponent(f); } catch (e) { }
-  return n.replace(AUDIO_EXT, '').replace(/^\d{1,3}[\s._-]+/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 22) || 'Sound';
-}
-async function listFreeFiles() {
-  try {
-    const r = await fetch(FREE_DIR + 'list.json', { cache: 'no-cache' });
-    if (r.ok) { const j = await r.json(); if (Array.isArray(j)) return j.map(String); }
-  } catch (e) { }
-  if (IS_LOCAL) {
-    try {
-      const html = await (await fetch(FREE_DIR, { cache: 'no-cache' })).text();
-      return [...html.matchAll(/href="([^"?#/]+)"/g)].map(m => m[1]);
-    } catch (e) { return []; }
-  }
-  const gh = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split('/')[1];
-  if (!gh || !repo) return [];
-  const KEY = 'bidavibe_freepads';
-  try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.at < 36e5 && Array.isArray(c.files)) return c.files; } catch (e) { }
-  try {
-    const r = await fetch(`https://api.github.com/repos/${gh[1]}/${encodeURIComponent(repo)}/contents/${FREE_DIR.replace(/\/$/, '')}`, { headers: { Accept: 'application/vnd.github+json' } });
-    if (!r.ok) throw new Error('gh ' + r.status);
-    const files = (await r.json()).filter(x => x && x.type === 'file' && x.size < 3e6).map(x => String(x.name));
-    try { localStorage.setItem(KEY, JSON.stringify({ at: Date.now(), files })); } catch (e) { }
-    return files;
-  } catch (e) {
-    try { return JSON.parse(localStorage.getItem(KEY) || '{}').files || []; } catch (x) { return []; }
-  }
-}
-async function loadFreePads() {
-  const files = (await listFreeFiles()).filter(f => AUDIO_EXT.test(f) && f.length < 120)
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).slice(0, FREE_MAX);
-  FREE_PADS = files.map((file, i) => ({ id: 'f' + (i + 1), file, name: padNameFromFile(file), c: FREE_COLORS[i] }));
-}
-async function probeDefaults() {
-  await Promise.all(DEFAULT_SOUNDS.map(async s => {
-    if (s.id in SND_OK) return;
-    try {
-      const r = await fetch(SOUND_DIR + s.file, { cache: 'no-cache' });   // revalidate: replaced files show up right away
-      if (!r.ok) { SND_OK[s.id] = false; return; }
-      const buf = await r.arrayBuffer();
-      SND_OK[s.id] = true;
-      ac().decodeAudioData(buf.slice(0)).then(b => { BUF_CACHE[s.id] = b; }).catch(() => { SND_OK[s.id] = false; });
-    } catch (e) { SND_OK[s.id] = false; }
-  }));
-}
-
-/* ---- custom sounds: IndexedDB ---- */
+/* ---- local storage for the user's own sounds + an offline copy of server pads (IndexedDB) ---- */
 let DB;
 function db() {
   if (DB) return Promise.resolve(DB);
   return new Promise((res, rej) => {
-    const r = indexedDB.open('bidavibe_media', 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('sounds', { keyPath: 'id' });
+    const r = indexedDB.open('bidavibe_media', 2);
+    r.onupgradeneeded = () => {
+      if (!r.result.objectStoreNames.contains('sounds')) r.result.createObjectStore('sounds', { keyPath: 'id' });
+      if (!r.result.objectStoreNames.contains('padcache')) r.result.createObjectStore('padcache', { keyPath: 'id' });
+    };
     r.onsuccess = () => { DB = r.result; res(DB); }; r.onerror = () => rej(r.error);
   });
 }
-function dbAll() { return db().then(d => new Promise(res => { const q = d.transaction('sounds').objectStore('sounds').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); })); }
-function dbPut(o) { return db().then(d => new Promise(res => { const tx = d.transaction('sounds', 'readwrite'); tx.objectStore('sounds').put(o); tx.oncomplete = res; })); }
-function dbDel(id) { return db().then(d => new Promise(res => { const tx = d.transaction('sounds', 'readwrite'); tx.objectStore('sounds').delete(id); tx.oncomplete = res; })); }
-let CUSTOM = [];          // [{id,name,blob,c,created}]
+const idb = (store, mode, fn) => db().then(d => new Promise(res => { const tx = d.transaction(store, mode); const out = fn(tx.objectStore(store)); tx.oncomplete = () => res(out?.result); tx.onerror = () => res(null); }));
+const dbAll = () => idb('sounds', 'readonly', s => s.getAll()).then(r => r || []);
+const dbPut = o => idb('sounds', 'readwrite', s => s.put(o));
+const dbDel = id => idb('sounds', 'readwrite', s => s.delete(id));
+const cacheGet = id => idb('padcache', 'readonly', s => s.get(id));
+const cachePut = o => idb('padcache', 'readwrite', s => s.put(o));
+// Premium audio cached on this device only for the account that has the pass; removed when it ends
+async function purgePremiumCache() {
+  const all = (await idb('padcache', 'readonly', s => s.getAll())) || [];
+  for (const c of all) if (c.tier === 'premium' && (!BIDA.premium || c.uid !== AUTH.user?.uid)) { await idb('padcache', 'readwrite', s => s.delete(c.id)); delete BUF_CACHE[c.id]; }
+}
+
+let CUSTOM = [];          // the user's own sounds [{id,name,blob,c,created}]
 async function loadCustom() {
   try {
     CUSTOM = (await dbAll()).filter(s => /^[ur][a-z0-9]{4,30}$/.test(String(s.id)) && s.blob instanceof Blob)
@@ -876,42 +809,85 @@ async function loadCustom() {
   } catch (e) { CUSTOM = []; }
 }
 
-function soundEntry(id) {
-  const f = FREE_PADS.find(s => s.id === id);
-  if (f) return { ...f, kind: 'free' };
-  const d = DEFAULT_SOUNDS.find(s => s.id === id);
-  if (d) return { ...d, kind: 'default' };
-  const c = CUSTOM.find(s => s.id === id); if (!c) return null;
-  const type = isRec(c) ? 'rec' : 'up';
-  return { ...c, kind: 'custom', type, idx: CUSTOM.filter(s => isRec(s) === (type === 'rec')).indexOf(c) };
+/* ---- server pads ---- */
+let PADS = [];            // [{id,name,tier,v,src:'server'|'folder',file?}]
+const cleanPad = p => ({ id: String(p.id), name: String(p.name || 'Sound').slice(0, 24), tier: p.tier === 'premium' ? 'premium' : 'free', v: Number(p.v) || 0, src: 'server' });
+async function loadPads() {
+  if (BIDA_CONFIG.workerUrl) {
+    try {
+      const r = await fetch(workerBase() + '/pads', { cache: 'no-cache' });
+      if (!r.ok) throw new Error();
+      PADS = ((await r.json()).pads || []).filter(p => /^p[a-f0-9]{12}$/.test(p.id)).map(cleanPad);
+      try { localStorage.setItem('bidavibe_pads', JSON.stringify(PADS)); } catch (e) { }
+    } catch (e) { try { PADS = (JSON.parse(localStorage.getItem('bidavibe_pads') || '[]') || []).map(cleanPad); } catch (x) { PADS = []; } }
+  } else {
+    PADS = await loadFolderPads();
+  }
+  purgePremiumCache();
 }
-const isRec = s => s.id[0] === 'r';
+// Fallback before the Worker exists: free pads from the sounds/free/ folder (named after the file)
+const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|webm)$/i;
+function padNameFromFile(f) {
+  let n = f; try { n = decodeURIComponent(f); } catch (e) { }
+  return n.replace(AUDIO_EXT, '').replace(/^\d{1,3}[\s._-]+/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 22) || 'Sound';
+}
+async function loadFolderPads() {
+  let files = [];
+  try { const r = await fetch('sounds/free/list.json', { cache: 'no-cache' }); if (r.ok) files = (await r.json()).map(String); } catch (e) { }
+  if (!files.length && IS_LOCAL) { try { files = [...(await (await fetch('sounds/free/', { cache: 'no-cache' })).text()).matchAll(/href="([^"?#/]+)"/g)].map(m => m[1]); } catch (e) { } }
+  if (!files.length) {
+    const gh = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split('/')[1], KEY = 'bidavibe_freepads';
+    if (gh && repo) {
+      try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.at < 36e5) files = c.files || []; } catch (e) { }
+      if (!files.length) try {
+        const r = await fetch(`https://api.github.com/repos/${gh[1]}/${encodeURIComponent(repo)}/contents/sounds/free`);
+        if (r.ok) { files = (await r.json()).filter(x => x && x.type === 'file' && x.size < 3e6).map(x => String(x.name)); localStorage.setItem(KEY, JSON.stringify({ at: Date.now(), files })); }
+      } catch (e) { }
+    }
+  }
+  return files.filter(f => AUDIO_EXT.test(f) && f.length < 120).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).slice(0, 8)
+    .map((file, i) => ({ id: 'f' + (i + 1), name: padNameFromFile(file), tier: 'free', v: 0, src: 'folder', file }));
+}
+
+function soundEntry(id) {
+  const p = PADS.find(s => s.id === id); if (p) return { ...p, kind: 'pad' };
+  const ci = CUSTOM.findIndex(s => s.id === id);
+  return ci >= 0 ? { ...CUSTOM[ci], kind: 'custom', idx: ci } : null;
+}
+// What the BUTTONS show. The real lock for premium pads is the server, which won't send the audio.
 function canPlaySound(id) {
-  if (BIDA.premium) return true;
   const s = soundEntry(id); if (!s) return false;
-  if (s.kind === 'free') return true;                       // the 8 folder pads are free for everyone
-  if (s.kind === 'default') return s.n <= BIDA_CONFIG.freeSounds;
-  return s.idx < (s.type === 'rec' ? BIDA_CONFIG.freeRecordings : BIDA_CONFIG.freeUploads);
+  if (s.kind === 'pad') return s.tier === 'free' || BIDA.premium;
+  return BIDA.premium || s.idx < BIDA_CONFIG.freeUploads;
+}
+async function padBytes(s) {
+  if (s.kind === 'custom') return s.blob.arrayBuffer();
+  if (s.src === 'folder') return (await fetch('sounds/free/' + encodeURIComponent(s.file))).arrayBuffer();
+  const c = await cacheGet(s.id);
+  if (c && c.v === s.v && c.buf && (s.tier === 'free' || c.uid === AUTH.user?.uid)) return c.buf;
+  const headers = {};
+  if (s.tier === 'premium') { if (!AUTH.user) throw Object.assign(new Error(), { code: 403 }); headers.Authorization = 'Bearer ' + await AUTH.user.getIdToken(); }
+  const r = await fetch(`${workerBase()}/pads/${s.id}`, { headers });
+  if (r.status === 403) throw Object.assign(new Error(), { code: 403 });
+  if (!r.ok) throw new Error('pad ' + r.status);
+  const buf = await r.arrayBuffer();
+  cachePut({ id: s.id, v: s.v, tier: s.tier, uid: AUTH.user?.uid || '', buf: buf.slice(0) });
+  return buf;
 }
 async function playSound(id, padEl) {
   if (!canPlaySound(id)) { openPremium('Sound pads'); return; }
   if (padEl) { padEl.classList.add('hit'); setTimeout(() => padEl.classList.remove('hit'), 120); }
   const x = ac();
   try {
-    if (!BUF_CACHE[id]) {
-      const s = soundEntry(id);
-      const ab = s.kind === 'free' ? await (await fetch(FREE_DIR + encodeURIComponent(s.file))).arrayBuffer()
-        : s.kind === 'default' ? await (await fetch(SOUND_DIR + s.file)).arrayBuffer() : await s.blob.arrayBuffer();
-      BUF_CACHE[id] = await x.decodeAudioData(ab);
-    }
+    if (!BUF_CACHE[id]) BUF_CACHE[id] = await x.decodeAudioData(await padBytes(soundEntry(id)));
     const src = x.createBufferSource(); src.buffer = BUF_CACHE[id]; src.connect(SFX_BUS); src.start();
-  } catch (e) { toast('Hindi ma-play ang sound na ito'); }
+  } catch (e) {
+    if (e.code === 403) openPremium('Sound pads'); else toast('Hindi ma-play ang sound na ito');
+  }
 }
 function padList() {
-  const defs = DEFAULT_SOUNDS.filter(s => SND_OK[s.id]).map(s => ({ id: s.id, name: s.name, c: s.c, kind: 'default' }));
-  const cust = CUSTOM.map(s => ({ id: s.id, name: s.name, c: s.c || 'paper', kind: 'custom' }));
-  const free = FREE_PADS.map(s => ({ id: s.id, name: s.name, c: s.c, kind: 'free' }));
-  return [...free, ...defs, ...cust];
+  return [...PADS.map((s, i) => ({ id: s.id, name: s.name, c: PAD_COLORS[i % PAD_COLORS.length], kind: 'pad' })),
+    ...CUSTOM.map(s => ({ id: s.id, name: s.name, c: s.c || 'paper', kind: 'custom' }))];
 }
 function padsHTML(limit) {
   const list = limit ? padList().slice(0, limit) : padList();
@@ -924,24 +900,19 @@ function padsHTML(limit) {
       <span class="pad-name">${esc(s.name)}</span></button>`;
   }).join('');
 }
-function uploadsLeft() { return BIDA.premium ? Infinity : Math.max(0, BIDA_CONFIG.freeUploads - CUSTOM.filter(s => !isRec(s)).length); }
-function recordingsLeft() { return BIDA.premium ? Infinity : Math.max(0, BIDA_CONFIG.freeRecordings - CUSTOM.filter(isRec).length); }
+function uploadsLeft() { return BIDA.premium ? Infinity : Math.max(0, BIDA_CONFIG.freeUploads - CUSTOM.length); }
 const leftLabel = (n, more) => n === Infinity ? more : n ? `${n} libre pa` : 'Premium';
-async function renderSounds() {
-  const missing = DEFAULT_SOUNDS.filter(s => SND_OK[s.id] === false);
-  const max = BIDA_CONFIG.recordMaxSec;
+function renderSounds() {
+  const freeN = PADS.filter(p => p.tier === 'free').length;
   $('#panel-sounds').innerHTML = `
     <div class="panel-head"><div><h2>Sound pads</h2>
-      <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : `Libre ang unang ${BIDA_CONFIG.freeSounds} sounds, ${BIDA_CONFIG.freeUploads} upload at ${BIDA_CONFIG.freeRecordings} recording (max ${max}s bawat isa).`}</p></div>
+      <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : `Libre ang ${freeN ? freeN + ' sound pads' : 'mga libreng pads'} at ${BIDA_CONFIG.freeUploads} sariling upload.`}</p></div>
       ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}I-unlock lahat</button>`}</div>
     <div class="pads" id="pads">${padsHTML()}
       <button class="pad pad--add" onclick="addSoundClick()">${ic('upload')}<span class="pad-name">Upload</span>
-        <small>${leftLabel(uploadsLeft(), 'mp3 · m4a · wav')}</small></button>
-      <button class="pad pad--add" id="rec-btn" onclick="recordClick()">${ic('rec')}<span class="pad-name">Record</span>
-        <small>${leftLabel(recordingsLeft(), `max ${max}s`)}${recordingsLeft() !== Infinity && recordingsLeft() ? ` · max ${max}s` : ''}</small></button></div>
+        <small>${leftLabel(uploadsLeft(), 'mp3 · m4a · wav')}</small></button></div>
     <input type="file" id="snd-file" accept="audio/*" multiple hidden onchange="uploadSounds(this.files);this.value=''">
-    ${isAdmin() ? `<div class="note" style="margin-top:18px"><b>Admin:</b> ${FREE_PADS.length}/${FREE_MAX} libreng pads mula sa <code>sounds/free/</code>${FREE_PADS.length ? ': ' + FREE_PADS.map(s => `<code>${esc(s.file)}</code>`).join(' ') : ''}.
-      ${missing.length ? `<br>${missing.length} default sound${missing.length > 1 ? 's' : ''} wala pa sa <code>sounds/</code>: ${missing.map(s => `<code>${s.file}</code>`).join(' ')}` : ''}</div>` : ''}`;
+    ${isAdmin() ? adminSoundsHTML() : ''}`;
 }
 function addSoundClick() {
   if (!uploadsLeft()) { openPremium('Dagdag sounds'); return; }
@@ -961,7 +932,69 @@ async function delSound(id) {
   if (!await askConfirm('Tanggalin ang sound na ito?', 'Tanggalin')) return;
   await dbDel(id); CUSTOM = CUSTOM.filter(s => s.id !== id); delete BUF_CACHE[id]; renderSounds();
 }
-/* ---- Microphone permission help: explains how to turn it on for THIS phone/browser, then retry ---- */
+
+/* ---- Admin: Sound manager (the server re-checks admin on every request) ---- */
+let ADMIN_TIER = 'free';
+function adminSoundsHTML() {
+  if (!BIDA_CONFIG.workerUrl) return `<div class="card admin-card" style="margin-top:20px"><h3>${ic('lock')}Admin: Sound manager</h3>
+    <p class="note">Para mag-upload sa app, kailangan munang i-setup ang Cloudflare Worker (PAYMENTS.md, hakbang 3) at ilagay ang <code>workerUrl</code>. Habang wala pa, gumagana ang mga file sa <code>sounds/free/</code>.</p></div>`;
+  const freeN = PADS.filter(p => p.tier === 'free').length;
+  return `<div class="card admin-card" style="margin-top:20px">
+    <h3>${ic('lock')}Admin: Sound manager</h3>
+    <p class="muted">Ikaw lang ang nakakakita nito. Libre: <b>${freeN}/8</b> · Premium: <b>${PADS.length - freeN}</b> · max 1.5 MB bawat sound.</p>
+    <div class="admin-up">
+      <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Para kanino">
+        <button class="${ADMIN_TIER === 'free' ? 'on' : ''}" onclick="adminTier('free')">Libre sa lahat</button>
+        <button class="${ADMIN_TIER === 'premium' ? 'on' : ''}" onclick="adminTier('premium')">Premium lang</button></div>
+      <button class="btn btn--ink" onclick="$('#admin-snd').click()">${ic('upload')}Mag-upload</button>
+      <input type="file" id="admin-snd" accept="audio/*" multiple hidden onchange="adminUpload(this.files);this.value=''">
+    </div>
+    <p class="muted" style="margin-top:8px">Ang pangalan ng pad = pangalan ng file (pwedeng palitan pagkatapos).</p>
+    ${PADS.length ? `<ul class="admin-list">${PADS.map((p, i) => `<li>
+      <span class="admin-n">${i + 1}</span><b>${esc(p.name)}</b>
+      <button class="pill ${p.tier === 'premium' ? 'pill--pro' : ''}" onclick="adminPatch('${p.id}',{tier:'${p.tier === 'free' ? 'premium' : 'free'}'})">${p.tier === 'free' ? 'Libre' : 'Premium'}</button>
+      <span class="admin-act">
+        <button class="icon-btn icon-btn--plain" onclick="adminPatch('${p.id}',{move:-1})" aria-label="Taas" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button>
+        <button class="icon-btn icon-btn--plain" onclick="adminPatch('${p.id}',{move:1})" aria-label="Baba" ${i === PADS.length - 1 ? 'disabled' : ''}>${ic('down')}</button>
+        <button class="icon-btn icon-btn--plain" onclick="adminRename('${p.id}')" aria-label="Palitan ang pangalan">${ic('edit')}</button>
+        <button class="icon-btn icon-btn--plain" onclick="adminDelete('${p.id}')" aria-label="Tanggalin">${ic('trash')}</button></span></li>`).join('')}</ul>`
+      : '<p class="muted" style="margin-top:12px">Wala pang naka-upload.</p>'}
+  </div>`;
+}
+const ADMIN_ERR = { too_big: 'Masyadong malaki — max 1.5 MB', not_audio: 'Hindi audio file ito', free_full: 'Puno na ang 8 libreng pads — gawing Premium o magtanggal muna', too_many: 'Umabot na sa 40 pads', admin_only: 'Admin lang ang pwede dito', no_token: 'Mag-sign in muna' };
+async function adminReq(path, method, body, type) {
+  if (!AUTH.user) throw new Error('no_token');
+  const r = await fetch(workerBase() + path, { method, body, headers: { Authorization: 'Bearer ' + await AUTH.user.getIdToken(), ...(type ? { 'Content-Type': type } : {}) } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'http_' + r.status);
+  return j;
+}
+const adminFail = e => toast(ADMIN_ERR[e.message] || 'Hindi natuloy — subukan ulit');
+function adminTier(t) { ADMIN_TIER = t; renderSounds(); }
+async function adminUpload(files) {
+  let ok = 0;
+  for (const f of files) {
+    if (f.size > 1500000) { toast(`${f.name}: max 1.5 MB`); continue; }
+    try { await adminReq(`/pads?tier=${ADMIN_TIER}&name=${encodeURIComponent(padNameFromFile(f.name))}`, 'POST', f, f.type || 'application/octet-stream'); ok++; }
+    catch (e) { adminFail(e); if (e.message === 'free_full' || e.message === 'admin_only') break; }
+  }
+  await loadPads(); renderSounds(); if (ok) toast(ok > 1 ? `${ok} sounds na-upload!` : 'Na-upload!');
+}
+async function adminPatch(id, body) {
+  try { await adminReq('/pads/' + id, 'PATCH', JSON.stringify(body), 'application/json'); delete BUF_CACHE[id]; await loadPads(); renderSounds(); } catch (e) { adminFail(e); }
+}
+async function adminRename(id) {
+  const p = PADS.find(x => x.id === id); if (!p) return;
+  const name = await askText('Bagong pangalan ng pad', p.name); if (!name) return;
+  adminPatch(id, { name });
+}
+async function adminDelete(id) {
+  const p = PADS.find(x => x.id === id); if (!p) return;
+  if (!await askConfirm(`Tanggalin ang "${p.name}" para sa lahat ng users?`, 'Tanggalin')) return;
+  try { await adminReq('/pads/' + id, 'DELETE'); delete BUF_CACHE[id]; await loadPads(); renderSounds(); toast('Natanggal'); } catch (e) { adminFail(e); }
+}
+
+/* ---- Microphone permission help (for mic auto-fade): how to allow it on THIS phone/browser, then retry ---- */
 let micRetry = null;
 async function micDenied() {
   try { return (await navigator.permissions?.query({ name: 'microphone' }))?.state === 'denied'; } catch (e) { return false; }
@@ -980,12 +1013,12 @@ function micHelp(err, retry) {
   else if (name === 'NotReadableError') why = 'Ginagamit ng ibang app ang mic (hal. tawag o video call). Isara muna iyon.';
   if (inApp) {
     why = 'Binuksan mo ang Bida-Vibe sa loob ng Facebook, Messenger, TikTok o ibang app — hindi nila pinapayagan ang mic.';
-    steps = ['I-tap ang ⋮ o … sa itaas na kanan.', `Piliin ang "Open in browser" / "Buksan sa ${ios ? 'Safari' : 'Chrome'}".`, 'Doon pindutin ulit ang Record.'];
+    steps = ['I-tap ang ⋮ o … sa itaas na kanan.', `Piliin ang "Open in browser" / "Buksan sa ${ios ? 'Safari' : 'Chrome'}".`, 'Doon subukan ulit.'];
   } else if (ios && !iosOther) {
     steps = ['I-tap ang "aA" sa address bar ng Safari.', 'Piliin ang "Website Settings".', 'Microphone → Allow.', 'Bumalik dito at pindutin ang "Subukan ulit".',
       'Kung wala: buksan ang Settings app → Safari (o Apps → Safari) → Microphone → Ask o Allow.'];
   } else if (ios) {
-    steps = ['Buksan ang Settings app ng iPhone.', `Hanapin ang ${brave ? 'Brave' : 'browser mo (hal. Chrome)'} → i-ON ang Microphone.`, 'Bumalik dito, i-reload ang page, at pindutin ulit ang Record.'];
+    steps = ['Buksan ang Settings app ng iPhone.', `Hanapin ang ${brave ? 'Brave' : 'browser mo (hal. Chrome)'} → i-ON ang Microphone.`, 'Bumalik dito, i-reload ang page, at subukan ulit.'];
   } else if (android) {
     steps = ['I-tap ang icon sa kaliwa ng address bar (lock o settings icon).', `Piliin ang "Permissions" o "Site settings".`, 'Microphone → Allow.', 'Pindutin ang "Subukan ulit".',
       `Kung naka-block pa rin: Settings ng phone → Apps → ${brave ? 'Brave' : 'Chrome'} → Permissions → Microphone → Allow.`];
@@ -1002,38 +1035,6 @@ function micHelp(err, retry) {
     </div>`);
 }
 function micRetryNow() { const f = micRetry; micRetry = null; f?.(); }
-let recorder, recChunks = [];
-function recordClick() {
-  if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
-  if (!recordingsLeft()) { openPremium('Dagdag recordings'); return; }
-  toggleRecord();
-}
-async function toggleRecord() {
-  const btn = $('#rec-btn'), max = BIDA_CONFIG.recordMaxSec;
-  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { toast('Hindi kayang mag-record ng browser na ito — subukan sa Chrome o Safari'); return; }
-  if (await micDenied()) { micHelp({ name: 'NotAllowedError' }, toggleRecord); return; }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recChunks = []; recorder = new MediaRecorder(stream);
-    recorder.ondataavailable = e => e.data.size && recChunks.push(e.data);
-    let tick;
-    recorder.onstop = async () => {
-      clearInterval(tick);
-      stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/webm' });
-      const name = String(await askText('Pangalan ng sound?', 'Recording ' + (CUSTOM.filter(isRec).length + 1)) || 'Recording').slice(0, 20);
-      const s = { id: 'r' + Date.now().toString(36), name, blob, c: 'magenta', created: Date.now() };
-      await dbPut(s); CUSTOM.push(s); renderSounds(); toast('Na-save ang recording!');
-    };
-    recorder.start();
-    // Hard stop at max seconds, with a visible countdown on the pad
-    const t0 = Date.now(), label = btn.querySelector('.pad-name'), sub = btn.querySelector('small');
-    btn.classList.add('rec-on'); label.textContent = 'Stop';
-    const show = () => { sub.textContent = Math.max(0, max - (Date.now() - t0) / 1000).toFixed(1) + 's'; };
-    show(); tick = setInterval(show, 100);
-    setTimeout(() => recorder?.state === 'recording' && recorder.stop(), max * 1000);
-  } catch (e) { micHelp(e, toggleRecord); }
-}
 
 /* ============================================================
    MUSIC — sources, fade/duck engine, and the always-on music bar.
@@ -1657,6 +1658,7 @@ async function refreshPremium() {
   return BIDA.premium;
 }
 function rerenderPremiumViews() {
+  purgePremiumCache();   // premium audio leaves this device when the pass ends or another account signs in
   if (!$('#app').hidden && RENDER[BIDA.tab]) RENDER[BIDA.tab]();
   if (!$('#live').hidden) renderLive();
   renderHead(); updateBar();
@@ -1884,7 +1886,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   handlePaidReturn();
   await spHandleRedirect();
   await loadCustom();
-  const probing = Promise.all([probeDefaults(), loadFreePads()]).then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
+  const probing = loadPads().then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
   const startTab = new URLSearchParams(location.search).get('tab');
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
@@ -1898,7 +1900,7 @@ Object.assign(window, {
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
-  playSound, uploadSounds, delSound, addSoundClick, recordClick, micRetryNow,
+  playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
   toggleBar, barInfoClick, setTalkSpeed, setAutoReturn, setAutoDuck, setMusicSrc, openExt,
   openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,

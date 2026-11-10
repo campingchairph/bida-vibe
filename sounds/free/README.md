@@ -1,3 +1,5 @@
+> **Temporary option.** Once the Cloudflare Worker is set up, upload sounds in the app instead (Sounds → Admin: Sound manager). This folder is only used while `workerUrl` is empty.
+
 # Free sound pads (8)
 
 Put up to **8 audio files** here. Every user gets these pads **free**, shown first in the Sounds tab and in Live mode.

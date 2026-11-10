@@ -21,11 +21,12 @@ Bida-Vibe is a static site (GitHub Pages). Anything that runs in the browser can
 | Clickjacking | The page blanks itself if another site loads it inside a frame. |
 | Secrets in code | Only public-by-design values (Firebase web config). Nothing else. |
 | Offline use | A cached Premium pass still ends on its end date, even with no internet. It only counts while the same Google account that paid is signed in. |
+| Sound pads | Stored on the Worker (KV), not in the public repo. Free pads: anyone. Premium pads: the server sends the audio only to a verified Google sign-in with an active pass, or admin. Upload / rename / re-tier / delete: admin only, re-verified on every request (signature, project, expiry, Google provider, verified email, fingerprint). Uploads are checked by their bytes (must really be mp3/wav/ogg/m4a/webm, max 1.5 MB), names are cleaned, and audio is served with `nosniff` + a locked-down CSP. Tested: no sign-in, normal user, paying user, unverified admin email, non-Google sign-in, tampered token, HTML disguised as audio, oversize file, 9th free pad, expired pass — all refused. |
 | Tampering with saved data | Nothing in browser storage can grant access by itself. Admin comes only from this session's verified Google sign-in (Google provider, verified email, fingerprint match), never from storage. Editing local storage to say "admin" or "premium" does nothing (tested). |
 
 Not applicable here: SQL injection, CSRF, session cookies, password hashing, server debug mode, npm packages (no server pages, no cookies, no npm).
 
-Known limit: Premium features run in the browser, so a technical user could unlock them on their own device by editing local storage. That's normal for a static app. Payment records and admin status can't be faked.
+**What can't be hack-proof (any website):** features that run entirely on the visitor's own phone, such as the Talk/Fade volume control, the 5-link YouTube limit and the 2 personal uploads. The phone runs that code, so someone who rewrites the app's JavaScript could change them on their own device. Editing saved data or clicking around in Inspect Element doesn't unlock them, but a determined programmer could. What they can never do: get Premium sounds, upload or change sounds, fake a payment, or become admin. All of that is decided by the server.
 
 ## Console-side settings (can't be done from code)
 

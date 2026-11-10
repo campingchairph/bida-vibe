@@ -23,9 +23,15 @@
    so nobody can claim admin from the browser.
 
    Routes:
-     GET  /status    (Authorization: Bearer <Firebase ID token>) → { premium, admin, until }
-     POST /checkout  (Authorization: Bearer <Firebase ID token>) → { url }
-     POST /webhook   (from PayMongo, signed)                      → 200
+     GET    /status       (Bearer <Firebase ID token>) → { premium, admin, until }
+     POST   /checkout     (Bearer token)               → { url }
+     POST   /webhook      (from PayMongo, signed)      → 200
+     GET    /pads                                        → list of sound pads (names only)
+     GET    /pads/:id     free pad: anyone · premium pad: Bearer token of an active pass or admin
+     POST   /pads?name=&tier=   (admin only) body = the audio file
+     PATCH  /pads/:id     (admin only) { name?, tier?, move? }
+     DELETE /pads/:id     (admin only)
+   Every admin action re-verifies the Google ID token server-side; the browser can't fake it.
    ============================================================ */
 
 const DAY = 86400000;
@@ -41,6 +47,8 @@ export default {
       if (url.pathname === '/webhook' && req.method === 'POST') return await handleWebhook(req, env);
       if (url.pathname === '/status' && req.method === 'GET') return await handleStatus(req, env, cors);
       if (url.pathname === '/checkout' && req.method === 'POST') return await handleCheckout(req, env, cors);
+      const pm = url.pathname.match(/^\/pads(?:\/(p[a-f0-9]{12}))?$/);
+      if (pm) return await handlePads(req, env, cors, pm[1], url);
       return json({ error: 'not_found' }, 404, cors);
     } catch (e) {
       const status = e.status || 500;
@@ -62,6 +70,7 @@ async function handleStatus(req, env, cors) {
 // Read with the user's own ID token, so Firestore security rules decide.
 async function isAdmin(user, env) {
   if (!user.emailVerified || !user.email) return false;
+  if (user.provider !== 'google.com') return false;          // must be a real Google sign-in
   const email = user.email.trim().toLowerCase();
   // 1) SHA-256 fingerprint of the email (ADMIN_EMAIL_HASHES, comma list) — no email stored anywhere
   const hashes = String(env.ADMIN_EMAIL_HASHES || DEFAULT_ADMIN_HASHES).split(',').map(s => s.trim()).filter(Boolean);
@@ -157,6 +166,98 @@ async function handleWebhook(req, env) {
   return new Response('ok', { status: 200 });
 }
 
+/* ---------- Sound pads (stored in KV; admin uploads in the app) ---------- */
+const PAD_MAX_BYTES = 1500000;   // ~1.5 MB per sound
+const PAD_FREE_MAX = 8;          // free pads everyone can play
+const PAD_TOTAL_MAX = 40;
+async function padIndex(env) { return (await env.PREMIUM.get('pad:index', 'json')) || []; }
+async function savePadIndex(env, list) {
+  list.sort((a, b) => a.order - b.order).forEach((p, i) => { p.order = i; });
+  await env.PREMIUM.put('pad:index', JSON.stringify(list));
+}
+const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>"'`\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Sound';
+// Trust the bytes, not the file name or the browser's content-type
+function sniffAudio(b) {
+  const s = (i, n) => String.fromCharCode(...b.slice(i, i + n));
+  if (s(0, 3) === 'ID3' || (b[0] === 0xFF && (b[1] & 0xE0) === 0xE0)) return 'audio/mpeg';
+  if (s(0, 4) === 'RIFF' && s(8, 4) === 'WAVE') return 'audio/wav';
+  if (s(0, 4) === 'OggS') return 'audio/ogg';
+  if (s(4, 4) === 'ftyp') return 'audio/mp4';
+  if (b[0] === 0x1A && b[1] === 0x45 && b[2] === 0xDF && b[3] === 0xA3) return 'audio/webm';
+  return '';
+}
+async function optionalUser(req, env) { try { return await requireUser(req, env); } catch (e) { return null; } }
+async function hasPass(user, env) {
+  if (!user) return false;
+  if (await isAdmin(user, env)) return true;
+  const rec = await env.PREMIUM.get('pro:' + user.uid, 'json');
+  return (rec?.until || 0) > Date.now();
+}
+async function requireAdmin(req, env) {
+  const user = await requireUser(req, env);
+  if (!(await isAdmin(user, env))) throw err(403, 'admin_only');
+  return user;
+}
+async function handlePads(req, env, cors, id, url) {
+  const m = req.method;
+  if (m === 'GET' && !id) {
+    const list = (await padIndex(env)).map(({ id, name, tier, order, size, v }) => ({ id, name, tier, order, size, v }));
+    return json({ pads: list }, 200, { ...cors, 'Cache-Control': 'no-cache' });
+  }
+  if (m === 'GET' && id) {
+    const meta = (await padIndex(env)).find(p => p.id === id);
+    if (!meta) return json({ error: 'not_found' }, 404, cors);
+    if (meta.tier === 'premium' && !(await hasPass(await optionalUser(req, env), env))) return json({ error: 'premium_only' }, 403, cors);
+    const data = await env.PREMIUM.get('pad:data:' + id, 'arrayBuffer');
+    if (!data) return json({ error: 'not_found' }, 404, cors);
+    return new Response(data, { status: 200, headers: {
+      ...cors, 'Content-Type': meta.type, 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'",
+      'Cache-Control': meta.tier === 'premium' ? 'private, max-age=86400' : 'public, max-age=3600'
+    } });
+  }
+  // Everything below changes data: admin only, verified on every request
+  await requireAdmin(req, env);
+  const list = await padIndex(env);
+  if (m === 'POST' && !id) {
+    const buf = new Uint8Array(await req.arrayBuffer());
+    if (!buf.length || buf.length > PAD_MAX_BYTES) throw err(413, 'too_big');
+    const type = sniffAudio(buf);
+    if (!type) throw err(415, 'not_audio');
+    if (list.length >= PAD_TOTAL_MAX) throw err(409, 'too_many');
+    let tier = url.searchParams.get('tier') === 'premium' ? 'premium' : 'free';
+    if (tier === 'free' && list.filter(p => p.tier === 'free').length >= PAD_FREE_MAX) throw err(409, 'free_full');
+    const nid = 'p' + [...crypto.getRandomValues(new Uint8Array(6))].map(b => b.toString(16).padStart(2, '0')).join('');
+    await env.PREMIUM.put('pad:data:' + nid, buf);
+    list.push({ id: nid, name: cleanName(url.searchParams.get('name')), tier, type, size: buf.length, order: list.length, v: Date.now() });
+    await savePadIndex(env, list);
+    return json({ ok: true, id: nid }, 200, cors);
+  }
+  const i = list.findIndex(p => p.id === id);
+  if (i < 0) return json({ error: 'not_found' }, 404, cors);
+  if (m === 'PATCH') {
+    const body = await req.json().catch(() => ({}));
+    if (body.name != null) list[i].name = cleanName(body.name);
+    if (body.tier === 'free' || body.tier === 'premium') {
+      if (body.tier === 'free' && list[i].tier !== 'free' && list.filter(p => p.tier === 'free').length >= PAD_FREE_MAX) throw err(409, 'free_full');
+      list[i].tier = body.tier;
+    }
+    if (body.move === 1 || body.move === -1) {
+      const j = i + body.move;
+      if (j >= 0 && j < list.length) { const o = list[i].order; list[i].order = list[j].order; list[j].order = o; }
+    }
+    list[i].v = Date.now();
+    await savePadIndex(env, list);
+    return json({ ok: true }, 200, cors);
+  }
+  if (m === 'DELETE') {
+    list.splice(i, 1);
+    await env.PREMIUM.delete('pad:data:' + id);
+    await savePadIndex(env, list);
+    return json({ ok: true }, 200, cors);
+  }
+  return json({ error: 'method_not_allowed' }, 405, cors);
+}
+
 /* ---------- Firebase ID token verification ---------- */
 const JWK_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 let jwkCache = { keys: null, exp: 0 };
@@ -184,14 +285,14 @@ async function requireUser(req, env) {
   if (payload.exp < now || payload.iat > now + 60) throw err(401, 'expired');
   if (payload.aud !== pid || payload.iss !== 'https://securetoken.google.com/' + pid) throw err(401, 'wrong_project');
   if (!payload.sub) throw err(401, 'no_sub');
-  return { uid: payload.sub, email: payload.email, emailVerified: payload.email_verified === true, token: m[1] };
+  return { uid: payload.sub, email: payload.email, emailVerified: payload.email_verified === true, token: m[1], provider: payload.firebase?.sign_in_provider || '' };
 }
 
 /* ---------- utils ---------- */
 function corsHeaders(req, env) {
   const origin = req.headers.get('Origin') || '';
   const allowed = String(env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-  const h = { 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Max-Age': '86400', Vary: 'Origin' };
+  const h = { 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Max-Age': '86400', Vary: 'Origin' };
   if (allowed.includes(origin)) h['Access-Control-Allow-Origin'] = origin;
   return h;
 }
