@@ -9,12 +9,12 @@
 <!-- Anti-clickjacking: if another site loads this page inside a frame, show nothing -->
 <style id="antiframe">html{display:none}</style>
 <script>if (window.top === window.self) { document.getElementById('antiframe').remove(); } else { try { window.top.location = window.self.location; } catch (e) {} }</script>
-<title>Videoke — Mag-reserve ng kanta</title>
+<title>Videoke · Pili ng kanta</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 8h56l-6 24-22 24L10 32z' fill='%23E2367A' stroke='%231E1A16' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='24' r='7' fill='%23FFF6E5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261113e">
+<link rel="stylesheet" href="bida.css?v=20261114a">
 <style>
   body { background: var(--cream); min-height: 100vh; }
   .sg { max-width: 560px; margin: 0 auto; padding: 18px 16px 60px; }
@@ -46,7 +46,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261113e"></script>
+<script src="vk-avatars.js?v=20261114a"></script>
 <script>
 /* Bida-Vibe guest page: a family member opens the host's link, types a name, picks an avatar
    and adds songs. They can't see or change anything else in the host's app — the Firestore rules
@@ -68,7 +68,7 @@
 
   function closed(msg) {
     $('#sg').innerHTML = `<div class="card sg-closed">${vkAvatar('dj', 96)}<h2>${esc(msg)}</h2>
-      <p class="muted" style="margin-top:8px">Humingi ng bagong link sa host ng event.</p></div>`;
+      <p class="muted" style="margin-top:8px">Hingi ka ng bagong link sa host.</p></div>`;
   }
   if (!/^[A-Za-z0-9]{24}$/.test(room)) { closed('Mali ang link na ito'); return; }
 
@@ -78,15 +78,15 @@
     if (!r.open || !(r.expires && r.expires.toMillis() > Date.now())) { closed('Sarado na ang videoke link'); return; }
     const who = !S.me || S.editing;
     $('#sg').innerHTML = `
-      <div class="sg-hero"><small>Videoke · Mag-reserve ng kanta</small><h1>${esc(r.title || 'Videoke')}</h1></div>
+      <div class="sg-hero"><small>Videoke · Pili ng kanta</small><h1>${esc(r.title || 'Videoke')}</h1></div>
       ${who ? profileHTML() : `
         <div class="card sg-card sg-me">${vkAvatar(S.me.av, 56)}<div style="flex:1"><small class="muted">Kakanta</small><b>${esc(S.me.name)}</b></div>
           <button class="btn btn--ghost btn--sm" id="sg-edit">Palitan</button></div>
-        <div class="card sg-card"><h3>Pumili ng kanta</h3>
+        <div class="card sg-card"><h3>Pili ng kanta</h3>
           <input class="input" id="sg-q" style="margin-top:10px" placeholder="Hanapin: kanta, artist o code" value="${esc(S.q)}" autocomplete="off">
           <div id="sg-res"></div></div>`}
       <div class="card sg-card"><h3>Pila <small class="muted">(${(r.queue || []).length})</small></h3>${queueHTML(r)}</div>
-      <p class="sg-foot">Bida-Vibe Videoke · Ang host lang ang may kontrol sa screen at sa pila.</p>`;
+      <p class="sg-foot">Bida-Vibe Videoke · Ang host lang ang may hawak ng screen at pila.</p>`;
     if (who) bindProfile(); else {
       $('#sg-edit').onclick = () => { S.editing = true; render(); };
       $('#sg-q').oninput = e => { S.q = e.target.value; results(); };
@@ -98,9 +98,9 @@
     return `<div class="card sg-card"><h3>Sino ka?</h3>
       <div class="field" style="margin-top:10px"><label for="sg-name">Pangalan mo</label>
         <input class="input" id="sg-name" maxlength="24" placeholder="hal. Tita Baby" value="${esc(me.name)}" autocomplete="nickname"></div>
-      <p style="margin-top:12px;font-weight:800">Pumili ng avatar</p>
+      <p style="margin-top:12px;font-weight:800">Pili ng avatar</p>
       <div class="sg-avs" role="radiogroup" aria-label="Avatar">${VK_AVATARS.map(a => `<button type="button" role="radio" aria-checked="${a.id === me.av}" data-av="${a.id}" class="${a.id === me.av ? 'on' : ''}">${a.svg(64)}${esc(a.name)}</button>`).join('')}</div>
-      <button class="btn btn--chili btn--block" id="sg-go" style="margin-top:14px">Tuloy — pumili ng kanta</button></div>`;
+      <button class="btn btn--chili btn--block" id="sg-go" style="margin-top:14px">Tara, pili na ng kanta</button></div>`;
   }
   function bindProfile() {
     let av = S.me ? S.me.av : '';
@@ -118,7 +118,7 @@
     const list = [];
     if (r.now) list.push([r.now, true]);
     (r.queue || []).forEach(it => list.push([it, false]));
-    if (!list.length) return '<p class="muted" style="margin-top:8px">Wala pang naka-reserve — ikaw na ang mauna!</p>';
+    if (!list.length) return '<p class="muted" style="margin-top:8px">Wala pang nakapila. Ikaw na mauna!</p>';
     return `<ol class="sg-q">${list.slice(0, 40).map(([it, now], i) => `<li class="${now ? 'now' : ''}">${vkAvatar(String(it.av || ''), 38)}
       <div><b>${esc(it.t)}</b><small>${now ? 'Kumakanta: ' : (r.now ? i : i + 1) + '. '}${esc(it.n)}</small></div></li>`).join('')}</ol>`;
   }
@@ -133,15 +133,15 @@
   }
   async function add(c, btn) {
     const s = S.lib.find(x => x.c === c); if (!s || !S.me) return;
-    if (S.sent >= MAX_PER_GUEST) { toast('Naka-' + MAX_PER_GUEST + ' kanta ka na — bigyan muna ng chance ang iba!'); return; }
-    if (Date.now() - S.lastAdd < COOLDOWN) { toast('Sandali lang — isa-isa muna'); return; }
+    if (S.sent >= MAX_PER_GUEST) { toast('Naka-' + MAX_PER_GUEST + ' kanta ka na. Bigyan mo naman ng chance ang iba!'); return; }
+    if (Date.now() - S.lastAdd < COOLDOWN) { toast('Teka lang, isa-isa muna.'); return; }
     S.lastAdd = Date.now(); btn.disabled = true;
     try {
       await db.collection('vk_rooms').doc(room).collection('requests').add({
         name: S.me.name, av: S.me.av, c: s.c, t: s.t, a: s.a, y: s.y, at: firebase.firestore.FieldValue.serverTimestamp() });
       S.sent++; store.set('bidavibe_guest_sent_' + room, S.sent);
-      toast(`Naipadala: ${s.t}! Lalabas sa pila sa ilang segundo.`);
-    } catch (e) { S.lastAdd = 0; toast('Hindi naipadala — baka sarado na ang link. Subukan ulit.'); }
+      toast(`Sent na: ${s.t}! Lalabas sa pila in a few seconds.`);
+    } catch (e) { S.lastAdd = 0; toast('Hindi na-send. Baka sarado na ang link, try ulit.'); }
     btn.disabled = false;
   }
   function cleanSong(s) {
@@ -160,7 +160,7 @@
     // Re-render the queue only, so typing in the search box isn't interrupted
     if (!first && $('#sg-q') && S.room.open) { const cards = document.querySelectorAll('.sg-card'); const qc = cards[cards.length - 1]; if (qc) { qc.innerHTML = `<h3>Pila <small class="muted">(${(S.room.queue || []).length})</small></h3>${queueHTML(S.room)}`; return; } }
     render();
-  }, () => closed('Hindi mabuksan ang link — baka sarado na'));
+  }, () => closed('Hindi mabuksan ang link, baka sarado na'));
 })();
 </script>
 </body>
