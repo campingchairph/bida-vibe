@@ -2132,10 +2132,13 @@ function renderVideoke() {
     ${vkRoomHTML()}
     ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
-      <div class="vk-search"><input class="input" id="vk-q" placeholder="Hanapin: kanta, artist o code" value="${esc(VK.q)}" oninput="vkFind(this.value)">
-        <select class="input vk-sel" aria-label="Unang letra ng kanta" onchange="vkSetLetter(this.value)"><option value="">A–Z</option>${letters.map(l => `<option ${VK.letter === l ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        <select class="input vk-sel vk-sel--artist" aria-label="Artist" onchange="vkSetArtist(this.value)"><option value="">Lahat ng artist</option>${artists.map(([k, name]) => `<option value="${esc(k)}" ${VK.artist === k ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select>
+      <div class="vk-search">
+        <div class="vk-find"><input class="input" id="vk-q" placeholder="Hanapin: kanta, artist o code" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
+          <button class="vk-find-x" id="vk-q-x" ${VK.q ? '' : 'hidden'} onclick="vkFind('');$('#vk-q').value='';$('#vk-q').focus()" aria-label="Burahin ang search">${ic('x')}</button></div>
+        <button class="vk-art-btn ${VK.artist ? 'on' : ''}" onclick="vkPickArtist()" aria-haspopup="dialog">${ic('people')}<span>${VK.artist ? esc((artists.find(([k]) => k === VK.artist) || [, 'Artist'])[1]) : 'Artist'}</span>${ic('down')}</button>
         <label class="toggle" style="margin:0"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
+      ${letters.length > 1 ? `<div class="vk-letters" role="group" aria-label="Unang letra ng kanta">${letters.map(l => `<button class="${VK.letter === l ? 'on' : ''}" aria-pressed="${VK.letter === l}" onclick="vkSetLetter('${l}')">${l}</button>`).join('')}</div>` : ''}
+      <div id="vk-fbar">${vkFilterBar(res.length)}</div>
       <div id="vk-results">${vkResultsHTML(shown, res.length)}</div>
       <button class="btn btn--ghost btn--sm" style="margin-top:12px" onclick="vkAddMine()">${ic('plus')}Idagdag ang sariling kanta (YouTube link)</button>
     </div>
@@ -2169,9 +2172,39 @@ function vkResultsHTML(shown, total) {
     <button class="vk-add" onclick="vkReserve(${s.c})" aria-label="Reserve ${esc(s.t)}" title="Reserve">${ic('plus')}</button></li>`).join('')}</ul>
     ${total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa. Mag-type o gamitin ang filter para lumiit.</p>` : ''}`;
 }
-function vkFind(q) { VK.q = q; const res = vkSearch(); $('#vk-results').innerHTML = vkResultsHTML(res.slice(0, 90), res.length); }
-function vkSetLetter(l) { VK.letter = l; vkFind(VK.q); }
-function vkSetArtist(a) { VK.artist = a; vkFind(VK.q); }
+function vkFind(q) {
+  VK.q = q; const res = vkSearch();
+  $('#vk-results').innerHTML = vkResultsHTML(res.slice(0, 90), res.length);
+  $('#vk-fbar').innerHTML = vkFilterBar(res.length);
+  const x = $('#vk-q-x'); if (x) x.hidden = !q;
+}
+// "12 kanta · B · Ben&Ben  [Clear filter]" — shows only when something is filtered
+function vkFilterBar(n) {
+  if (!VK.q && !VK.letter && !VK.artist) return '';
+  const art = VK.artist && (vkArtists().find(([k]) => k === VK.artist) || [, ''])[1];
+  const tags = [VK.letter && `Letra ${VK.letter}`, art, VK.q && `“${VK.q}”`].filter(Boolean).map(s => `<span class="vk-tag">${esc(s)}</span>`).join('');
+  return `<div class="vk-fbar"><span class="vk-fcount"><b>${n}</b> kanta</span>${tags}<button class="btn btn--ghost btn--sm vk-clear" onclick="vkClearFilter()">${ic('x')}Clear filter</button></div>`;
+}
+function vkSetLetter(l) { VK.letter = VK.letter === l ? '' : l; renderVideoke(); }       // tap again to turn it off
+function vkSetArtist(a) { VK.artist = a; if (a) VK.letter = ''; closeSheet(); renderVideoke(); }   // letter + artist together is usually 0 songs
+function vkClearFilter() { VK.q = ''; VK.letter = ''; VK.artist = ''; renderVideoke(); }
+// Artist picker: a sheet with its own search and how many songs each artist has
+function vkPickArtist() {
+  const counts = new Map(); vkAll().forEach(s => { const k = vkNorm(s.a); if (k) counts.set(k, (counts.get(k) || 0) + 1); });
+  VK.artistList = vkArtists().map(([k, name]) => ({ k, name, n: counts.get(k) || 0 }));
+  openSheet(`<div class="sheet-head"><h3>Pili ng artist</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <input class="input" id="art-q" placeholder="Hanapin ang artist" autocomplete="off" oninput="vkArtistList(this.value)">
+    <ul class="art-list" id="art-list"></ul>`);
+  vkArtistList('');
+  setTimeout(() => $('#art-q')?.focus(), 50);
+}
+function vkArtistList(q) {
+  const k = vkNorm(q), list = VK.artistList.map((a, i) => ({ ...a, i })).filter(a => !k || vkNorm(a.name).includes(k));
+  $('#art-list').innerHTML = `${!k ? `<li><button class="${VK.artist ? '' : 'on'}" onclick="vkSetArtist('')"><b>Lahat ng artist</b></button></li>` : ''}`
+    + list.map(a => `<li><button class="${VK.artist === a.k ? 'on' : ''}" onclick="vkSetArtistIdx(${a.i})"><b>${esc(a.name)}</b><small>${a.n} kanta</small></button></li>`).join('')
+    + (list.length ? '' : '<li class="muted" style="padding:12px 4px">Walang ganyang artist.</li>');
+}
+function vkSetArtistIdx(i) { const a = VK.artistList[i]; if (a) vkSetArtist(a.k); }
 function vkKey(k) {
   if (k === 'C') VK.input = ''; else if (VK.input.length < 5) VK.input += k;
   renderVideoke();
@@ -2437,7 +2470,12 @@ function vkParseTitle(raw) {
     .replace(/\b(karaoke|videoke|minus ?one|instrumental|with lyrics|lyrics|hd|4k|m\/v|official (music )?video)\b/gi, '')
     .replace(/\(\s*\)/g, '').replace(/[|｜].*$/, '').replace(/\s{2,}/g, ' ').trim();
   const m = t.match(/^(.+?)\s+[-–—]\s+(.+)$/);
-  return m ? { a: m[1].trim().slice(0, 60), t: m[2].trim().slice(0, 80) } : { a: '', t: t.slice(0, 80) || 'Kanta' };
+  if (!m) return { a: '', t: t.slice(0, 80) || 'Kanta' };
+  let a = m[1].trim(), s = m[2].trim();
+  // Most channels write "Artist - Song", but some write "SONG - Artist" with the song in capitals
+  const caps = x => /[A-Z]/.test(x) && x === x.toUpperCase();
+  if (caps(a) && !caps(s)) [a, s] = [s, a];
+  return { a: a.slice(0, 60), t: s.slice(0, 80) };
 }
 async function vkOembed(id) {
   const r = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id));
@@ -2972,7 +3010,7 @@ Object.assign(window, {
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
   vkKey, vkReserveTyped, vkReserve, vkQMove, vkQDel, vkScoreToggle, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
-  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
+  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
