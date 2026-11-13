@@ -111,11 +111,11 @@ function loadState() {
 }
 
 /* ---------- In-app dialogs (never native confirm/prompt: they freeze the page and can pause music) ---------- */
-function openDlg(msg, { input = null, yes = 'Oo', no = 'Huwag' } = {}) {
+function openDlg(msg, { input = null, yes = 'Oo', no = 'Huwag', max = 40 } = {}) {
   return new Promise(resolve => {
     const wrap = $('#dlg-wrap'), inp = $('#dlg-input'), y = $('#dlg-yes'), n = $('#dlg-no');
     $('#dlg-msg').textContent = msg; y.textContent = yes; n.textContent = no;
-    inp.hidden = input === null; if (input !== null) inp.value = input;
+    inp.hidden = input === null; inp.maxLength = max; if (input !== null) inp.value = String(input).slice(0, max);
     wrap.hidden = false; (input !== null ? inp : y).focus();
     const done = v => { wrap.hidden = true; y.onclick = n.onclick = inp.onkeydown = wrap.onclick = null; resolve(v); };
     y.onclick = () => done(input !== null ? inp.value.trim() : true);
@@ -125,7 +125,8 @@ function openDlg(msg, { input = null, yes = 'Oo', no = 'Huwag' } = {}) {
   });
 }
 const askConfirm = (msg, yes) => openDlg(msg, { yes });
-const askText = (msg, def) => openDlg(msg, { input: def, yes: 'I-save', no: 'Kanselahin' });
+// max = how many characters the box accepts (links need far more than names)
+const askText = (msg, def, max = 40) => openDlg(msg, { input: def, yes: 'I-save', no: 'Kanselahin', max });
 
 /* ---------- Helpers ---------- */
 let toastT;
@@ -1359,7 +1360,7 @@ async function ghRenameFile(f, newName, why) {
 }
 async function ghRename(i) {
   const f = GH.files[i]; if (!f) return;
-  const nn = await askText('Bagong pangalan ng pad', padNameFromFile(f.name)); if (!nn) return;
+  const nn = await askText('Bagong pangalan ng pad', padNameFromFile(f.name), 24); if (!nn) return;
   const prefix = (f.name.match(/^\d{1,3}[\s._-]+/) || [''])[0], ext = f.name.match(AUDIO_EXT)[0];
   ghWork(() => ghRenameFile(f, `${prefix}${safeBase(nn)}${ext}`, `Rename sound pad: ${safeBase(nn)}`), 'Napalitan ang pangalan');
 }
@@ -1454,7 +1455,7 @@ async function adminPatch(id, body) {
 }
 async function adminRename(id) {
   const p = PADS.find(x => x.id === id); if (!p) return;
-  const name = await askText('Bagong pangalan ng pad', p.name); if (!name) return;
+  const name = await askText('Bagong pangalan ng pad', p.name, 24); if (!name) return;
   adminPatch(id, { name });
 }
 async function adminDelete(id) {
@@ -2140,7 +2141,7 @@ function vkReserveTyped() { if (VK.input.length === 5 && vkSong(+VK.input)) { vk
 async function vkReserve(c) {
   const s = vkSong(c); if (!s) return;
   const v = vkState();
-  const singer = await askText(`Sino ang kakanta ng "${s.t}"?`, v.lastSinger || '');
+  const singer = await askText(`Sino ang kakanta ng "${s.t}"?`, v.lastSinger || '', 30);
   if (singer === null) return;
   v.lastSinger = String(singer).slice(0, 30);
   v.queue.push({ id: Math.random().toString(36).slice(2, 9), c, singer: v.lastSinger });
@@ -2226,7 +2227,7 @@ async function vkOembed(id) {
   return r.json();
 }
 async function vkAddMine() {
-  const link = await askText('I-paste ang YouTube karaoke link', ''); if (!link) return;
+  const link = await askText('I-paste ang YouTube karaoke link', '', 600); if (!link) return;
   const p = parseYouTube(link); if (!p || !p.id) { toast('Hindi valid ang YouTube video link'); return; }
   let info; try { info = await vkOembed(p.id); } catch (e) { toast(e.message === 'no_embed' ? 'Hindi pwedeng i-play sa ibang site ang video na ito — pumili ng iba' : 'Hindi mahanap ang video'); return; }
   const v = vkState(); if (vkAll().some(s => s.y === p.id)) { toast('Nasa library na ito'); return; }
@@ -2287,7 +2288,7 @@ async function vkAdminWork(fn) {
 }
 const vkNextCode = songs => Math.max(10000, ...songs.map(s => s.c).filter(c => c < 90000)) + 1;
 async function vkAdminAdd() {
-  const link = await askText('I-paste ang YouTube karaoke video link', ''); if (!link) return;
+  const link = await askText('I-paste ang YouTube karaoke video link', '', 600); if (!link) return;
   const p = parseYouTube(link); if (!p || !p.id) { toast('Hindi valid ang YouTube video link'); return; }
   vkAdminWork(async () => {
     const info = await vkOembed(p.id).catch(e => { throw new Error(e.message === 'no_embed' ? 'Hindi pwedeng i-play sa ibang site ang video na ito — pumili ng iba.' : 'Hindi mahanap ang video.'); });
@@ -2314,9 +2315,9 @@ function vkPlaylistIds(list) {
   }));
 }
 async function vkAdminImport() {
-  const link = await askText('I-paste ang YouTube playlist link (hanggang 200 kanta)', ''); if (!link) return;
+  const link = await askText('I-paste ang YouTube playlist link (hanggang 200 kanta)', '', 600); if (!link) return;
   const p = parseYouTube(link); if (!p || !p.list) { toast('Hindi playlist link ito'); return; }
-  const genre = (await askText('Genre / category ng mga kantang ito (hal. OPM, Love Songs, Christmas)', 'OPM')) || '';
+  const genre = (await askText('Genre / category ng mga kantang ito (hal. OPM, Love Songs, Christmas)', 'OPM', 20)) || '';
   vkAdminWork(async () => {
     const ids = (await vkPlaylistIds(p.list)).filter(id => /^[\w-]{11}$/.test(id)).slice(0, 200);
     const have = new Set(VK.lib.map(s => s.y)), fresh = [];
@@ -2338,9 +2339,9 @@ async function vkAdminImport() {
 }
 async function vkAdminEdit(c) {
   const s = VK.lib.find(x => x.c === c); if (!s) return;
-  const t = await askText(`Title (code ${c})`, s.t); if (t === null) return;
-  const a = await askText('Artist', s.a); if (a === null) return;
-  const g = await askText('Genre / category', s.g); if (g === null) return;
+  const t = await askText(`Title (code ${c})`, s.t, 80); if (t === null) return;
+  const a = await askText('Artist', s.a, 60); if (a === null) return;
+  const g = await askText('Genre / category', s.g, 20); if (g === null) return;
   vkAdminWork(() => vkSaveLib(songs => songs.map(x => x.c === c ? { ...x, t: (t || x.t).slice(0, 80), a: a.slice(0, 60), g: g.slice(0, 20) } : x), `Videoke: edit ${c}`));
 }
 async function vkAdminDelete(c) {
