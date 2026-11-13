@@ -1,1406 +1,548 @@
-{
- "v": 1,
- "updated": "2026-11-13T15:32:07.084Z",
- "songs": [
-  {
-   "c": 10001,
-   "y": "8jafgOxRMQM",
-   "t": "Asin",
-   "a": "BALITA",
-   "g": "OPM"
-  },
-  {
-   "c": 10002,
-   "y": "-BiejKzh68w",
-   "t": "Freestyle",
-   "a": "SO SLOW",
-   "g": "OPM"
-  },
-  {
-   "c": 10003,
-   "y": "tBsvMF3uFao",
-   "t": "6cyclemind",
-   "a": "SANDALAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10004,
-   "y": "pwhpWlEYAvI",
-   "t": "The Animals",
-   "a": "HOUSE OF THE RISING SUN",
-   "g": "OPM"
-  },
-  {
-   "c": 10005,
-   "y": "JYZ-fqLNo-s",
-   "t": "Maroon 5",
-   "a": "MEMORIES",
-   "g": "OPM"
-  },
-  {
-   "c": 10006,
-   "y": "1wdy1dzMlWQ",
-   "t": "Bandang Lapis",
-   "a": "SA KABILANG BUHAY",
-   "g": "OPM"
-  },
-  {
-   "c": 10007,
-   "y": "70nBq_sKb0Y",
-   "t": "Styx",
-   "a": "BOAT ON THE RIVER",
-   "g": "OPM"
-  },
-  {
-   "c": 10008,
-   "y": "uZo5ioxTj2c",
-   "t": "Jerome Abalos",
-   "a": "TANGING SA'YO",
-   "g": "OPM"
-  },
-  {
-   "c": 10009,
-   "y": "hSFGd8NDgQk",
-   "t": "VST & Company",
-   "a": "ROCK BABY ROCK",
-   "g": "OPM"
-  },
-  {
-   "c": 10010,
-   "y": "PTOeXI4rJes",
-   "t": "Parokya Ni Edgar",
-   "a": "MANIWALA KA SANA",
-   "g": "OPM"
-  },
-  {
-   "c": 10011,
-   "y": "0KwsLT2Aa-0",
-   "t": "Stylistics",
-   "a": "YOU MAKE ME FEEL BRAND NEW",
-   "g": "OPM"
-  },
-  {
-   "c": 10012,
-   "y": "VJGoeN22aQY",
-   "t": "Parokya Ni Edgar",
-   "a": "SORRY NA",
-   "g": "OPM"
-  },
-  {
-   "c": 10013,
-   "y": "BJpAs87L8JY",
-   "t": "Bob Welch",
-   "a": "SENTIMENTAL LADY",
-   "g": "OPM"
-  },
-  {
-   "c": 10014,
-   "y": "jFUf2_0rVNU",
-   "t": "David Gates",
-   "a": "NEVER LET HER GO",
-   "g": "OPM"
-  },
-  {
-   "c": 10015,
-   "y": "toeyVEeQ4W8",
-   "t": "Freddie Aguilar",
-   "a": "KATARUNGAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10016,
-   "y": "l4E45BglawM",
-   "t": "Brian Hyland",
-   "a": "SEALED WITH A KISS",
-   "g": "OPM"
-  },
-  {
-   "c": 10017,
-   "y": "iuJhEwL9XVo",
-   "t": "Rockstar 2",
-   "a": "BAKIT",
-   "g": "OPM"
-  },
-  {
-   "c": 10018,
-   "y": "tTHl-RjJb7w",
-   "t": "Michael Jackson",
-   "a": "BILLIE JEAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10019,
-   "y": "26-idlFoPAU",
-   "t": "Victor Wood",
-   "a": "CRYING TIME",
-   "g": "OPM"
-  },
-  {
-   "c": 10020,
-   "y": "hlCsXd4jybQ",
-   "t": "Paul Anka",
-   "a": "YOU ARE MY DESTINY",
-   "g": "OPM"
-  },
-  {
-   "c": 10021,
-   "y": "9-wpNVVFfsM",
-   "t": "Victor Wood",
-   "a": "FRAULEIN",
-   "g": "OPM"
-  },
-  {
-   "c": 10022,
-   "y": "XQ-if4gemdA",
-   "t": "Dr. Hook",
-   "a": "SHARING THE NIGHT TOGETHER",
-   "g": "OPM"
-  },
-  {
-   "c": 10023,
-   "y": "Xi_CgJ4pVkc",
-   "t": "Engelbert Humperdinck",
-   "a": "AM I THAT EASY TO FORGET",
-   "g": "OPM"
-  },
-  {
-   "c": 10024,
-   "y": "fxpKNZzBJSg",
-   "t": "John Waite",
-   "a": "MISSING YOU",
-   "g": "OPM"
-  },
-  {
-   "c": 10025,
-   "y": "vj8ArABxGBs",
-   "t": "MYMP",
-   "a": "SA KANYA",
-   "g": "OPM"
-  },
-  {
-   "c": 10026,
-   "y": "AQS6avY3HtI",
-   "t": "Ellie Goulding",
-   "a": "LOVE ME LIKE YOU DO",
-   "g": "OPM"
-  },
-  {
-   "c": 10027,
-   "y": "LO5YCdfvLFA",
-   "t": "Toni Gonzaga",
-   "a": "KASALANAN KO BA",
-   "g": "OPM"
-  },
-  {
-   "c": 10028,
-   "y": "S-E18kJSmc0",
-   "t": "Bill Withers",
-   "a": "JUST THE TWO OF US",
-   "g": "OPM"
-  },
-  {
-   "c": 10029,
-   "y": "1dEGC-dIFGE",
-   "t": "Miley Cyrus",
-   "a": "ANGELS LIKE YOU",
-   "g": "OPM"
-  },
-  {
-   "c": 10030,
-   "y": "QAvvmVjxoR0",
-   "t": "Jovit Baldivino",
-   "a": "PAANO",
-   "g": "OPM"
-  },
-  {
-   "c": 10031,
-   "y": "rdM8ZV2FdXc",
-   "t": "The Juans",
-   "a": "HINDI TAYO PWEDE",
-   "g": "OPM"
-  },
-  {
-   "c": 10032,
-   "y": "R_7Kx6KmAzg",
-   "t": "Marco Sison",
-   "a": "ALWAYS",
-   "g": "OPM"
-  },
-  {
-   "c": 10033,
-   "y": "bIOb_33szh4",
-   "t": "Jonalyn Viray",
-   "a": "PUSONG LIGAW",
-   "g": "OPM"
-  },
-  {
-   "c": 10034,
-   "y": "TRxxwhvG104",
-   "t": "J Brothers",
-   "a": "TUNAY NA NAGMAMAHAL",
-   "g": "OPM"
-  },
-  {
-   "c": 10035,
-   "y": "uGoC2i9ziEY",
-   "t": "Erik Santos",
-   "a": "PAGBIGYANG MULI",
-   "g": "OPM"
-  },
-  {
-   "c": 10036,
-   "y": "zA91KeYz5DU",
-   "t": "Toni Gonzaga",
-   "a": "WE BELONG",
-   "g": "OPM"
-  },
-  {
-   "c": 10037,
-   "y": "Cw8Bmf0VIEk",
-   "t": "Rob Deniel",
-   "a": "IKAW SANA",
-   "g": "OPM"
-  },
-  {
-   "c": 10038,
-   "y": "yPuJhEikwr4",
-   "t": "Zack Tabudlo",
-   "a": "NANGANGAMBA",
-   "g": "OPM"
-  },
-  {
-   "c": 10039,
-   "y": "htYlXyHS-cQ",
-   "t": "Rob Deniel",
-   "a": "NANDITO AKO",
-   "g": "OPM"
-  },
-  {
-   "c": 10040,
-   "y": "auWvT4gVUhw",
-   "t": "Ariel Rivera",
-   "a": "A SMILE IN YOUR HEART",
-   "g": "OPM"
-  },
-  {
-   "c": 10041,
-   "y": "tBm12YAsruQ",
-   "t": "Jovit Baldivino",
-   "a": "SANA'Y MAGBALIK",
-   "g": "OPM"
-  },
-  {
-   "c": 10042,
-   "y": "pTRStoFFYQM",
-   "t": "MYMP",
-   "a": "TELL ME WHERE IT HURTS",
-   "g": "OPM"
-  },
-  {
-   "c": 10043,
-   "y": "dhWoHWRsQpE",
-   "t": "Maldita",
-   "a": "PORQUE",
-   "g": "OPM"
-  },
-  {
-   "c": 10044,
-   "y": "8aUaYTAIfjU",
-   "t": "Leif Garrett",
-   "a": "I WAS LOOKING FOR SOMEONE TO LOVE",
-   "g": "OPM"
-  },
-  {
-   "c": 10045,
-   "y": "jrDuTz64kCI",
-   "t": "Crowded House",
-   "a": "DON'T DREAM IT'S OVER",
-   "g": "OPM"
-  },
-  {
-   "c": 10046,
-   "y": "WVQJrTDtStU",
-   "t": "David Pack",
-   "a": "I JUST CAN'T LET GO",
-   "g": "OPM"
-  },
-  {
-   "c": 10047,
-   "y": "5dPnhxqqcFw",
-   "t": "Connie Francis",
-   "a": "PRETTY LITTLE BABY",
-   "g": "OPM"
-  },
-  {
-   "c": 10048,
-   "y": "cHa0wYuTMLE",
-   "t": "LeAnn Rimes",
-   "a": "I NEED YOU",
-   "g": "OPM"
-  },
-  {
-   "c": 10049,
-   "y": "IxlmyV_xJwY",
-   "t": "Mandy Moore",
-   "a": "CRY",
-   "g": "OPM"
-  },
-  {
-   "c": 10050,
-   "y": "6MZqSms3IYc",
-   "t": "Ken Laszlo",
-   "a": "TONIGHT",
-   "g": "OPM"
-  },
-  {
-   "c": 10051,
-   "y": "Q_3C6TOJtzY",
-   "t": "Soapdish",
-   "a": "TENSIONADO",
-   "g": "OPM"
-  },
-  {
-   "c": 10052,
-   "y": "BP41O7s4tMo",
-   "t": "Breath",
-   "a": "HOW CAN I FALL",
-   "g": "OPM"
-  },
-  {
-   "c": 10053,
-   "y": "wCMIRJGhRiI",
-   "t": "Michael Pangilinan",
-   "a": "KUNG SAKALI",
-   "g": "OPM"
-  },
-  {
-   "c": 10054,
-   "y": "hnCaRzq7j-4",
-   "t": "Patti Austin",
-   "a": "ALL BEHIND US NOW",
-   "g": "OPM"
-  },
-  {
-   "c": 10055,
-   "y": "Jm2WNHHbejw",
-   "t": "Erik Santos",
-   "a": "KULANG AKO KUNG WALA KA",
-   "g": "OPM"
-  },
-  {
-   "c": 10056,
-   "y": "4fagK08sZ_M",
-   "t": "Barry Manilow",
-   "a": "IF I SHOULD LOVE AGAIN",
-   "g": "OPM"
-  },
-  {
-   "c": 10057,
-   "y": "XTWdZrd0-JI",
-   "t": "Erik Santos",
-   "a": "I'LL NEVER GO",
-   "g": "OPM"
-  },
-  {
-   "c": 10058,
-   "y": "Z2GGIFr94f4",
-   "t": "Karyn White",
-   "a": "SUPERWOMAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10059,
-   "y": "9rgEKs9BjEE",
-   "t": "Adele",
-   "a": "ALL I ASK",
-   "g": "OPM"
-  },
-  {
-   "c": 10060,
-   "y": "7NX92jzQ8aE",
-   "t": "Tears For Fears",
-   "a": "EVERYBODY WANTS TO RULE THE WORLD",
-   "g": "OPM"
-  },
-  {
-   "c": 10061,
-   "y": "smyxMZGz96M",
-   "t": "Angeline Quinto",
-   "a": "KUNIN MO NA ANG LAHAT SA AKIN",
-   "g": "OPM"
-  },
-  {
-   "c": 10062,
-   "y": "u8fpmuWl1Yk",
-   "t": "John Denver",
-   "a": "LEAVING ON A JET PLANE",
-   "g": "OPM"
-  },
-  {
-   "c": 10063,
-   "y": "JzyBZHUuXnY",
-   "t": "Celine Dion & Peabo Bryson",
-   "a": "BEAUTY AND THE BEAST",
-   "g": "OPM"
-  },
-  {
-   "c": 10064,
-   "y": "RVU9nEPogw0",
-   "t": "Dina Bonnevie",
-   "a": "BAKIT BA GANYAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10065,
-   "y": "g5wwqhPAVm0",
-   "t": "Bonnie Tyler",
-   "a": "IF I SING YOU A LOVE SONG",
-   "g": "OPM"
-  },
-  {
-   "c": 10066,
-   "y": "ZMQLImcAbVs",
-   "t": "Jose Mari Chan",
-   "a": "CAN WE JUST STOP AND TALK AWHILE",
-   "g": "OPM"
-  },
-  {
-   "c": 10067,
-   "y": "uShpWfVrDAI",
-   "t": "Rachelle Ann Go",
-   "a": "BAKIT",
-   "g": "OPM"
-  },
-  {
-   "c": 10068,
-   "y": "B9Qa8xdtHZA",
-   "t": "The Script",
-   "a": "THE MAN WHO CAN'T BE MOVED",
-   "g": "OPM"
-  },
-  {
-   "c": 10069,
-   "y": "dElzDS46lmM",
-   "t": "Rockstar 2",
-   "a": "WALA PA RING IBA",
-   "g": "OPM"
-  },
-  {
-   "c": 10070,
-   "y": "tkdLKDhgQ8I",
-   "t": "Bruno Mars",
-   "a": "TALKING TO THE MOON",
-   "g": "OPM"
-  },
-  {
-   "c": 10071,
-   "y": "hLqtJTOFKsE",
-   "t": "Maki",
-   "a": "DILAW",
-   "g": "OPM"
-  },
-  {
-   "c": 10072,
-   "y": "exCyipoY8Tc",
-   "t": "The Real Thing",
-   "a": "YOU TO ME ARE EVERYTHING",
-   "g": "OPM"
-  },
-  {
-   "c": 10073,
-   "y": "zFr_-VzOm6U",
-   "t": "Mary McGregor",
-   "a": "THIS GIRL JUST TURNED INTO A WOMAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10074,
-   "y": "-E1lzCytLUY",
-   "t": "Sugarfree",
-   "a": "TULOG NA",
-   "g": "OPM"
-  },
-  {
-   "c": 10075,
-   "y": "b9Z5KDDlQkE",
-   "t": "Juris",
-   "a": "DI LANG IKAW",
-   "g": "OPM"
-  },
-  {
-   "c": 10076,
-   "y": "TXbeDIFCrZ8",
-   "t": "Paolo Santos",
-   "a": "MOONLIGHT OVER PARIS",
-   "g": "OPM"
-  },
-  {
-   "c": 10077,
-   "y": "BAXQW1ZEhWU",
-   "t": "The Bloomfields",
-   "a": "ALE",
-   "g": "OPM"
-  },
-  {
-   "c": 10078,
-   "y": "OlTADf9xt54",
-   "t": "Anne Murray",
-   "a": "YOU'RE A PART OF ME",
-   "g": "OPM"
-  },
-  {
-   "c": 10079,
-   "y": "LwE70WdnDNg",
-   "t": "PRETTY BOY- M2M",
-   "a": "Atomic Karaoke... ",
-   "g": "OPM"
-  },
-  {
-   "c": 10080,
-   "y": "p-AQM02KL40",
-   "t": "Harem Scarem",
-   "a": "HONESTLY",
-   "g": "OPM"
-  },
-  {
-   "c": 10081,
-   "y": "DSsnMIsMas8",
-   "t": "Sponge Cola",
-   "a": "JEEPNEY",
-   "g": "OPM"
-  },
-  {
-   "c": 10082,
-   "y": "6YNfPHzaIgw",
-   "t": "SHINE- Regine Velasquez",
-   "a": "Atomic Karaoke... ",
-   "g": "OPM"
-  },
-  {
-   "c": 10083,
-   "y": "hXHSpZMKoGI",
-   "t": "Liezel Garcia",
-   "a": "GISINGIN ANG PUSO",
-   "g": "OPM"
-  },
-  {
-   "c": 10084,
-   "y": "cqj7ofZkiyY",
-   "t": "Irene Cara",
-   "a": "FAME",
-   "g": "OPM"
-  },
-  {
-   "c": 10085,
-   "y": "sH2Gu_FRp-I",
-   "t": "Silent Sanctuary",
-   "a": "BUMALIK KA NA SA'KIN",
-   "g": "OPM"
-  },
-  {
-   "c": 10086,
-   "y": "BZCbx_xRAdQ",
-   "t": "Shamrock",
-   "a": "HAPLOS",
-   "g": "OPM"
-  },
-  {
-   "c": 10087,
-   "y": "r4g2xFYK97s",
-   "t": "Celine Dion feat. Bee Gees",
-   "a": "IMMORTALITY",
-   "g": "OPM"
-  },
-  {
-   "c": 10088,
-   "y": "cZXqLb-fz94",
-   "t": "Spandau Ballet",
-   "a": "TRUE",
-   "g": "OPM"
-  },
-  {
-   "c": 10089,
-   "y": "AStSPaBi9BI",
-   "t": "The Beatles",
-   "a": "OB LA DI, OB LA DA",
-   "g": "OPM"
-  },
-  {
-   "c": 10090,
-   "y": "ROVrSS_nj6g",
-   "t": "Viva Hot Babes",
-   "a": "BULAKLAK",
-   "g": "OPM"
-  },
-  {
-   "c": 10091,
-   "y": "4cP_WOYesu0",
-   "t": "Firehouse",
-   "a": "WHEN I LOOK INTO YOUR EYES",
-   "g": "OPM"
-  },
-  {
-   "c": 10092,
-   "y": "cdCu6l2ixek",
-   "t": "Sarah Geronimo",
-   "a": "KISS ME, KISS ME",
-   "g": "OPM"
-  },
-  {
-   "c": 10093,
-   "y": "LY6P-QmNibI",
-   "t": "Jim Brickman feat. Jordan Hill & Billy Porter",
-   "a": "DESTINY",
-   "g": "OPM"
-  },
-  {
-   "c": 10094,
-   "y": "rY1v9iPFkbQ",
-   "t": "Tootsie Guevara",
-   "a": "PASULYAP SULYAP",
-   "g": "OPM"
-  },
-  {
-   "c": 10095,
-   "y": "pC9KU5O5fUQ",
-   "t": "Phil Collins",
-   "a": "YOU'LL BE IN MY HEART",
-   "g": "OPM"
-  },
-  {
-   "c": 10096,
-   "y": "5SFKGkhkd6E",
-   "t": "Silent Sanctuary",
-   "a": "KUNDIMAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10097,
-   "y": "BWyOfpoMs9E",
-   "t": "Renz Verano",
-   "a": "KEEP ON LOVING YOU",
-   "g": "OPM"
-  },
-  {
-   "c": 10098,
-   "y": "X2b9WhJTbIQ",
-   "t": "Steve Perry",
-   "a": "FOOLISH HEART",
-   "g": "OPM"
-  },
-  {
-   "c": 10099,
-   "y": "qwdXD6aaXYA",
-   "t": "Eric Clapton",
-   "a": "TEARS IN HEAVEN",
-   "g": "OPM"
-  },
-  {
-   "c": 10100,
-   "y": "9_wfAfLOCoo",
-   "t": "Maroon 5",
-   "a": "SHE WILL BE LOVED",
-   "g": "OPM"
-  },
-  {
-   "c": 10101,
-   "y": "W_ctK_GpclE",
-   "t": "Jose Mari Chan & Regine Velasquez",
-   "a": "PLEASE BE CAREFUL WITH MY HEART",
-   "g": "OPM"
-  },
-  {
-   "c": 10102,
-   "y": "R51UsQiNYwU",
-   "t": "Paul Davis",
-   "a": "I GO CRAZY",
-   "g": "OPM"
-  },
-  {
-   "c": 10103,
-   "y": "bdmF-VbaLvc",
-   "t": "Bamboo",
-   "a": "TATSULOK",
-   "g": "OPM"
-  },
-  {
-   "c": 10104,
-   "y": "mZc568k4008",
-   "t": "Phil Collins",
-   "a": "ANOTHER DAY IN PARADISE",
-   "g": "OPM"
-  },
-  {
-   "c": 10105,
-   "y": "rqISJHidOwc",
-   "t": "Introvoys",
-   "a": "WILL I SURVIVE",
-   "g": "OPM"
-  },
-  {
-   "c": 10106,
-   "y": "2DWQ7G0T4nA",
-   "t": "Player",
-   "a": "BABY COME BACK",
-   "g": "OPM"
-  },
-  {
-   "c": 10107,
-   "y": "Rt-fpMJp6hk",
-   "t": "Air Supply",
-   "a": "Making love out of nothing at all",
-   "g": "OPM"
-  },
-  {
-   "c": 10108,
-   "y": "Gq5i9FO9iYg",
-   "t": "Modern Talking",
-   "a": "CHERI CHERI LADY",
-   "g": "OPM"
-  },
-  {
-   "c": 10109,
-   "y": "5EVxgLGKQx8",
-   "t": "Jose Mari Chan",
-   "a": "BEAUTIFUL GIRL",
-   "g": "OPM"
-  },
-  {
-   "c": 10110,
-   "y": "2aM5Cjc_IRc",
-   "t": "Boyfriends",
-   "a": "SALAWAHAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10111,
-   "y": "cHAnGILqqHg",
-   "t": "Sugarfree",
-   "a": "MAKITA KANG MULI",
-   "g": "OPM"
-  },
-  {
-   "c": 10112,
-   "y": "s1g_x15beoM",
-   "t": "Angela Bofill",
-   "a": "YOU SHOULD KNOW BY NOW",
-   "g": "OPM"
-  },
-  {
-   "c": 10113,
-   "y": "YzyFk5Xr338",
-   "t": "Miley Cyrus",
-   "a": "WHEN I LOOK AT YOU",
-   "g": "OPM"
-  },
-  {
-   "c": 10114,
-   "y": "quPojxPnOG4",
-   "t": "Michael Bublé",
-   "a": "SWAY",
-   "g": "OPM"
-  },
-  {
-   "c": 10115,
-   "y": "KLLw23jTsZw",
-   "t": "Imelda Papin",
-   "a": "GUHIT NG PALAD",
-   "g": "OPM"
-  },
-  {
-   "c": 10116,
-   "y": "5zW0kklYDd4",
-   "t": "The Beatles",
-   "a": "I'LL FOLLOW THE SUN",
-   "g": "OPM"
-  },
-  {
-   "c": 10117,
-   "y": "UcWEfvu6F_s",
-   "t": "Neil Diamond",
-   "a": "SWEET CAROLINE",
-   "g": "OPM"
-  },
-  {
-   "c": 10118,
-   "y": "MQB5JMOW6XA",
-   "t": "Lobo",
-   "a": "LOVE ME FOR WHAT I AM",
-   "g": "OPM"
-  },
-  {
-   "c": 10119,
-   "y": "R2D3k2yaewo",
-   "t": "Irene Cara",
-   "a": "WHAT A FEELING",
-   "g": "OPM"
-  },
-  {
-   "c": 10120,
-   "y": "rDxaowI7JaE",
-   "t": "Beatles",
-   "a": "SOMETHING",
-   "g": "OPM"
-  },
-  {
-   "c": 10121,
-   "y": "ATKvaB9jo3I",
-   "t": "Freddie Aguilar",
-   "a": "MAGBAGO KA",
-   "g": "OPM"
-  },
-  {
-   "c": 10122,
-   "y": "EeBJ86Ib1cg",
-   "t": "ABBA",
-   "a": "CHIQUITITA",
-   "g": "OPM"
-  },
-  {
-   "c": 10123,
-   "y": "f5JTWF-LQf8",
-   "t": "Gloc-9 feat. Jeazell Grutas",
-   "a": "UPUAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10124,
-   "y": "6rqcddw5-q4",
-   "t": "Paloma Faith",
-   "a": "ONLY LOVE CAN HURT LIKE THIS",
-   "g": "OPM"
-  },
-  {
-   "c": 10125,
-   "y": "VfS4HBn-21s",
-   "t": "Cup of Joe",
-   "a": "MULTO",
-   "g": "OPM"
-  },
-  {
-   "c": 10126,
-   "y": "15_tsyKc5-c",
-   "t": "Diana Ross",
-   "a": "DO YOU KNOW WHERE YOU'RE GOING TO",
-   "g": "OPM"
-  },
-  {
-   "c": 10127,
-   "y": "pyUgwjFEtUQ",
-   "t": "Peter Cetera & Cher",
-   "a": "AFTER ALL",
-   "g": "OPM"
-  },
-  {
-   "c": 10128,
-   "y": "Rd39nTWnNmI",
-   "t": "Zelle",
-   "a": "SABIHIN",
-   "g": "OPM"
-  },
-  {
-   "c": 10129,
-   "y": "gbRId8ADKsA",
-   "t": "Regine Velasquez",
-   "a": "ON THE WINGS OF LOVE",
-   "g": "OPM"
-  },
-  {
-   "c": 10130,
-   "y": "w7hWRx5iUoI",
-   "t": "Lani Hall",
-   "a": "I DON'T WANT YOU TO GO",
-   "g": "OPM"
-  },
-  {
-   "c": 10131,
-   "y": "dfIa4FGXELQ",
-   "t": "Modern Talking",
-   "a": "YOU'RE MY HEART YOU'RE MY SOUL",
-   "g": "OPM"
-  },
-  {
-   "c": 10132,
-   "y": "a4YamlO8YUo",
-   "t": "Madonna",
-   "a": "BORDERLINE",
-   "g": "OPM"
-  },
-  {
-   "c": 10133,
-   "y": "TVUCOP8k7aE",
-   "t": "Skusta Clee",
-   "a": "KALIMUTAN KA",
-   "g": "OPM"
-  },
-  {
-   "c": 10134,
-   "y": "cP1zcJrkbYM",
-   "t": "The Bangles",
-   "a": "ETERNAL FLAME",
-   "g": "OPM"
-  },
-  {
-   "c": 10135,
-   "y": "47N2JIXg2FU",
-   "t": "Eraserheads",
-   "a": "MASELANG BAHAGHARI",
-   "g": "OPM"
-  },
-  {
-   "c": 10136,
-   "y": "XjgpUTxKdUs",
-   "t": "B.J. Thomas",
-   "a": "RAINDROPS KEEP FALLING ON MY HEAD",
-   "g": "OPM"
-  },
-  {
-   "c": 10137,
-   "y": "8W1bZ0h-wDk",
-   "t": "Martin Nievera",
-   "a": "YOU ARE MY SONG",
-   "g": "OPM"
-  },
-  {
-   "c": 10138,
-   "y": "fM94jNLwblU",
-   "t": "Stephen Bishop",
-   "a": "SOMETHING NEW IN MY LIFE",
-   "g": "OPM"
-  },
-  {
-   "c": 10139,
-   "y": "JUqXSVfoTSU",
-   "t": "Skylark",
-   "a": "WILDFLOWER",
-   "g": "OPM"
-  },
-  {
-   "c": 10140,
-   "y": "Er5FTsZwUyo",
-   "t": "Seals & Crofts",
-   "a": "FIRST LOVE",
-   "g": "OPM"
-  },
-  {
-   "c": 10141,
-   "y": "-SaFSZu8L7g",
-   "t": "Earl Agustin",
-   "a": "TIBOK",
-   "g": "OPM"
-  },
-  {
-   "c": 10142,
-   "y": "Av11EkgQ7ms",
-   "t": "George Duke & Stanley Clarke",
-   "a": "SWEET BABY",
-   "g": "OPM"
-  },
-  {
-   "c": 10143,
-   "y": "h0oahkr7dBk",
-   "t": "Backstreet Boys",
-   "a": "AS LONG AS YOU LOVE ME",
-   "g": "OPM"
-  },
-  {
-   "c": 10144,
-   "y": "fBpVo5p0QAY",
-   "t": "The Beatles",
-   "a": "HERE, THERE AND EVERYWHERE",
-   "g": "OPM"
-  },
-  {
-   "c": 10145,
-   "y": "00x5hBxQ06A",
-   "t": "Angela Boill",
-   "a": "TONIGHT I GIVE IN",
-   "g": "OPM"
-  },
-  {
-   "c": 10146,
-   "y": "dFRukOJFWFs",
-   "t": "Andy Gibb",
-   "a": "OUR LOVE (Don't Throw It All Away)",
-   "g": "OPM"
-  },
-  {
-   "c": 10147,
-   "y": "9qihgfEZF58",
-   "t": "Calloway",
-   "a": "YOU ARE MY EVERYTHING",
-   "g": "OPM"
-  },
-  {
-   "c": 10148,
-   "y": "tz_UwgOi0mk",
-   "t": "Seals & Crofts",
-   "a": "I'LL PLAY FOR YOU",
-   "g": "OPM"
-  },
-  {
-   "c": 10149,
-   "y": "zFnPX0eixWc",
-   "t": "Beyonce",
-   "a": "HALO",
-   "g": "OPM"
-  },
-  {
-   "c": 10150,
-   "y": "GOBr4oWq1tQ",
-   "t": "Siakol",
-   "a": "AKALA KO'Y LANGIT",
-   "g": "OPM"
-  },
-  {
-   "c": 10151,
-   "y": "dOrmvYNzJNc",
-   "t": "BINI",
-   "a": "PANTROPIKO",
-   "g": "OPM"
-  },
-  {
-   "c": 10152,
-   "y": "E4nJcsxhCkg",
-   "t": "IKAW ANG IIBIGIN KO",
-   "a": "Atomic Karaoke... ",
-   "g": "OPM"
-  },
-  {
-   "c": 10153,
-   "y": "iwe3B6a-2cc",
-   "t": "Jay-R Siaboc",
-   "a": "HILING",
-   "g": "OPM"
-  },
-  {
-   "c": 10154,
-   "y": "YO9o8Evkx3k",
-   "t": "The Temptations",
-   "a": "MY GIRL",
-   "g": "OPM"
-  },
-  {
-   "c": 10155,
-   "y": "G7bLIuyitvU",
-   "t": "Creedence Clearwater Revival",
-   "a": "HAVE YOU EVER SEEN THE RAIN",
-   "g": "OPM"
-  },
-  {
-   "c": 10156,
-   "y": "WWYq-5tHIsA",
-   "t": "Irene Cara",
-   "a": "ANYONE CAN SEE",
-   "g": "OPM"
-  },
-  {
-   "c": 10157,
-   "y": "Yz8QVffoiTU",
-   "t": "Ariel Rivera",
-   "a": "GETTING TO KNOW EACH OTHER",
-   "g": "OPM"
-  },
-  {
-   "c": 10158,
-   "y": "1PnHFxYnblA",
-   "t": "The Beatles",
-   "a": "IF I FELL",
-   "g": "OPM"
-  },
-  {
-   "c": 10159,
-   "y": "tuY084gN7fA",
-   "t": "Edwin McCain",
-   "a": "I COULD NOT ASK FOR MORE",
-   "g": "OPM"
-  },
-  {
-   "c": 10160,
-   "y": "kzaY74eviaM",
-   "t": "Klimaxx",
-   "a": "I'D STILL SAY YES",
-   "g": "OPM"
-  },
-  {
-   "c": 10161,
-   "y": "7Yb4Prp5IVA",
-   "t": "Morisette Amon",
-   "a": "GUSTO KO NANG BUMITAW",
-   "g": "OPM"
-  },
-  {
-   "c": 10162,
-   "y": "V3XzHTel6EQ",
-   "t": "Fra Lippo Lippi",
-   "a": "ANGEL",
-   "g": "OPM"
-  },
-  {
-   "c": 10163,
-   "y": "ee9LfX4P9Us",
-   "t": "Eraserheads",
-   "a": "SPOLARIUM",
-   "g": "OPM"
-  },
-  {
-   "c": 10164,
-   "y": "KI_tgyDMVpc",
-   "t": "Boyfriends",
-   "a": "SUMAYAW SUMUNOD",
-   "g": "OPM"
-  },
-  {
-   "c": 10165,
-   "y": "d0kXgwre-Xs",
-   "t": "Backstreet Boys",
-   "a": "I WANT IT THAT WAY",
-   "g": "OPM"
-  },
-  {
-   "c": 10166,
-   "y": "ETpX2HK8XaE",
-   "t": "The Beatles",
-   "a": "THE LONG AND WINDING ROAD",
-   "g": "OPM"
-  },
-  {
-   "c": 10167,
-   "y": "9eZWGqK1T9c",
-   "t": "Sixpence None The Richer",
-   "a": "KISS ME",
-   "g": "OPM"
-  },
-  {
-   "c": 10168,
-   "y": "81_T_mWAzOI",
-   "t": "John Lennon",
-   "a": "JEALOUS GUY",
-   "g": "OPM"
-  },
-  {
-   "c": 10169,
-   "y": "nyMXI4Izgh4",
-   "t": "Alicia Keys",
-   "a": "GIRL ON FIRE",
-   "g": "OPM"
-  },
-  {
-   "c": 10170,
-   "y": "a4Sy3ucTTto",
-   "t": "Fra Lippo Lippi",
-   "a": "SOME PEOPLE",
-   "g": "OPM"
-  },
-  {
-   "c": 10171,
-   "y": "MxDe4bM3oeg",
-   "t": "Orient Pearl",
-   "a": "KASALANAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10172,
-   "y": "Hv_700W27V4",
-   "t": "America",
-   "a": "YOU CAN DO MAGIC",
-   "g": "OPM"
-  },
-  {
-   "c": 10173,
-   "y": "CCwYXIe-LJw",
-   "t": "6 Cyclemind `",
-   "a": "AAMININ",
-   "g": "OPM"
-  },
-  {
-   "c": 10174,
-   "y": "I9lujnnRIk4",
-   "t": "Johnny Gill",
-   "a": "HALF CRAZY",
-   "g": "OPM"
-  },
-  {
-   "c": 10175,
-   "y": "Kylmp3aQHEA",
-   "t": "Angela Bofill",
-   "a": "THIS TIME I'LL BE SWEETER",
-   "g": "OPM"
-  },
-  {
-   "c": 10176,
-   "y": "IYRh6wPCw1E",
-   "t": "Gloria Estefan & Miami Sound Machine",
-   "a": "WORDS GET IN THE WAY",
-   "g": "OPM"
-  },
-  {
-   "c": 10177,
-   "y": "r7H_9PjsWcU",
-   "t": "George Benson & Roberta Flack",
-   "a": "YOU ARE THE LOVE OF MY LIFE",
-   "g": "OPM"
-  },
-  {
-   "c": 10178,
-   "y": "bhLx_dNvQR8",
-   "t": "Leslie Pearl",
-   "a": "IF THE LOVE FITS, WEAR IT",
-   "g": "OPM"
-  },
-  {
-   "c": 10179,
-   "y": "7yMA3ek3c2Q",
-   "t": "Bruno Mars",
-   "a": "WHEN I WAS YOUR MAN",
-   "g": "OPM"
-  },
-  {
-   "c": 10180,
-   "y": "nHZI8dI-jjc",
-   "t": "Gabriel",
-   "a": "YOU NEVER TOLD ME YOU LOVE ME",
-   "g": "OPM"
-  },
-  {
-   "c": 10181,
-   "y": "NA6SMVuNWrQ",
-   "t": "Ogie Alcasid & Regine Velasquez",
-   "a": "HANGGANG NGAYON",
-   "g": "OPM"
-  },
-  {
-   "c": 10182,
-   "y": "rNH3nec_j2E",
-   "t": "Ella Mae Saison",
-   "a": "IF THE FEELING IS GONE",
-   "g": "OPM"
-  },
-  {
-   "c": 10183,
-   "y": "nGJzlPwEV1Y",
-   "t": "Ric Segreto",
-   "a": "GIVE ME A CHANCE",
-   "g": "OPM"
-  },
-  {
-   "c": 10184,
-   "y": "J68fJRRujwE",
-   "t": "Alias",
-   "a": "I NEED YOU NOW",
-   "g": "OPM"
-  },
-  {
-   "c": 10185,
-   "y": "WTN-RRqgmJ0",
-   "t": "Kenny Rogers & Anne Murray",
-   "a": "IF I EVER FALL IN LOVE AGAIN",
-   "g": "OPM"
-  },
-  {
-   "c": 10186,
-   "y": "SDYftFtpPQg",
-   "t": "Kalapana",
-   "a": "THE HURT",
-   "g": "OPM"
-  },
-  {
-   "c": 10187,
-   "y": "wUimn_UZCLU",
-   "t": "Ric Segreto",
-   "a": "KAHIT KONTING PAGTINGIN",
-   "g": "OPM"
-  },
-  {
-   "c": 10188,
-   "y": "RVKYzLij8lU",
-   "t": "England Dan & John Ford Coley",
-   "a": "LOVE IS THE ANSWER",
-   "g": "OPM"
-  },
-  {
-   "c": 10189,
-   "y": "gvI4y82GPBE",
-   "t": "Gabriella",
-   "a": "NATATAWA AKO",
-   "g": "OPM"
-  },
-  {
-   "c": 10190,
-   "y": "eE8KuTbO-q8",
-   "t": "Fra Lippo Lippi",
-   "a": "EVERYTIME I SEE YOU",
-   "g": "OPM"
-  },
-  {
-   "c": 10191,
-   "y": "CzTBXAlid8s",
-   "t": "Lady Gaga & Bruno Mars",
-   "a": "DIE WITH A SMILE",
-   "g": "OPM"
-  },
-  {
-   "c": 10192,
-   "y": "1f5vdUwJNaE",
-   "t": "Jessie J",
-   "a": "FLASHLIGHT",
-   "g": "OPM"
-  },
-  {
-   "c": 10193,
-   "y": "03_Ky67a8CI",
-   "t": "Kuh Ledesma",
-   "a": "I THINK I'M IN LOVE",
-   "g": "OPM"
-  },
-  {
-   "c": 10194,
-   "y": "uCTx8b7r7fE",
-   "t": "Rivermaya",
-   "a": "HINAHANAP HANAP KITA",
-   "g": "OPM"
-  },
-  {
-   "c": 10195,
-   "y": "icyYMD0Fs4Q",
-   "t": "Katy Perry",
-   "a": "ROAR",
-   "g": "OPM"
-  },
-  {
-   "c": 10196,
-   "y": "zQxwLxS_YOw",
-   "t": "Rockstar",
-   "a": "PARTING TIME",
-   "g": "OPM"
-  },
-  {
-   "c": 10197,
-   "y": "vOgBxn_PZFc",
-   "t": "Rose & Bruno Mars",
-   "a": "APT",
-   "g": "OPM"
-  },
-  {
-   "c": 10198,
-   "y": "C_zvTrtj0fk",
-   "t": "Beyonce",
-   "a": "LISTEN",
-   "g": "OPM"
-  },
-  {
-   "c": 10199,
-   "y": "BQ3pKsLi2kk",
-   "t": "The Allan Parsons Project",
-   "a": "EYE IN THE SKY",
-   "g": "OPM"
-  },
-  {
-   "c": 10200,
-   "y": "pvbFxxMg8jw",
-   "t": "Beatles",
-   "a": "AND I LOVE HER",
-   "g": "OPM"
-  }
- ]
-}
+{"v":1,"updated":"2026-11-13T16:13:33.441Z","songs":[
+{"c":10001,"y":"8jafgOxRMQM","t":"Asin","a":"BALITA","g":"OPM"},
+{"c":10002,"y":"-BiejKzh68w","t":"Freestyle","a":"SO SLOW","g":"OPM"},
+{"c":10003,"y":"tBsvMF3uFao","t":"6cyclemind","a":"SANDALAN","g":"OPM"},
+{"c":10004,"y":"pwhpWlEYAvI","t":"The Animals","a":"HOUSE OF THE RISING SUN","g":"OPM"},
+{"c":10005,"y":"JYZ-fqLNo-s","t":"Maroon 5","a":"MEMORIES","g":"OPM"},
+{"c":10006,"y":"1wdy1dzMlWQ","t":"Bandang Lapis","a":"SA KABILANG BUHAY","g":"OPM"},
+{"c":10007,"y":"70nBq_sKb0Y","t":"Styx","a":"BOAT ON THE RIVER","g":"OPM"},
+{"c":10008,"y":"uZo5ioxTj2c","t":"Jerome Abalos","a":"TANGING SA'YO","g":"OPM"},
+{"c":10009,"y":"hSFGd8NDgQk","t":"VST & Company","a":"ROCK BABY ROCK","g":"OPM"},
+{"c":10010,"y":"PTOeXI4rJes","t":"Parokya Ni Edgar","a":"MANIWALA KA SANA","g":"OPM"},
+{"c":10011,"y":"0KwsLT2Aa-0","t":"Stylistics","a":"YOU MAKE ME FEEL BRAND NEW","g":"OPM"},
+{"c":10012,"y":"VJGoeN22aQY","t":"Parokya Ni Edgar","a":"SORRY NA","g":"OPM"},
+{"c":10013,"y":"BJpAs87L8JY","t":"Bob Welch","a":"SENTIMENTAL LADY","g":"OPM"},
+{"c":10014,"y":"jFUf2_0rVNU","t":"David Gates","a":"NEVER LET HER GO","g":"OPM"},
+{"c":10015,"y":"toeyVEeQ4W8","t":"Freddie Aguilar","a":"KATARUNGAN","g":"OPM"},
+{"c":10016,"y":"l4E45BglawM","t":"Brian Hyland","a":"SEALED WITH A KISS","g":"OPM"},
+{"c":10017,"y":"iuJhEwL9XVo","t":"Rockstar 2","a":"BAKIT","g":"OPM"},
+{"c":10018,"y":"tTHl-RjJb7w","t":"Michael Jackson","a":"BILLIE JEAN","g":"OPM"},
+{"c":10019,"y":"26-idlFoPAU","t":"Victor Wood","a":"CRYING TIME","g":"OPM"},
+{"c":10020,"y":"hlCsXd4jybQ","t":"Paul Anka","a":"YOU ARE MY DESTINY","g":"OPM"},
+{"c":10021,"y":"9-wpNVVFfsM","t":"Victor Wood","a":"FRAULEIN","g":"OPM"},
+{"c":10022,"y":"XQ-if4gemdA","t":"Dr. Hook","a":"SHARING THE NIGHT TOGETHER","g":"OPM"},
+{"c":10023,"y":"Xi_CgJ4pVkc","t":"Engelbert Humperdinck","a":"AM I THAT EASY TO FORGET","g":"OPM"},
+{"c":10024,"y":"fxpKNZzBJSg","t":"John Waite","a":"MISSING YOU","g":"OPM"},
+{"c":10025,"y":"vj8ArABxGBs","t":"MYMP","a":"SA KANYA","g":"OPM"},
+{"c":10026,"y":"AQS6avY3HtI","t":"Ellie Goulding","a":"LOVE ME LIKE YOU DO","g":"OPM"},
+{"c":10027,"y":"LO5YCdfvLFA","t":"Toni Gonzaga","a":"KASALANAN KO BA","g":"OPM"},
+{"c":10028,"y":"S-E18kJSmc0","t":"Bill Withers","a":"JUST THE TWO OF US","g":"OPM"},
+{"c":10029,"y":"1dEGC-dIFGE","t":"Miley Cyrus","a":"ANGELS LIKE YOU","g":"OPM"},
+{"c":10030,"y":"QAvvmVjxoR0","t":"Jovit Baldivino","a":"PAANO","g":"OPM"},
+{"c":10031,"y":"rdM8ZV2FdXc","t":"The Juans","a":"HINDI TAYO PWEDE","g":"OPM"},
+{"c":10032,"y":"R_7Kx6KmAzg","t":"Marco Sison","a":"ALWAYS","g":"OPM"},
+{"c":10033,"y":"bIOb_33szh4","t":"Jonalyn Viray","a":"PUSONG LIGAW","g":"OPM"},
+{"c":10034,"y":"TRxxwhvG104","t":"J Brothers","a":"TUNAY NA NAGMAMAHAL","g":"OPM"},
+{"c":10035,"y":"uGoC2i9ziEY","t":"Erik Santos","a":"PAGBIGYANG MULI","g":"OPM"},
+{"c":10036,"y":"zA91KeYz5DU","t":"Toni Gonzaga","a":"WE BELONG","g":"OPM"},
+{"c":10037,"y":"Cw8Bmf0VIEk","t":"Rob Deniel","a":"IKAW SANA","g":"OPM"},
+{"c":10038,"y":"yPuJhEikwr4","t":"Zack Tabudlo","a":"NANGANGAMBA","g":"OPM"},
+{"c":10039,"y":"htYlXyHS-cQ","t":"Rob Deniel","a":"NANDITO AKO","g":"OPM"},
+{"c":10040,"y":"auWvT4gVUhw","t":"Ariel Rivera","a":"A SMILE IN YOUR HEART","g":"OPM"},
+{"c":10041,"y":"tBm12YAsruQ","t":"Jovit Baldivino","a":"SANA'Y MAGBALIK","g":"OPM"},
+{"c":10042,"y":"pTRStoFFYQM","t":"MYMP","a":"TELL ME WHERE IT HURTS","g":"OPM"},
+{"c":10043,"y":"dhWoHWRsQpE","t":"Maldita","a":"PORQUE","g":"OPM"},
+{"c":10044,"y":"8aUaYTAIfjU","t":"Leif Garrett","a":"I WAS LOOKING FOR SOMEONE TO LOVE","g":"OPM"},
+{"c":10045,"y":"jrDuTz64kCI","t":"Crowded House","a":"DON'T DREAM IT'S OVER","g":"OPM"},
+{"c":10046,"y":"WVQJrTDtStU","t":"David Pack","a":"I JUST CAN'T LET GO","g":"OPM"},
+{"c":10047,"y":"5dPnhxqqcFw","t":"Connie Francis","a":"PRETTY LITTLE BABY","g":"OPM"},
+{"c":10048,"y":"cHa0wYuTMLE","t":"LeAnn Rimes","a":"I NEED YOU","g":"OPM"},
+{"c":10049,"y":"IxlmyV_xJwY","t":"Mandy Moore","a":"CRY","g":"OPM"},
+{"c":10050,"y":"6MZqSms3IYc","t":"Ken Laszlo","a":"TONIGHT","g":"OPM"},
+{"c":10051,"y":"Q_3C6TOJtzY","t":"Soapdish","a":"TENSIONADO","g":"OPM"},
+{"c":10052,"y":"BP41O7s4tMo","t":"Breath","a":"HOW CAN I FALL","g":"OPM"},
+{"c":10053,"y":"wCMIRJGhRiI","t":"Michael Pangilinan","a":"KUNG SAKALI","g":"OPM"},
+{"c":10054,"y":"hnCaRzq7j-4","t":"Patti Austin","a":"ALL BEHIND US NOW","g":"OPM"},
+{"c":10055,"y":"Jm2WNHHbejw","t":"Erik Santos","a":"KULANG AKO KUNG WALA KA","g":"OPM"},
+{"c":10056,"y":"4fagK08sZ_M","t":"Barry Manilow","a":"IF I SHOULD LOVE AGAIN","g":"OPM"},
+{"c":10057,"y":"XTWdZrd0-JI","t":"Erik Santos","a":"I'LL NEVER GO","g":"OPM"},
+{"c":10058,"y":"Z2GGIFr94f4","t":"Karyn White","a":"SUPERWOMAN","g":"OPM"},
+{"c":10059,"y":"9rgEKs9BjEE","t":"Adele","a":"ALL I ASK","g":"OPM"},
+{"c":10060,"y":"7NX92jzQ8aE","t":"Tears For Fears","a":"EVERYBODY WANTS TO RULE THE WORLD","g":"OPM"},
+{"c":10061,"y":"smyxMZGz96M","t":"Angeline Quinto","a":"KUNIN MO NA ANG LAHAT SA AKIN","g":"OPM"},
+{"c":10062,"y":"u8fpmuWl1Yk","t":"John Denver","a":"LEAVING ON A JET PLANE","g":"OPM"},
+{"c":10063,"y":"JzyBZHUuXnY","t":"Celine Dion & Peabo Bryson","a":"BEAUTY AND THE BEAST","g":"OPM"},
+{"c":10064,"y":"RVU9nEPogw0","t":"Dina Bonnevie","a":"BAKIT BA GANYAN","g":"OPM"},
+{"c":10065,"y":"g5wwqhPAVm0","t":"Bonnie Tyler","a":"IF I SING YOU A LOVE SONG","g":"OPM"},
+{"c":10066,"y":"ZMQLImcAbVs","t":"Jose Mari Chan","a":"CAN WE JUST STOP AND TALK AWHILE","g":"OPM"},
+{"c":10067,"y":"uShpWfVrDAI","t":"Rachelle Ann Go","a":"BAKIT","g":"OPM"},
+{"c":10068,"y":"B9Qa8xdtHZA","t":"The Script","a":"THE MAN WHO CAN'T BE MOVED","g":"OPM"},
+{"c":10069,"y":"dElzDS46lmM","t":"Rockstar 2","a":"WALA PA RING IBA","g":"OPM"},
+{"c":10070,"y":"tkdLKDhgQ8I","t":"Bruno Mars","a":"TALKING TO THE MOON","g":"OPM"},
+{"c":10071,"y":"hLqtJTOFKsE","t":"Maki","a":"DILAW","g":"OPM"},
+{"c":10072,"y":"exCyipoY8Tc","t":"The Real Thing","a":"YOU TO ME ARE EVERYTHING","g":"OPM"},
+{"c":10073,"y":"zFr_-VzOm6U","t":"Mary McGregor","a":"THIS GIRL JUST TURNED INTO A WOMAN","g":"OPM"},
+{"c":10074,"y":"-E1lzCytLUY","t":"Sugarfree","a":"TULOG NA","g":"OPM"},
+{"c":10075,"y":"b9Z5KDDlQkE","t":"Juris","a":"DI LANG IKAW","g":"OPM"},
+{"c":10076,"y":"TXbeDIFCrZ8","t":"Paolo Santos","a":"MOONLIGHT OVER PARIS","g":"OPM"},
+{"c":10077,"y":"BAXQW1ZEhWU","t":"The Bloomfields","a":"ALE","g":"OPM"},
+{"c":10078,"y":"OlTADf9xt54","t":"Anne Murray","a":"YOU'RE A PART OF ME","g":"OPM"},
+{"c":10079,"y":"LwE70WdnDNg","t":"PRETTY BOY- M2M","a":"Atomic Karaoke... ","g":"OPM"},
+{"c":10080,"y":"p-AQM02KL40","t":"Harem Scarem","a":"HONESTLY","g":"OPM"},
+{"c":10081,"y":"DSsnMIsMas8","t":"Sponge Cola","a":"JEEPNEY","g":"OPM"},
+{"c":10082,"y":"6YNfPHzaIgw","t":"SHINE- Regine Velasquez","a":"Atomic Karaoke... ","g":"OPM"},
+{"c":10083,"y":"hXHSpZMKoGI","t":"Liezel Garcia","a":"GISINGIN ANG PUSO","g":"OPM"},
+{"c":10084,"y":"cqj7ofZkiyY","t":"Irene Cara","a":"FAME","g":"OPM"},
+{"c":10085,"y":"sH2Gu_FRp-I","t":"Silent Sanctuary","a":"BUMALIK KA NA SA'KIN","g":"OPM"},
+{"c":10086,"y":"BZCbx_xRAdQ","t":"Shamrock","a":"HAPLOS","g":"OPM"},
+{"c":10087,"y":"r4g2xFYK97s","t":"Celine Dion feat. Bee Gees","a":"IMMORTALITY","g":"OPM"},
+{"c":10088,"y":"cZXqLb-fz94","t":"Spandau Ballet","a":"TRUE","g":"OPM"},
+{"c":10089,"y":"AStSPaBi9BI","t":"The Beatles","a":"OB LA DI, OB LA DA","g":"OPM"},
+{"c":10090,"y":"ROVrSS_nj6g","t":"Viva Hot Babes","a":"BULAKLAK","g":"OPM"},
+{"c":10091,"y":"4cP_WOYesu0","t":"Firehouse","a":"WHEN I LOOK INTO YOUR EYES","g":"OPM"},
+{"c":10092,"y":"cdCu6l2ixek","t":"Sarah Geronimo","a":"KISS ME, KISS ME","g":"OPM"},
+{"c":10093,"y":"LY6P-QmNibI","t":"Jim Brickman feat. Jordan Hill & Billy Porter","a":"DESTINY","g":"OPM"},
+{"c":10094,"y":"rY1v9iPFkbQ","t":"Tootsie Guevara","a":"PASULYAP SULYAP","g":"OPM"},
+{"c":10095,"y":"pC9KU5O5fUQ","t":"Phil Collins","a":"YOU'LL BE IN MY HEART","g":"OPM"},
+{"c":10096,"y":"5SFKGkhkd6E","t":"Silent Sanctuary","a":"KUNDIMAN","g":"OPM"},
+{"c":10097,"y":"BWyOfpoMs9E","t":"Renz Verano","a":"KEEP ON LOVING YOU","g":"OPM"},
+{"c":10098,"y":"X2b9WhJTbIQ","t":"Steve Perry","a":"FOOLISH HEART","g":"OPM"},
+{"c":10099,"y":"qwdXD6aaXYA","t":"Eric Clapton","a":"TEARS IN HEAVEN","g":"OPM"},
+{"c":10100,"y":"9_wfAfLOCoo","t":"Maroon 5","a":"SHE WILL BE LOVED","g":"OPM"},
+{"c":10101,"y":"W_ctK_GpclE","t":"Jose Mari Chan & Regine Velasquez","a":"PLEASE BE CAREFUL WITH MY HEART","g":"OPM"},
+{"c":10102,"y":"R51UsQiNYwU","t":"Paul Davis","a":"I GO CRAZY","g":"OPM"},
+{"c":10103,"y":"bdmF-VbaLvc","t":"Bamboo","a":"TATSULOK","g":"OPM"},
+{"c":10104,"y":"mZc568k4008","t":"Phil Collins","a":"ANOTHER DAY IN PARADISE","g":"OPM"},
+{"c":10105,"y":"rqISJHidOwc","t":"Introvoys","a":"WILL I SURVIVE","g":"OPM"},
+{"c":10106,"y":"2DWQ7G0T4nA","t":"Player","a":"BABY COME BACK","g":"OPM"},
+{"c":10107,"y":"Rt-fpMJp6hk","t":"Air Supply","a":"Making love out of nothing at all","g":"OPM"},
+{"c":10108,"y":"Gq5i9FO9iYg","t":"Modern Talking","a":"CHERI CHERI LADY","g":"OPM"},
+{"c":10109,"y":"5EVxgLGKQx8","t":"Jose Mari Chan","a":"BEAUTIFUL GIRL","g":"OPM"},
+{"c":10110,"y":"2aM5Cjc_IRc","t":"Boyfriends","a":"SALAWAHAN","g":"OPM"},
+{"c":10111,"y":"cHAnGILqqHg","t":"Sugarfree","a":"MAKITA KANG MULI","g":"OPM"},
+{"c":10112,"y":"s1g_x15beoM","t":"Angela Bofill","a":"YOU SHOULD KNOW BY NOW","g":"OPM"},
+{"c":10113,"y":"YzyFk5Xr338","t":"Miley Cyrus","a":"WHEN I LOOK AT YOU","g":"OPM"},
+{"c":10114,"y":"quPojxPnOG4","t":"Michael Bublé","a":"SWAY","g":"OPM"},
+{"c":10115,"y":"KLLw23jTsZw","t":"Imelda Papin","a":"GUHIT NG PALAD","g":"OPM"},
+{"c":10116,"y":"5zW0kklYDd4","t":"The Beatles","a":"I'LL FOLLOW THE SUN","g":"OPM"},
+{"c":10117,"y":"UcWEfvu6F_s","t":"Neil Diamond","a":"SWEET CAROLINE","g":"OPM"},
+{"c":10118,"y":"MQB5JMOW6XA","t":"Lobo","a":"LOVE ME FOR WHAT I AM","g":"OPM"},
+{"c":10119,"y":"R2D3k2yaewo","t":"Irene Cara","a":"WHAT A FEELING","g":"OPM"},
+{"c":10120,"y":"rDxaowI7JaE","t":"Beatles","a":"SOMETHING","g":"OPM"},
+{"c":10121,"y":"ATKvaB9jo3I","t":"Freddie Aguilar","a":"MAGBAGO KA","g":"OPM"},
+{"c":10122,"y":"EeBJ86Ib1cg","t":"ABBA","a":"CHIQUITITA","g":"OPM"},
+{"c":10123,"y":"f5JTWF-LQf8","t":"Gloc-9 feat. Jeazell Grutas","a":"UPUAN","g":"OPM"},
+{"c":10124,"y":"6rqcddw5-q4","t":"Paloma Faith","a":"ONLY LOVE CAN HURT LIKE THIS","g":"OPM"},
+{"c":10125,"y":"VfS4HBn-21s","t":"Cup of Joe","a":"MULTO","g":"OPM"},
+{"c":10126,"y":"15_tsyKc5-c","t":"Diana Ross","a":"DO YOU KNOW WHERE YOU'RE GOING TO","g":"OPM"},
+{"c":10127,"y":"pyUgwjFEtUQ","t":"Peter Cetera & Cher","a":"AFTER ALL","g":"OPM"},
+{"c":10128,"y":"Rd39nTWnNmI","t":"Zelle","a":"SABIHIN","g":"OPM"},
+{"c":10129,"y":"gbRId8ADKsA","t":"Regine Velasquez","a":"ON THE WINGS OF LOVE","g":"OPM"},
+{"c":10130,"y":"w7hWRx5iUoI","t":"Lani Hall","a":"I DON'T WANT YOU TO GO","g":"OPM"},
+{"c":10131,"y":"dfIa4FGXELQ","t":"Modern Talking","a":"YOU'RE MY HEART YOU'RE MY SOUL","g":"OPM"},
+{"c":10132,"y":"a4YamlO8YUo","t":"Madonna","a":"BORDERLINE","g":"OPM"},
+{"c":10133,"y":"TVUCOP8k7aE","t":"Skusta Clee","a":"KALIMUTAN KA","g":"OPM"},
+{"c":10134,"y":"cP1zcJrkbYM","t":"The Bangles","a":"ETERNAL FLAME","g":"OPM"},
+{"c":10135,"y":"47N2JIXg2FU","t":"Eraserheads","a":"MASELANG BAHAGHARI","g":"OPM"},
+{"c":10136,"y":"XjgpUTxKdUs","t":"B.J. Thomas","a":"RAINDROPS KEEP FALLING ON MY HEAD","g":"OPM"},
+{"c":10137,"y":"8W1bZ0h-wDk","t":"Martin Nievera","a":"YOU ARE MY SONG","g":"OPM"},
+{"c":10138,"y":"fM94jNLwblU","t":"Stephen Bishop","a":"SOMETHING NEW IN MY LIFE","g":"OPM"},
+{"c":10139,"y":"JUqXSVfoTSU","t":"Skylark","a":"WILDFLOWER","g":"OPM"},
+{"c":10140,"y":"Er5FTsZwUyo","t":"Seals & Crofts","a":"FIRST LOVE","g":"OPM"},
+{"c":10141,"y":"-SaFSZu8L7g","t":"Earl Agustin","a":"TIBOK","g":"OPM"},
+{"c":10142,"y":"Av11EkgQ7ms","t":"George Duke & Stanley Clarke","a":"SWEET BABY","g":"OPM"},
+{"c":10143,"y":"h0oahkr7dBk","t":"Backstreet Boys","a":"AS LONG AS YOU LOVE ME","g":"OPM"},
+{"c":10144,"y":"fBpVo5p0QAY","t":"The Beatles","a":"HERE, THERE AND EVERYWHERE","g":"OPM"},
+{"c":10145,"y":"00x5hBxQ06A","t":"Angela Boill","a":"TONIGHT I GIVE IN","g":"OPM"},
+{"c":10146,"y":"dFRukOJFWFs","t":"Andy Gibb","a":"OUR LOVE (Don't Throw It All Away)","g":"OPM"},
+{"c":10147,"y":"9qihgfEZF58","t":"Calloway","a":"YOU ARE MY EVERYTHING","g":"OPM"},
+{"c":10148,"y":"tz_UwgOi0mk","t":"Seals & Crofts","a":"I'LL PLAY FOR YOU","g":"OPM"},
+{"c":10149,"y":"zFnPX0eixWc","t":"Beyonce","a":"HALO","g":"OPM"},
+{"c":10150,"y":"GOBr4oWq1tQ","t":"Siakol","a":"AKALA KO'Y LANGIT","g":"OPM"},
+{"c":10151,"y":"dOrmvYNzJNc","t":"BINI","a":"PANTROPIKO","g":"OPM"},
+{"c":10152,"y":"E4nJcsxhCkg","t":"IKAW ANG IIBIGIN KO","a":"Atomic Karaoke... ","g":"OPM"},
+{"c":10153,"y":"iwe3B6a-2cc","t":"Jay-R Siaboc","a":"HILING","g":"OPM"},
+{"c":10154,"y":"YO9o8Evkx3k","t":"The Temptations","a":"MY GIRL","g":"OPM"},
+{"c":10155,"y":"G7bLIuyitvU","t":"Creedence Clearwater Revival","a":"HAVE YOU EVER SEEN THE RAIN","g":"OPM"},
+{"c":10156,"y":"WWYq-5tHIsA","t":"Irene Cara","a":"ANYONE CAN SEE","g":"OPM"},
+{"c":10157,"y":"Yz8QVffoiTU","t":"Ariel Rivera","a":"GETTING TO KNOW EACH OTHER","g":"OPM"},
+{"c":10158,"y":"1PnHFxYnblA","t":"The Beatles","a":"IF I FELL","g":"OPM"},
+{"c":10159,"y":"tuY084gN7fA","t":"Edwin McCain","a":"I COULD NOT ASK FOR MORE","g":"OPM"},
+{"c":10160,"y":"kzaY74eviaM","t":"Klimaxx","a":"I'D STILL SAY YES","g":"OPM"},
+{"c":10161,"y":"7Yb4Prp5IVA","t":"Morisette Amon","a":"GUSTO KO NANG BUMITAW","g":"OPM"},
+{"c":10162,"y":"V3XzHTel6EQ","t":"Fra Lippo Lippi","a":"ANGEL","g":"OPM"},
+{"c":10163,"y":"ee9LfX4P9Us","t":"Eraserheads","a":"SPOLARIUM","g":"OPM"},
+{"c":10164,"y":"KI_tgyDMVpc","t":"Boyfriends","a":"SUMAYAW SUMUNOD","g":"OPM"},
+{"c":10165,"y":"d0kXgwre-Xs","t":"Backstreet Boys","a":"I WANT IT THAT WAY","g":"OPM"},
+{"c":10166,"y":"ETpX2HK8XaE","t":"The Beatles","a":"THE LONG AND WINDING ROAD","g":"OPM"},
+{"c":10167,"y":"9eZWGqK1T9c","t":"Sixpence None The Richer","a":"KISS ME","g":"OPM"},
+{"c":10168,"y":"81_T_mWAzOI","t":"John Lennon","a":"JEALOUS GUY","g":"OPM"},
+{"c":10169,"y":"nyMXI4Izgh4","t":"Alicia Keys","a":"GIRL ON FIRE","g":"OPM"},
+{"c":10170,"y":"a4Sy3ucTTto","t":"Fra Lippo Lippi","a":"SOME PEOPLE","g":"OPM"},
+{"c":10171,"y":"MxDe4bM3oeg","t":"Orient Pearl","a":"KASALANAN","g":"OPM"},
+{"c":10172,"y":"Hv_700W27V4","t":"America","a":"YOU CAN DO MAGIC","g":"OPM"},
+{"c":10173,"y":"CCwYXIe-LJw","t":"6 Cyclemind `","a":"AAMININ","g":"OPM"},
+{"c":10174,"y":"I9lujnnRIk4","t":"Johnny Gill","a":"HALF CRAZY","g":"OPM"},
+{"c":10175,"y":"Kylmp3aQHEA","t":"Angela Bofill","a":"THIS TIME I'LL BE SWEETER","g":"OPM"},
+{"c":10176,"y":"IYRh6wPCw1E","t":"Gloria Estefan & Miami Sound Machine","a":"WORDS GET IN THE WAY","g":"OPM"},
+{"c":10177,"y":"r7H_9PjsWcU","t":"George Benson & Roberta Flack","a":"YOU ARE THE LOVE OF MY LIFE","g":"OPM"},
+{"c":10178,"y":"bhLx_dNvQR8","t":"Leslie Pearl","a":"IF THE LOVE FITS, WEAR IT","g":"OPM"},
+{"c":10179,"y":"7yMA3ek3c2Q","t":"Bruno Mars","a":"WHEN I WAS YOUR MAN","g":"OPM"},
+{"c":10180,"y":"nHZI8dI-jjc","t":"Gabriel","a":"YOU NEVER TOLD ME YOU LOVE ME","g":"OPM"},
+{"c":10181,"y":"NA6SMVuNWrQ","t":"Ogie Alcasid & Regine Velasquez","a":"HANGGANG NGAYON","g":"OPM"},
+{"c":10182,"y":"rNH3nec_j2E","t":"Ella Mae Saison","a":"IF THE FEELING IS GONE","g":"OPM"},
+{"c":10183,"y":"nGJzlPwEV1Y","t":"Ric Segreto","a":"GIVE ME A CHANCE","g":"OPM"},
+{"c":10184,"y":"J68fJRRujwE","t":"Alias","a":"I NEED YOU NOW","g":"OPM"},
+{"c":10185,"y":"WTN-RRqgmJ0","t":"Kenny Rogers & Anne Murray","a":"IF I EVER FALL IN LOVE AGAIN","g":"OPM"},
+{"c":10186,"y":"SDYftFtpPQg","t":"Kalapana","a":"THE HURT","g":"OPM"},
+{"c":10187,"y":"wUimn_UZCLU","t":"Ric Segreto","a":"KAHIT KONTING PAGTINGIN","g":"OPM"},
+{"c":10188,"y":"RVKYzLij8lU","t":"England Dan & John Ford Coley","a":"LOVE IS THE ANSWER","g":"OPM"},
+{"c":10189,"y":"gvI4y82GPBE","t":"Gabriella","a":"NATATAWA AKO","g":"OPM"},
+{"c":10190,"y":"eE8KuTbO-q8","t":"Fra Lippo Lippi","a":"EVERYTIME I SEE YOU","g":"OPM"},
+{"c":10191,"y":"CzTBXAlid8s","t":"Lady Gaga & Bruno Mars","a":"DIE WITH A SMILE","g":"OPM"},
+{"c":10192,"y":"1f5vdUwJNaE","t":"Jessie J","a":"FLASHLIGHT","g":"OPM"},
+{"c":10193,"y":"03_Ky67a8CI","t":"Kuh Ledesma","a":"I THINK I'M IN LOVE","g":"OPM"},
+{"c":10194,"y":"uCTx8b7r7fE","t":"Rivermaya","a":"HINAHANAP HANAP KITA","g":"OPM"},
+{"c":10195,"y":"icyYMD0Fs4Q","t":"Katy Perry","a":"ROAR","g":"OPM"},
+{"c":10196,"y":"zQxwLxS_YOw","t":"Rockstar","a":"PARTING TIME","g":"OPM"},
+{"c":10197,"y":"vOgBxn_PZFc","t":"Rose & Bruno Mars","a":"APT","g":"OPM"},
+{"c":10198,"y":"C_zvTrtj0fk","t":"Beyonce","a":"LISTEN","g":"OPM"},
+{"c":10199,"y":"BQ3pKsLi2kk","t":"The Allan Parsons Project","a":"EYE IN THE SKY","g":"OPM"},
+{"c":10200,"y":"pvbFxxMg8jw","t":"Beatles","a":"AND I LOVE HER","g":"OPM"},
+{"c":10201,"y":"k9OCGQl5HMI","t":"Bruno Mars","a":"Risk It All","g":""},
+{"c":10202,"y":"IxbSe3v4q0w","t":"One On One","a":"Jordan Joy","g":""},
+{"c":10203,"y":"xcRPHoPjF6Q","t":"Love/Aşk","a":"Ozaan","g":""},
+{"c":10204,"y":"UytsSeSu0z4","t":"Katchafire with Mike Love 'Sensimillia'","a":"Katchafire Official","g":""},
+{"c":10205,"y":"nawRw6pR_f8","t":"VERSION - as popularized by John Denver","a":"Take Me Home, Country Roads","g":""},
+{"c":10206,"y":"qmGRyDxD3ms","t":"PERFECT","a":"Soun Bwoii x Something D'Lux","g":""},
+{"c":10207,"y":"pas3ruCITpw","t":"apple bottom jeans","a":"tyde","g":""},
+{"c":10208,"y":"56krLd_wbfI","t":"Loaded","a":"Rick Ross, Kemar McGregor","g":""},
+{"c":10209,"y":"Gl5wGd7Dyts","t":"The Fate of Ophelia","a":"Taylor Swift","g":""},
+{"c":10210,"y":"UHAcPMJve04","t":"Huntrix, KPop Demon Hunters","a":"Golden","g":""},
+{"c":10211,"y":"tdd0e9WG63c","t":"Ordinary","a":"Alex Warren","g":""},
+{"c":10212,"y":"Jaf9QywXEY8","t":"Anxiety","a":"Doechii","g":""},
+{"c":10213,"y":"JGPhKvL72Ic","t":"Next Summer","a":"Damiano David","g":""},
+{"c":10214,"y":"G3LnQ_mLt0I","t":"Messy","a":"Lola Young","g":""},
+{"c":10215,"y":"JpVFSSwa_Bg","t":"Azizam","a":"Ed Sheeran","g":""},
+{"c":10216,"y":"JuVnEUHO4Ac","t":"PAID TO EXIST","a":"DRDVIX x brux XTN","g":""},
+{"c":10217,"y":"Xe6Gc7NtxEs","t":"Stereo Love","a":"Edward Maya, Vika Jigulina","g":""},
+{"c":10218,"y":"fn-sNugIUMw","t":"Nobody (make me feel)","a":"Oskar med k, Khalid","g":""},
+{"c":10219,"y":"6cQE035u5Tc","t":"I RUN","a":"HAVEN.","g":""},
+{"c":10220,"y":"cxR5e3uUuew","t":"Man I Need","a":"Olivia Dean","g":""},
+{"c":10221,"y":"gwkDa_w8AhU","t":"I Just Might","a":"Bruno Mars","g":""},
+{"c":10222,"y":"Gn4n0SPnlu4","t":"The First Time","a":"Damiano David","g":""},
+{"c":10223,"y":"pTvY7REfBw8","t":"Turn It Up Tonight","a":"BigList 2026 - Best Songs","g":""},
+{"c":10224,"y":"hDNpP94qn3o","t":"Garden","a":"Matt Simons","g":""},
+{"c":10225,"y":"AlasTVjegqk","t":"Gold","a":"Myles Smith","g":""},
+{"c":10226,"y":"qXKwKIY96LA","t":"Talk to Me ft. Tyla & Nile Rodgers","a":"Damiano David","g":""},
+{"c":10227,"y":"EFujkqYcHBE","t":"Sapphire","a":"Ed Sheeran","g":""},
+{"c":10228,"y":"10sH0k3oF6g","t":"CHANEL","a":"Tyla","g":""},
+{"c":10229,"y":"SGo-2s7lgg0","t":"Amor","a":"Kamelia","g":""},
+{"c":10230,"y":"lF6wv3-fJ24","t":"Never Walk Alone","a":"BLOND:ISH, Stevie Appleton","g":""},
+{"c":10231,"y":"wutOUs13eyc","t":"I Found You","a":"Switch Disco, Charlotte Haining & Felix","g":""},
+{"c":10232,"y":"-G506uDPr9g","t":"MK ft. Chrystal","a":"Dior","g":""},
+{"c":10233,"y":"8gkpZxWYZXc","t":"HIGHJACK","a":"Alok, Łaszewo, A$AP Rocky","g":""},
+{"c":10234,"y":"sh7j5dAxpQA","t":"TIT FOR TAT","a":"Tate McRae","g":""},
+{"c":10235,"y":"KlGReDqyBSc","t":"Beautiful People","a":"David Guetta & Sia","g":""},
+{"c":10236,"y":"NJ4h3LbXMws","t":"Do It Again","a":"Ray Dalton","g":""},
+{"c":10237,"y":"oUvKBHzaqZs","t":"Nice To Meet You","a":"Myles Smith","g":""},
+{"c":10238,"y":"ZUuBSdk2p8g","t":"The One","a":"Michael Patrick Kelly","g":""},
+{"c":10239,"y":"w_EkivgbOnU","t":"Call It Love","a":"Felix Jaehn & Ray Dalton","g":""},
+{"c":10240,"y":"kIxnx3nt22I","t":"The Dead Dance","a":"Lady Gaga","g":""},
+{"c":10241,"y":"igY5iftLbNg","t":"You Were There For Me","a":"Henry Moodie","g":""},
+{"c":10242,"y":"2raskLSirGk","t":"Drive By","a":"Train","g":""},
+{"c":10243,"y":"N1cQimpFrQ0","t":"Chandelier","a":"Sia","g":""},
+{"c":10244,"y":"GHYNh0NjQi0","t":"It Ain't Me","a":"Kygo, Selena Gomez","g":""},
+{"c":10245,"y":"2K-_cpDd6Xk","t":"End of the World","a":"Miley Cyrus","g":""},
+{"c":10246,"y":"Bks2XcIlwKo","t":"Die With A Smile","a":"Lady Gaga, Bruno Mars","g":""},
+{"c":10247,"y":"GHhQ2i4xSoA","t":"Born With a Broken Heart","a":"Damiano David","g":""},
+{"c":10248,"y":"jwiunrQ2UD8","t":"HIDEAWAY","a":"Switch Disco x Tones & I","g":""},
+{"c":10249,"y":"ia4iPAroJwQ","t":"I Believe","a":"KAMRAD","g":""},
+{"c":10250,"y":"xAsnAWjrRNQ","t":"Sports Car","a":"Tate McRae","g":""},
+{"c":10251,"y":"GuDt0psLvYI","t":"Without Me","a":"Halsey","g":""},
+{"c":10252,"y":"sRrmUfE0Q9E","t":"Pick Up The Phone","a":"Henry Moodie","g":""},
+{"c":10253,"y":"jun4UlIyeIs","t":"PUSH 2 START","a":"Tyla","g":""},
+{"c":10254,"y":"tN9gWoSMJqc","t":"Taxi","a":"EDEN GOLAN","g":""},
+{"c":10255,"y":"7yEKHQbTdR4","t":"Beautiful Things","a":"Benson Boone","g":""},
+{"c":10256,"y":"Xz1iLr1Qlbk","t":"Best Song Ever","a":"One Direction","g":""},
+{"c":10257,"y":"Lq010yntIeA","t":"Substitution","a":"Purple Disco Machine, Kungs","g":""},
+{"c":10258,"y":"aqJ4vWRzH44","t":"Samba","a":"Andrea Banica ft Dony","g":""},
+{"c":10259,"y":"FuixdOeSkg8","t":"Love Is The Only Thing","a":"Lost Frequencies","g":""},
+{"c":10260,"y":"KiIc54yyktw","t":"I Adore You (Visualizer)","a":"HUGEL x Topic x Arash feat. Daecolm","g":""},
+{"c":10261,"y":"AKv0riMNW7c","t":"Sweet Dreams","a":"Alan Walker x Imanbek","g":""},
+{"c":10262,"y":"wPTC6oT1FDo","t":"One Kiss","a":"Calvin Harris, Dua Lipa","g":""},
+{"c":10263,"y":"fAvlGecXlqI","t":"Deep In Your Love","a":"Alok & Bebe Rexha","g":""},
+{"c":10264,"y":"o6PpxpxfQSE","t":"Stargazing","a":"Myles Smith","g":""},
+{"c":10265,"y":"abYvzShMIS8","t":"We Can't Stop","a":"Miley Cyrus","g":""},
+{"c":10266,"y":"63mdigscpNo","t":"On My Mind","a":"Alex Warren & ROSÉ","g":""},
+{"c":10267,"y":"r0zqWblKv6Q","t":"Every Girl You've Ever Loved ft. Naomi Campbell","a":"Miley Cyrus","g":""},
+{"c":10268,"y":"KvD1LFWVAOw","t":"Cry Baby","a":"Clean Bandit, Anne-Marie, David Guetta","g":""},
+{"c":10269,"y":"BJ1CSW1rzMI","t":"BORN AGAIN ft. Doja Cat & RAYE","a":"LISA","g":""},
+{"c":10270,"y":"7PDlO7tCq1Y","t":"More Than You Know","a":"Axwell /\\ Ingrosso","g":""},
+{"c":10271,"y":"8I-NXvzYgYE","t":"Dalinda","a":"Alex Mica","g":""},
+{"c":10272,"y":"rBEVlTm08lc","t":"Mantra","a":"JENNIE","g":""},
+{"c":10273,"y":"8rtv4Jk2dq0","t":"Bad Dreams","a":"Teddy Swims","g":""},
+{"c":10274,"y":"py3HMQeA5VU","t":"Mamma mia \"He's italiano\"","a":"Elena feat. Glance","g":""},
+{"c":10275,"y":"EvydiSjJgv4","t":"Tenerife","a":"Dj Sava feat. Misha","g":""},
+{"c":10276,"y":"wTX4JfmUNTc","t":"Firestone ft. Conrad Sewell","a":"Kygo","g":""},
+{"c":10277,"y":"sqHjNzVhhfI","t":"Summer","a":"Calvin Harris","g":""},
+{"c":10278,"y":"eeopP9gYV8A","t":"Bam Bam ft. Ed Sheeran","a":"Camila Cabello","g":""},
+{"c":10279,"y":"IjdwJz7gj5Y","t":"Flowers","a":"Miley Cyrus","g":""},
+{"c":10280,"y":"_5Xc59yk448","t":"Whatever","a":"Kygo, Ava Max","g":""},
+{"c":10281,"y":"92oPhbqRa1c","t":"Tell Me Where U Go","a":"Clean Bandit x Tiësto x Leony","g":""},
+{"c":10282,"y":"uu8FxAIguiI","t":"Ocean","a":"Calvin Harris, Jessie Reyez","g":""},
+{"c":10283,"y":"ODDRRXMi22E","t":"i like the way you kiss me","a":"Artemas","g":""},
+{"c":10284,"y":"1K_--gz5jhY","t":"greedy","a":"Tate McRae","g":""},
+{"c":10285,"y":"4VOz4ebpFZI","t":"Stumblin' In","a":"CYRIL","g":""},
+{"c":10286,"y":"m9kibyQS8B0","t":"So Good","a":"KAMRAD","g":""},
+{"c":10287,"y":"LPgN4EfzUrU","t":"Calm Down","a":"Rema & Selena Gomez","g":""},
+{"c":10288,"y":"m3NIoSOi7_g","t":"Sin Ti","a":"Mago Sol","g":""},
+{"c":10289,"y":"3hQxRIHG3l4","t":"Baila Baila Baila","a":"Geo Da Silva & Samuel Kimkò","g":""},
+{"c":10290,"y":"zOCwIPCQmjQ","t":"Miracle","a":"Calvin Harris, Ellie Goulding","g":""},
+{"c":10291,"y":"eDCx8OgHrtE","t":"All I Know","a":"Rudimental, Khalid","g":""},
+{"c":10292,"y":"aD9gLyb9_P4","t":"Midnight Sun","a":"Zara Larsson","g":""},
+{"c":10293,"y":"j-2Tb-q_lgw","t":"Dong Abay","a":"PERPEKTO","g":""},
+{"c":10294,"y":"IFldyh7IPiw","t":"Ben&Ben","a":"SA SUSUNOD NA HABANG BUHAY","g":""},
+{"c":10295,"y":"QKE_flf1RQk","t":"Jericho Rosales","a":"PUSONG LIGAW","g":""},
+{"c":10296,"y":"sQdwuYVyG4k","t":"Tom Rodriguez","a":"IKAW ANG SAGOT","g":""},
+{"c":10297,"y":"bgvUTnfZav4","t":"Kitchie Nadal","a":"WAG NA WAG MONG SASABIHIN","g":""},
+{"c":10298,"y":"1zop4XR66-w","t":"Shaira","a":"SELOS","g":""},
+{"c":10299,"y":"rd521RNIpwE","t":"Yeng Constantino","a":"IKAW","g":""},
+{"c":10300,"y":"ZCPGpu30OLM","t":"Sanshai","a":"HABANG AKO'Y NABUBUHAY","g":""},
+{"c":10301,"y":"HNy41EFCJcs","t":"SexBomb Dancers","a":"DI KO NA MAPIPIGILAN","g":""},
+{"c":10302,"y":"iuVKHJkeymg","t":"Ganny Brown","a":"LOWBAT NA BA","g":""},
+{"c":10303,"y":"C9JLDJDrykc","t":"Asin","a":"HIMIG NG PAG IBIG","g":""},
+{"c":10304,"y":"s2hrEFkU3_c","t":"Renz Verano","a":"IBANG IBA KA NA","g":""},
+{"c":10305,"y":"aLF6DlxMr4g","t":"Cueshe","a":"ULAN","g":""},
+{"c":10306,"y":"L9C9WiBBeRk","t":"Love Again","a":"MIRA","g":""},
+{"c":10307,"y":"X_OO6h5zqe8","t":"Jerry Angga","a":"IKAW ANG DAHILAN","g":""},
+{"c":10308,"y":"K0RJ4s786WU","t":"J Brothers","a":"KUNG SAKALING IKAW AY LALAYO","g":""},
+{"c":10309,"y":"sC0p-JJdwSo","t":"Rey Valera","a":"TAYONG DALAWA","g":""},
+{"c":10310,"y":"fbk5bwNCIng","t":"Aegis","a":"LUHA","g":""},
+{"c":10311,"y":"bh-n0Q0nxO0","t":"Paul Sapiera","a":"BAKIT SINTA","g":""},
+{"c":10312,"y":"7bJV6JDv8KM","t":"Top Suzara","a":"SABIHIN MO NA","g":""},
+{"c":10313,"y":"wFSh-KAbun8","t":"Ariel Rivera","a":"SA AKING PUSO","g":""},
+{"c":10314,"y":"8ebEJCqmneM","t":"Sitti Navarro","a":"PARA SA AKIN","g":""},
+{"c":10315,"y":"RSbCNBrXvTs","t":"Rachel Alejandro","a":"MR KUPIDO","g":""},
+{"c":10316,"y":"B5W9Guo_6a4","t":"Jireh Lim","a":"BUKO","g":""},
+{"c":10317,"y":"NJMK-9gCMdo","t":"Yeng Constantino","a":"LAPIT","g":""},
+{"c":10318,"y":"OFWBSpsqYM8","t":"Basit Numaralar","a":"Zerrin Özer","g":""},
+{"c":10319,"y":"ZDgyfqricXs","t":"Dilaw","a":"UHAW","g":""},
+{"c":10320,"y":"sfs3TpxEuhI","t":"Jamie Rivera","a":"PANGARAP KA NA LANG BA","g":""},
+{"c":10321,"y":"hrN0jz16aBw","t":"Morissette Amon","a":"AKIN KA NA LANG","g":""},
+{"c":10322,"y":"9RJ-oc7cvW0","t":"711","a":"TONEEJAY","g":""},
+{"c":10323,"y":"6VhtRFCt6-4","t":"DELULU","a":"Zack Tabudlo","g":""},
+{"c":10324,"y":"sOjamSOudA8","t":"Orasa","a":"Dilaw","g":""},
+{"c":10325,"y":"zDdDdnBwh1g","t":"Karera","a":"BINI","g":""},
+{"c":10326,"y":"n2JAEDiDubk","t":"Introvoys","a":"The Man I'll Always Be","g":""},
+{"c":10327,"y":"APs5KU4Riu8","t":"Introvoys","a":"Stay","g":""},
+{"c":10328,"y":"aCVFjlkc89A","t":"Introvoys","a":"Sa Habang Panahon","g":""},
+{"c":10329,"y":"hUrUxOVNxqE","t":"Introvoys","a":"Magnanakaw","g":""},
+{"c":10330,"y":"WLPW7CLNGEk","t":"Introvoys","a":"Let It Out","g":""},
+{"c":10331,"y":"I--LWOQQW-A","t":"Introvoys","a":"Less Fortunate Ones","g":""},
+{"c":10332,"y":"DtFnTCHR6qQ","t":"Introvoys","a":"How Can I Live","g":""},
+{"c":10333,"y":"JzUWZSLihDo","t":"Introvoys","a":"Are You Happy","g":""},
+{"c":10334,"y":"nguZaLnMPyg","t":"Introvoys","a":"Without You","g":""},
+{"c":10335,"y":"7avrVV3zkDI","t":"Introvoys","a":"May Pag Asa Ba","g":""},
+{"c":10336,"y":"LW1Jh9gIFvI","t":"Will I Survive","a":"PRO music COVER","g":""},
+{"c":10337,"y":"2wUZxP_-Ma8","t":"Introvoys","a":"Kailanman","g":""},
+{"c":10338,"y":"WuPcIVE7qMc","t":"Introvoys","a":"Kaibigan","g":""},
+{"c":10339,"y":"04D_D2w6D9c","t":"Introvoys","a":"Binibini","g":""},
+{"c":10340,"y":"tqaHBaVG6XU","t":"YENG CONSTANTINO","a":"Chinito","g":""},
+{"c":10341,"y":"DKa6tgCt8E4","t":"YENG CONSTANTINO","a":"Dance Without Music","g":""},
+{"c":10342,"y":"c-YIZaQJNDY","t":"YENG CONSTANTINO","a":"Dito Ka lang Sa Tabi","g":""},
+{"c":10343,"y":"FZpHILw9e_A","t":"YENG CONSTANTINO","a":"Galing Ng Pinoy","g":""},
+{"c":10344,"y":"gqzWN6ypfVg","t":"YENG CONSTANTINO","a":"Habambuhay","g":""},
+{"c":10345,"y":"27Y1YwRUY4U","t":"YENG CONSTANTINO","a":"Ikaw Lang Talaga","g":""},
+{"c":10346,"y":"WQu_FMlWCEU","t":"YENG CONSTANTINO","a":"Paasa","g":""},
+{"c":10347,"y":"B_92nOv6Cqo","t":"YENG CONSTANTINO","a":"Pagibig","g":""},
+{"c":10348,"y":"-4YBcic8_Ts","t":"YENG CONSTANTINO","a":"Pangarap","g":""},
+{"c":10349,"y":"mskWV9KraCg","t":"YENG CONSTANTINO","a":"Promise","g":""},
+{"c":10350,"y":"9yIoqX_q6Yc","t":"Salamat YENG CONSTANTINO","a":"PRO music COVER","g":""},
+{"c":10351,"y":"Juazpqyc_ac","t":"YENG CONSTANTINO","a":"Time In","g":""},
+{"c":10352,"y":"rd23Er04zYw","t":"YENG CONSTANTINO","a":"Walang Hanggan","g":""},
+{"c":10353,"y":"IM4MNMsczyA","t":"YENG CONSTANTINO","a":"What's Up Ahead","g":""},
+{"c":10354,"y":"cESMczpa_RM","t":"YENG CONSTANTINO","a":"Ala ala","g":""},
+{"c":10355,"y":"CgEyGDAIG1o","t":"YENG CONSTANTINO","a":"Cool Off","g":""},
+{"c":10356,"y":"w9dtJLxxyf8","t":"Di Na Ganun YENG CONSTANTINO","a":"PRO music COVER","g":""},
+{"c":10357,"y":"57tDYvzSjW4","t":"YENG CONSTANTINO","a":"Himig Ng Pag-Ibig","g":""},
+{"c":10358,"y":"CkrJnxCq1N0","t":"YENG CONSTANTINO","a":"Wag kang Magtatanong","g":""},
+{"c":10359,"y":"TH8iqFrq72A","t":"YENG CONSTANTINO","a":"Sandata","g":""},
+{"c":10360,"y":"S76tQQVVYMI","t":"Barbie Almabis","a":"Ambon","g":""},
+{"c":10361,"y":"rafsoJX1IzQ","t":"Barbie Almabis","a":"Torpe","g":""},
+{"c":10362,"y":"rxmhni8g8kM","t":"GLOC 9","a":"Sagwan","g":""},
+{"c":10363,"y":"tqsljXfSLOw","t":"GLOC 9","a":"Magda","g":""},
+{"c":10364,"y":"CLrNGvzBrzM","t":"GLOC 9","a":"Lando","g":""},
+{"c":10365,"y":"TFOJyeAP_NA","t":"GLOC 9","a":"Katulad ng Iba","g":""},
+{"c":10366,"y":"rGya-OPZWTE","t":"GLOC 9","a":"Ipagpatawad Mo","g":""},
+{"c":10367,"y":"ntv5zw3fkhA","t":"GLOC 9","a":"Hindi Mo Nadinig","g":""},
+{"c":10368,"y":"GqmR67nr1l8","t":"GLOC 9","a":"Hari ng Tondo","g":""},
+{"c":10369,"y":"k7Tly7kxb-k","t":"GLOC 9","a":"Bakit Hindi","g":""},
+{"c":10370,"y":"LMywAPQDeHU","t":"GLOC 9","a":"Ang Probinsyano","g":""},
+{"c":10371,"y":"v7hRpilP2sg","t":"Join The Club","a":"Nobela","g":""},
+{"c":10372,"y":"Qx68B1mHyGQ","t":"MYMP","a":"Only Reminds Me Of You","g":""},
+{"c":10373,"y":"gMcBtrQ4-6M","t":"OGIE ALCASID","a":"Ikaw Sana","g":""},
+{"c":10374,"y":"eq8KgdhwkGI","t":"SARAH GERONIMO","a":"How Could You Say You Love me","g":""},
+{"c":10375,"y":"VwuOa2F9jk4","t":"ERASERHEADS","a":"With a Smile","g":""},
+{"c":10376,"y":"uNptmD4fjCY","t":"Regine Velasquez","a":"Kung maibabalik ko lang","g":""},
+{"c":10377,"y":"C8twukz-0g0","t":"Itchyworms","a":"Beer","g":""},
+{"c":10378,"y":"mdTSen6ZRAo","t":"JAYA","a":"Wala na bang pag ibig","g":""},
+{"c":10379,"y":"-jb7p_1fp5U","t":"Jessa Zaragoza","a":"Bakit pa","g":""},
+{"c":10380,"y":"ULdQc6ZUtEE","t":"Jessa Zaragoza","a":"Baliw na puso","g":""},
+{"c":10381,"y":"BohBUy9a6c0","t":"Regine Velasquez","a":"Dadalhin","g":""},
+{"c":10382,"y":"hshZ2dRBpUQ","t":"Liezel Garcia","a":"Alipin Ako","g":""},
+{"c":10383,"y":"jNYXQLWlk6k","t":"CUESHE","a":"Back to me","g":""},
+{"c":10384,"y":"HmdBnxEXyH0","t":"Ikaw ang sagot -TOM RODRIGUEZ","a":"PRO music COVER","g":""},
+{"c":10385,"y":"MDhyEjauvDs","t":"Noel Cabangon","a":"Kanlungan","g":""},
+{"c":10386,"y":"Am1sBwNn8uA","t":"Siakol","a":"Tropa","g":""},
+{"c":10387,"y":"RrvLB6E0hD0","t":"SILENT SANCTUARY","a":"Ikaw Lamang","g":""},
+{"c":10388,"y":"Tp-TNuATeM4","t":"NINA","a":"Love Moves In Mysterious Ways","g":""},
+{"c":10389,"y":"sBiRPAQMjBk","t":"Siakol","a":"Ituloy mo lang","g":""},
+{"c":10390,"y":"Xub5ve4xq1E","t":"Siakol","a":"Gabay","g":""},
+{"c":10391,"y":"lKUw2KNkR-s","t":"SASSY GIRL OST (Jimmy Bondoc)","a":"I believe","g":""},
+{"c":10392,"y":"lHA8H-7S8a0","t":"Jessa Zaragoza","a":"Sya ba ang dahilan","g":""},
+{"c":10393,"y":"SfxL2Q5mUPU","t":"ERASERHEADS","a":"Pare ko","g":""},
+{"c":10394,"y":"p5ifcfXvb8k","t":"CUESHE","a":"Bakit","g":""},
+{"c":10395,"y":"OoyFoFEkzTU","t":"Parokya Ni Edgar","a":"Pangarap lang kita","g":""},
+{"c":10396,"y":"9nwGKSAfU1I","t":"SILENT SANCTUARY","a":"Pasensya Ka Na","g":""},
+{"c":10397,"y":"6-6fv6geqmw","t":"Jessa Zaragoza","a":"Di ba't ikaw","g":""},
+{"c":10398,"y":"U820U1cPxSM","t":"Regine Velasquez","a":"Pangarap ko ang ibigin ka","g":""},
+{"c":10399,"y":"s7OYDJEZGPk","t":"Parokya Ni Edgar","a":"Don't touch my birdie","g":""},
+{"c":10400,"y":"ymalJ5AMH4U","t":"CUESHE","a":"Stay","g":""},
+{"c":10401,"y":"udmwbqrml_Y","t":"Angeline Quinto","a":"At ang hirap","g":""},
+{"c":10402,"y":"Kq33l1K7Z7w","t":"CALLALILY","a":"Magbalik","g":""},
+{"c":10403,"y":"fBMFzP-dS4A","t":"Renz Verano","a":"Remember me","g":""},
+{"c":10404,"y":"mU_g1_jmPIQ","t":"AEGIS","a":"Sundot","g":""},
+{"c":10405,"y":"bKTMLHafM2s","t":"Renz Verano","a":"Mahal kita","g":""},
+{"c":10406,"y":"ON_mFs5OieE","t":"Gary V.","a":"Natutulog ba ang Diyos","g":""},
+{"c":10407,"y":"sgELjVtUfds","t":"Bugoy Drilon","a":"Paano Na Ang Puso Ko","g":""},
+{"c":10408,"y":"0z1Aqup6NJU","t":"SARAH GERONIMO","a":"Forever is not Enough","g":""},
+{"c":10409,"y":"XjuvZtFXZsQ","t":"SILENT SANCTUARY","a":"Rebound","g":""},
+{"c":10410,"y":"azIz5xyYrdY","t":"BAMBOO","a":"Hallelujah","g":""},
+{"c":10411,"y":"xV7erzHcvXs","t":"Jay-R Siaboc","a":"May tama rin ako","g":""},
+{"c":10412,"y":"yDvapgj9OJE","t":"APRIL BOY","a":"Sanay Laging Makapiling","g":""},
+{"c":10413,"y":"dF8E9wNNjfQ","t":"SARAH GERONIMO","a":"Dahil Minahal Mo Ako","g":""},
+{"c":10414,"y":"wvHa6dS9130","t":"RIVERMAYA","a":"Umaaraw, Umuulan","g":""},
+{"c":10415,"y":"BA_J7GAYrb0","t":"SARAH GERONIMO","a":"A Very Special Love","g":""},
+{"c":10416,"y":"S6JS5GFC0D4","t":"Maja Salavador","a":"Dahan Dahan","g":""},
+{"c":10417,"y":"4CIp0qbsHSc","t":"Jennylyn Mercado","a":"Sa Aking Panaginip","g":""},
+{"c":10418,"y":"_bxgoymTRdE","t":"MOONSTAR88","a":"Torete","g":""},
+{"c":10419,"y":"feskSn7ZI6Y","t":"CUESHE","a":"Borrowed time","g":""},
+{"c":10420,"y":"due8VTv4RYg","t":"Regine Velasquez","a":"Isang Lahi","g":""},
+{"c":10421,"y":"DhqDZOdOtOU","t":"ERASERHEADS","a":"El bimbo","g":""},
+{"c":10422,"y":"dmxY3I4yaRc","t":"CUESHE","a":"Pasensya na","g":""},
+{"c":10423,"y":"IhBxATI0o9E","t":"Bugoy Drilon","a":"Paano Na Kaya Bugoy Drilon","g":""},
+{"c":10424,"y":"_4dPUG32JUs","t":"Jolina Magdangal","a":"Sana'y Kapiling Ka","g":""},
+{"c":10425,"y":"TwEYMTZlhWE","t":"JAYA","a":"Laging naroon ka","g":""},
+{"c":10426,"y":"lCIVOFIZlO8","t":"ERASERHEADS","a":"Magasin","g":""},
+{"c":10427,"y":"vVpd28x7uyA","t":"Parokya Ni Edgar","a":"Buloy","g":""},
+{"c":10428,"y":"8uA6UVZ3790","t":"HALE","a":"Kung wala ka","g":""},
+{"c":10429,"y":"lfkZmMSXqvE","t":"SILENT SANCTUARY","a":"Bumalik Ka Na Sa Akin","g":""},
+{"c":10430,"y":"erBCJ5GT_sw","t":"APRIL BOY","a":"Kahapong Nagdaan","g":""},
+{"c":10431,"y":"BzykqEJd-4Q","t":"First Cousin","a":"Bakit Galit Ka","g":""},
+{"c":10432,"y":"N0l7F-PtTwU","t":"CUESHE","a":"Pangako","g":""},
+{"c":10433,"y":"SmpK_pBD2Sg","t":"AIZA SEGUERRA","a":"Pagdating Ng Panahon","g":""},
+{"c":10434,"y":"_nMOgPUUg5Q","t":"UP DHARMA DOWN","a":"OO","g":""},
+{"c":10435,"y":"IMEVhTi2qiE","t":"ERASERHEADS","a":"Ligaya","g":""},
+{"c":10436,"y":"V8YjcyLXI5U","t":"Parokya Ni Edgar","a":"Wag mo na sana","g":""},
+{"c":10437,"y":"OwQ4rztXtTw","t":"Bugoy Drilon","a":"Hindi Na Bale","g":""},
+{"c":10438,"y":"CXo9i-pEGxI","t":"APRIL BOY","a":"Ganyan Talaga Ang Pagibig","g":""},
+{"c":10439,"y":"4MX5WAtnghc","t":"RIVERMAYA","a":"Kisapmata","g":""},
+{"c":10440,"y":"aMDAzXAr0cA","t":"Jessa Zaragoza","a":"Dito sa isang tabi","g":""},
+{"c":10441,"y":"z6GI9kXPkg8","t":"Siakol","a":"Peksman","g":""},
+{"c":10442,"y":"vtP-q2eNCQw","t":"APRIL BOY","a":"Umiiyak Ang Puso","g":""},
+{"c":10443,"y":"PWTv97ylMlY","t":"Parokya Ni Edgar","a":"Alumni Homecoming","g":""},
+{"c":10444,"y":"_HdD8txCK4Q","t":"Jessa Zaragoza","a":"Ikakasal ka na","g":""},
+{"c":10445,"y":"jESET6PUJDw","t":"ERASERHEADS","a":"Minsan","g":""},
+{"c":10446,"y":"i-3aeVNQ6nc","t":"NINA","a":"Tell me whre it hurts","g":""},
+{"c":10447,"y":"BiKU79XjelQ","t":"CUESHE","a":"24 hour ago","g":""},
+{"c":10448,"y":"bcr-l607Hu4","t":"SIDE A","a":"Set You Free","g":""},
+{"c":10449,"y":"mYeuHJA6jRU","t":"Carmela Cuneta","a":"Di Ko Na Kaya","g":""},
+{"c":10450,"y":"o-OZU5RnYcU","t":"Parokya Ni Edgar","a":"Silvertoes","g":""},
+{"c":10451,"y":"ZPA2VVG87F8","t":"Siakol","a":"Kanto","g":""},
+{"c":10452,"y":"kQGaVFbD1b0","t":"AIZA SIGUERRA","a":"Anong Nangyari Sa Ating Dalawa","g":""},
+{"c":10453,"y":"L6q1Q1EIP7M","t":"Jolina Magdangal","a":"Laging tapat","g":""},
+{"c":10454,"y":"3m4LX4CAzug","t":"APO HIKING SOCIETY","a":"Panalangin","g":""},
+{"c":10455,"y":"4Jl692ly0U0","t":"APRIL BOY","a":"Esperanza","g":""},
+{"c":10456,"y":"ZpAMJ3kX6mE","t":"REY VALERA","a":"Pangako","g":""},
+{"c":10457,"y":"tno7wLpAy94","t":"Masculados","a":"Nakaka","g":""},
+{"c":10458,"y":"1R8mVN1WfKU","t":"Siakol","a":"Kabilang mundo","g":""},
+{"c":10459,"y":"tgguRQOZo5c","t":"REY VALERA","a":"Kung kailangan mo ako","g":""},
+{"c":10460,"y":"sZF0q_oAD-I","t":"ERASERHEADS","a":"Alapaap","g":""},
+{"c":10461,"y":"ecs3YOqr-5I","t":"AIZA SEGUERRA","a":"Pakisabi Na Lang","g":""},
+{"c":10462,"y":"iSD9YAlc1ZE","t":"Gary V.","a":"Sana'y maulit muli","g":""},
+{"c":10463,"y":"1rt7X7vlph8","t":"REY VALERA","a":"Maging Sino ka man","g":""},
+{"c":10464,"y":"bsCkSaiap6k","t":"Gary V.","a":"Gaya ng dati","g":""},
+{"c":10465,"y":"iK5t8QB87UU","t":"Jaime Rivera","a":"I've fallen for you","g":""},
+{"c":10466,"y":"K6krF8ZaZXo","t":"ARA MINA","a":"Ay Ay Ay Pag-ibig","g":""},
+{"c":10467,"y":"7eGc7R69LYM","t":"Siakol","a":"Di mo ba alam","g":""},
+{"c":10468,"y":"yZffYQlwxl8","t":"Gary V.","a":"Take me out of the dark","g":""},
+{"c":10469,"y":"AH0D3YV5uzI","t":"Jessa Zaragoza","a":"Ibigay mo na","g":""},
+{"c":10470,"y":"78gIu6ADnxM","t":"Parokya Ni Edgar","a":"Para sa'yo","g":""},
+{"c":10471,"y":"liNZoaNpcQ4","t":"Jona","a":"Pusong Ligaw","g":""},
+{"c":10472,"y":"Y21_3b1ydMY","t":"Saan Darating Ang Umaga -ANGELINE QUINTO","a":"PRO music COVER","g":""},
+{"c":10473,"y":"wShBjw-KhBk","t":"Chiqui Pineda","a":"How Did You Know","g":""},
+{"c":10474,"y":"0Tf_eo-RqSM","t":"APO HIKING SOCIETY","a":"When I Met You","g":""},
+{"c":10475,"y":"KkEKrA0Ublg","t":"Bugoy Drilon","a":"Nagmamakaawa","g":""},
+{"c":10476,"y":"muPT_8t-cSw","t":"Michael Pangilinan","a":"Pare Mahal Mo Raw Ako","g":""},
+{"c":10477,"y":"ZaSvEqhwrT8","t":"Regine Velasquez","a":"Say that you love me","g":""},
+{"c":10478,"y":"8f5MRaGQZjA","t":"Siakol","a":"Bakit ba","g":""},
+{"c":10479,"y":"0L9GTgAUkQs","t":"Angeline Quinto","a":"Kung sakali man","g":""},
+{"c":10480,"y":"PA4pRl9o1hc","t":"Father and Son","a":"Miss Na Miss Kita","g":""},
+{"c":10481,"y":"Kbr3OgfbFGc","t":"MYMP","a":"Kailan","g":""},
+{"c":10482,"y":"1MtIjL-igWc","t":"REY VALERA","a":"Kung tayo'y magkakalayo","g":""},
+{"c":10483,"y":"H_6TOiQC_c0","t":"Regine Velasquez","a":"Tuwing umuulan","g":""},
+{"c":10484,"y":"d0tQnS3S6aw","t":"ANGELINE QUINTO","a":"Hanggang Kailan Kita Mamahalin","g":""},
+{"c":10485,"y":"kSb6l4Lrh24","t":"RIVERMAYA","a":"Himala","g":""},
+{"c":10486,"y":"09ajOS7oeJY","t":"APRIL BOY","a":"Tunay Na PagIbig","g":""},
+{"c":10487,"y":"-yWMqQnU45A","t":"Siakol","a":"Lakas Tama","g":""},
+{"c":10488,"y":"fNUrJBH1Brk","t":"Renz Verano","a":"Di malimot ang iyong halik","g":""},
+{"c":10489,"y":"GULLdi2ECbw","t":"Jessa Zaragoza","a":"Hindi na bale","g":""},
+{"c":10490,"y":"xpbZppTPGok","t":"APRIL BOY","a":"Paano Ang Puso Ko","g":""},
+{"c":10491,"y":"4P87RbwbAG0","t":"APRIL BOY REGINO","a":"Di Ko Kayang Tanggapin","g":""},
+{"c":10492,"y":"0dtOaUm2KI0","t":"ARIEL RIVERA","a":"Sana Kahit Minsan","g":""},
+{"c":10493,"y":"57HmdnpMbS4","t":"Regine Velasquez","a":"Sa aking pag iisa","g":""},
+{"c":10494,"y":"AEJappIRN2g","t":"JAYA","a":"Dahil ba sa kanya","g":""},
+{"c":10495,"y":"g3V_hTWy3O4","t":"Jolina Magdangal","a":"Tameme","g":""},
+{"c":10496,"y":"P4qh505E-Mo","t":"Parokya Ni Edgar","a":"Muli","g":""},
+{"c":10497,"y":"zF-T7uDNL0Y","t":"CUESHE","a":"Walang yamang mas hihigit sayo","g":""},
+{"c":10498,"y":"HJ0-pgClSyM","t":"SILENT SANCTUARY","a":"Sa'yo","g":""},
+{"c":10499,"y":"8NnYeIzEuBw","t":"Gary V.","a":"Paano","g":""},
+{"c":10500,"y":"7XV_-KBpGek","t":"Jolina Magdangal","a":"Kapag Ako Ay Nagmahal","g":""},
+{"c":10501,"y":"JLWF170NHFA","t":"Joey Albert","a":"Tell Me","g":""},
+{"c":10502,"y":"0zQtFPPPzDE","t":"APRIL BOY","a":"Mapag-mahal Ako","g":""},
+{"c":10503,"y":"XjoRpoSq8lk","t":"BAMBOO","a":"Noypi","g":""},
+{"c":10504,"y":"dFWQHr92ZQo","t":"Francis M.","a":"Koleidoscope World","g":""},
+{"c":10505,"y":"2fK4LAQ5gPE","t":"Freestyle","a":"Once In A Life Time","g":""},
+{"c":10506,"y":"F_8tslaAuIE","t":"Christian Bautista","a":"The Way You Look At Me","g":""},
+{"c":10507,"y":"3UsSObPT3FY","t":"SILENT SANCTUARY","a":"Hiling","g":""},
+{"c":10508,"y":"IJrgYunQcrs","t":"APRIL BOY","a":"Kahit Kaibigan Lang","g":""},
+{"c":10509,"y":"zbQ1e1rltCY","t":"Brownman Revival","a":"Binibini","g":""},
+{"c":10510,"y":"Pc3-DDkmc1Q","t":"ANGELINE QUINTO","a":"Gusto Kita","g":""},
+{"c":10511,"y":"Fk1xhwOhgNo","t":"ALAMID","a":"Your Love","g":""},
+{"c":10512,"y":"R9b4xX_I15E","t":"OGIE ALCSID","a":"Wag Ka Lang Mawawala","g":""},
+{"c":10513,"y":"4kOPIecQWdY","t":"AIZA SIGUERRA","a":"Sa Ugoy Ng Duyan","g":""},
+{"c":10514,"y":"j7JU1KczoUg","t":"Siakol","a":"Lagim","g":""},
+{"c":10515,"y":"rUgZw-NNBpA","t":"Freestyle","a":"This Time","g":""},
+{"c":10516,"y":"v8sDw-LYfvw","t":"AEGIS","a":"Mahal Na Mahal Kita","g":""},
+{"c":10517,"y":"ig2s3PwxJ4M","t":"ANGELINE QUINTO","a":"Lipad Na Pangarap","g":""},
+{"c":10518,"y":"uoJedVY56R8","t":"Lovi Poe","a":"I Never Knew Love","g":""},
+{"c":10519,"y":"gGX5aav9d5E","t":"Parokya Ni Edgar","a":"Inuman na","g":""},
+{"c":10520,"y":"gVf-aNTy4AY","t":"Michael Laygo","a":"Minahal Kita","g":""},
+{"c":10521,"y":"iKGMioY7T3o","t":"APO HIKING SOCIETY","a":"Kaibigan","g":""},
+{"c":10522,"y":"lo1vxjbpJ6g","t":"REY VALERA","a":"Naalala ka","g":""},
+{"c":10523,"y":"MMZQ8WkF2vI","t":"RIVERMAYA","a":"Ulan","g":""},
+{"c":10524,"y":"iF_AaAIO2CM","t":"NINA","a":"Jealous","g":""},
+{"c":10525,"y":"ipa1J7DBvjY","t":"Renz Verano","a":"Lorena","g":""},
+{"c":10526,"y":"KerYY3GniYA","t":"Regine Velasquez","a":"I can","g":""},
+{"c":10527,"y":"GygbWBrQUsQ","t":"Parokya Ni Edgar","a":"Lagi mong tatandan","g":""},
+{"c":10528,"y":"kaTlhww3wvw","t":"CAROL BANAWA","a":"Hanggang May Kailanman","g":""},
+{"c":10529,"y":"YZPmLRHTuWo","t":"Bugoy Drilon","a":"Pagkat Mahal Kita","g":""},
+{"c":10530,"y":"gdg45-Ourps","t":"REY VALERA","a":"Walang kapalit","g":""},
+{"c":10531,"y":"WKaFuzlaPtQ","t":"Siakol","a":"Biyaheng Impeyerno","g":""},
+{"c":10532,"y":"140j-TnpH9E","t":"SARAH GERONIMO","a":"Tala","g":""},
+{"c":10533,"y":"1VvmKyqd4u0","t":"Siakol","a":"Sa pag ikot ng mundo","g":""},
+{"c":10534,"y":"v8sJfzhnwOM","t":"Itchyworms","a":"Akin Ka Na Lang","g":""},
+{"c":10535,"y":"H4AH_2RhVnE","t":"KZ TANDINGAN","a":"Scared to Death","g":""},
+{"c":10536,"y":"23ZdyhN39GI","t":"SIDE A","a":"Forevermore","g":""},
+{"c":10537,"y":"nvFE_Gd4llc","t":"APO HIKING SOCIETY","a":"Awit ng Barkada","g":""},
+{"c":10538,"y":"Z77-3EdhmuA","t":"AEGIS","a":"Minahal Kita","g":""},
+{"c":10539,"y":"ktF4iNRVSTQ","t":"MOONSTAR88","a":"Panalangin","g":""},
+{"c":10540,"y":"Jao-T_qlHeM","t":"JAYA","a":"Dito sa puso ko","g":""},
+{"c":10541,"y":"x2023UHyahU","t":"APRIL BOY","a":"Pagibig Kong Itong Lito","g":""},
+{"c":10542,"y":"5qRnX1U_TJU","t":"Christian Bautista","a":"Colour Everywhere","g":""},
+{"c":10543,"y":"F6qxioU3IEI","t":"AEGIS","a":"Usok","g":""},
+{"c":10544,"y":"3Z5mpUeBxvI","t":"SIDE A","a":"Nais Ko","g":""},
+{"c":10545,"y":"VSqjI3WXLs4","t":"CUESHE","a":"Minsan","g":""},
+{"c":10546,"y":"ERxWRENijiQ","t":"BAMBOO","a":"Masaya","g":""}
+]}
