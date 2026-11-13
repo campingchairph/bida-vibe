@@ -2151,7 +2151,8 @@ function vkRoomHTML() {
       <p class="muted">${on ? `Bukas pa ng ${left} oras. Ilalagay lang nila ang pangalan nila, pili ng avatar, tapos pili ng kanta. Diretso na sa pila.`
         : 'Gawa ka ng link para sa event na \'to at i-send sa GC. Pang-reserve lang ng kanta ang makikita nila, wala nang iba.'}</p></div>
     <div class="vk-room-btns">${on
-      ? `<button class="btn btn--chili btn--sm" onclick="vkShareRoom()">${ic('share')}I-share ang link</button>
+      ? `<button class="btn btn--chili btn--sm" onclick="vkShowQR()">${ic('qr')}QR code</button>
+         <button class="btn btn--ink btn--sm" onclick="vkShareRoom()">${ic('share')}I-share ang link</button>
          <button class="btn btn--ghost btn--sm" onclick="vkCloseRoom()">Isara ang link</button>`
       : `<button class="btn btn--chili btn--sm" onclick="vkMakeRoom()">${ic('plus')}${AUTH.user ? 'Gawa ng link' : 'Mag-sign in para makagawa ng link'}</button>`}</div>
   </div>`;
@@ -2199,6 +2200,7 @@ async function vkStart() {
   if (M.playing) musicPause();                         // party music stops while someone sings
   try { navigator.wakeLock?.request('screen').then(l => VK.lock = l).catch(() => { }); } catch (e) { }
   if (!VK.cur) vkNext(); else vkStageInfo();
+  vkStageQR();
 }
 function vkClose() {
   $('#vk-stage').hidden = true; document.body.classList.remove('in-vk'); document.body.style.overflow = '';
@@ -2314,7 +2316,7 @@ async function vkMakeRoom() {
       expires: firebase.firestore.Timestamp.fromMillis(exp), queue: [], now: null, updated: firebase.firestore.FieldValue.serverTimestamp() });
   } catch (e) { toast(/permission/i.test(e.message) ? 'Hindi pa naka-publish ang bagong Firestore rules' : 'Hindi nagawa ang link. Try ulit.'); return; }
   vkState().room = { id, owner: AUTH.user.uid, exp }; saveState();
-  vkListen(); vkPublish(); renderVideoke(); vkShareRoom();
+  vkListen(); vkPublish(); renderVideoke(); vkShowQR(); if (!$('#vk-stage').hidden) vkStageQR();
 }
 async function vkShareRoom() {
   if (!vkRoomValid()) return;
@@ -2322,11 +2324,76 @@ async function vkShareRoom() {
   try { if (navigator.share) { await navigator.share({ title: 'Bida-Vibe Videoke', text, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); toast('Na-copy na. I-paste mo sa GC.'); } catch (e) { askText('I-copy ang link na ito', url, 600); }
 }
+/* ---- QR code for the link (scan from the TV or from the host's phone) ----
+   qrcode-generator is loaded only when needed, pinned with SRI like the Firebase scripts. */
+const QR_SRC = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+const QR_SRI = 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k';
+let qrLoading = null;
+function qrLib() {
+  if (window.qrcode) return Promise.resolve(window.qrcode);
+  return qrLoading || (qrLoading = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = QR_SRC; s.integrity = QR_SRI; s.crossOrigin = 'anonymous';
+    s.onload = () => window.qrcode ? res(window.qrcode) : rej(new Error('qr')); s.onerror = () => { qrLoading = null; rej(new Error('qr')); };
+    document.head.appendChild(s);
+  }));
+}
+// Draws the QR (dark squares on white, with the required white border) into a canvas
+async function qrCanvas(text, px) {
+  const q = (await qrLib())(0, 'M'); q.addData(text); q.make();
+  const n = q.getModuleCount(), quiet = 4, cell = Math.max(2, Math.floor(px / (n + quiet * 2))), size = cell * (n + quiet * 2);
+  const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, size, size); x.fillStyle = '#1E1A16';
+  for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) x.fillRect((k + quiet) * cell, (r + quiet) * cell, cell, cell);
+  return c;
+}
+async function vkShowQR() {
+  if (!vkRoomValid()) return;
+  const url = vkRoomUrl(BIDA.vk.room.id);
+  openSheet(`<div class="sheet-head"><h3>I-scan para kumanta</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <div class="qr-box" id="qr-box"><p class="muted">Ginagawa ang QR…</p></div>
+    <p class="muted qr-note">Ipa-scan sa camera ng phone nila. Diretso na sa page kung saan sila pipili ng kanta.</p>
+    <div class="qr-btns"><button class="btn btn--chili" onclick="vkShareRoom()">${ic('share')}I-share ang link</button>
+      <button class="btn btn--ghost" onclick="vkDownloadQR()">${ic('upload')}I-download ang QR</button></div>`);
+  try { const c = await qrCanvas(url, 520); c.className = 'qr-img'; c.setAttribute('role', 'img'); c.setAttribute('aria-label', 'QR code ng videoke link'); const b = $('#qr-box'); if (b) { b.innerHTML = ''; b.appendChild(c); } }
+  catch (e) { const b = $('#qr-box'); if (b) b.innerHTML = '<p class="muted">Hindi ma-load ang QR. I-check ang internet, o i-share na lang ang link.</p>'; }
+}
+// A printable/postable QR card: event name on top, big QR, short instruction
+async function vkDownloadQR() {
+  if (!vkRoomValid()) return;
+  let qr; try { qr = await qrCanvas(vkRoomUrl(BIDA.vk.room.id), 760); } catch (e) { toast('Hindi ma-load ang QR'); return; }
+  const W = 900, H = 1200, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  x.fillStyle = '#E2367A'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#FFF6E5'; x.strokeStyle = '#1E1A16'; x.lineWidth = 8;
+  x.beginPath(); if (x.roundRect) x.roundRect(50, 50, W - 100, H - 100, 40); else x.rect(50, 50, W - 100, H - 100); x.fill(); x.stroke();
+  x.fillStyle = '#1E1A16'; x.textAlign = 'center'; x.textBaseline = 'top';
+  x.font = '800 34px Nunito, sans-serif'; x.fillText('VIDEOKE', W / 2, 100);
+  let fs = 64; const title = String(BIDA.event.name || eventType().label);
+  do { x.font = `800 ${fs}px "Bricolage Grotesque", sans-serif`; fs -= 4; } while (x.measureText(title).width > W - 180 && fs > 30);
+  x.fillStyle = '#E4452B'; x.fillText(title, W / 2, 150);
+  const qs = 640; x.drawImage(qr, (W - qs) / 2, 270, qs, qs);
+  x.strokeStyle = '#1E1A16'; x.lineWidth = 6; x.strokeRect((W - qs) / 2, 270, qs, qs);
+  x.fillStyle = '#1E1A16'; x.font = '800 44px "Bricolage Grotesque", sans-serif'; x.fillText('I-scan para kumanta!', W / 2, 950);
+  x.font = '700 28px Nunito, sans-serif'; x.fillStyle = '#7A7067'; x.fillText('Ilagay ang pangalan, pili ng kanta, tapos hintayin ang turn mo.', W / 2, 1020);
+  c.toBlob(b => {
+    if (!b) { toast('Hindi ma-save ang QR'); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'videoke-qr.png';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('Na-download ang QR!');
+  }, 'image/png');
+}
+// Small "scan me" QR in the TV corner while the link is open
+async function vkStageQR() {
+  const el = $('#vk-qr'); if (!el) return;
+  if (!vkRoomValid()) { el.hidden = true; el.innerHTML = ''; return; }
+  const url = vkRoomUrl(BIDA.vk.room.id);
+  if (el.dataset.url === url && !el.hidden) return;
+  try { const c = await qrCanvas(url, 240); el.innerHTML = '<small>Scan para kumanta</small>'; el.prepend(c); el.dataset.url = url; el.hidden = false; }
+  catch (e) { el.hidden = true; }
+}
 async function vkCloseRoom() {
   if (!BIDA.vk.room) return;
   if (!await askConfirm('Isara ang link? Hindi na sila makakapag-reserve.', 'Isara')) return;
   const fs = vkFs(); if (fs && vkRoomValid()) fs.collection('vk_rooms').doc(BIDA.vk.room.id).update({ open: false }).catch(() => { });
-  VKR.unsub?.(); VKR.unsub = null; BIDA.vk.room = null; saveState(); renderVideoke();
+  VKR.unsub?.(); VKR.unsub = null; BIDA.vk.room = null; saveState(); renderVideoke(); vkStageQR();
 }
 // Live: pick up guests' requests as they arrive. Only songs that are really in the library are accepted.
 async function vkListen() {
@@ -2905,7 +2972,7 @@ Object.assign(window, {
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
   vkKey, vkReserveTyped, vkReserve, vkQMove, vkQDel, vkScoreToggle, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
-  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMakeRoom, vkShareRoom, vkCloseRoom,
+  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,

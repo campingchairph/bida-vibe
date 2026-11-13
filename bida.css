@@ -520,6 +520,17 @@ body.in-live .pl-panel { bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)
 .vk-tx b { font-weight: 800; }
 .vk-tx em { font-style: normal; opacity: .85; }
 .vk-tx:nth-child(3) { margin-top: 4px; }
+/* QR code */
+.qr-box { display: grid; place-items: center; min-height: 240px; margin-top: 14px; }
+.qr-img { width: min(300px, 78vw); height: auto; border: 3px solid var(--ink); border-radius: 18px; box-shadow: 5px 5px 0 var(--ink); image-rendering: pixelated; }
+.qr-note { text-align: center; margin-top: 14px; }
+.qr-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+.vk-qr { grid-row: 2; grid-column: 1; align-self: start; justify-self: end; z-index: 2; margin: 14px; padding: 8px 8px 6px; background: #fff; border: 3px solid var(--ink);
+  border-radius: 14px; box-shadow: 4px 4px 0 rgba(0,0,0,.55); text-align: center; pointer-events: none; }
+.vk-qr canvas { display: block; width: clamp(84px, 13vmin, 140px); height: auto; image-rendering: pixelated; }
+.vk-qr small { display: block; margin-top: 4px; font: 800 11px/1.1 var(--f); color: var(--ink); text-transform: uppercase; letter-spacing: .06em; }
+@media (max-width: 599px) { .vk-qr { margin: 10px; } .vk-qr canvas { width: 72px; } }
+
 /* Guest link card + Brave tip */
 .vk-q .vk-qav { flex: none; display: grid; }
 .vk-room { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
