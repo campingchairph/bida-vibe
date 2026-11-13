@@ -29,6 +29,49 @@ service cloud.firestore {
       allow list, write: if false;
     }
 
+    // Videoke rooms: one per host + event, opened from the host's signed-in app.
+    // Anyone with the (long, random) link can READ the room to see the queue; only the host can change it.
+    function roomFields() { return ['owner', 'title', 'open', 'expires', 'queue', 'now', 'updated']; }
+    match /vk_rooms/{room} {
+      allow get: if room.matches('^[A-Za-z0-9]{24}$');
+      allow list: if false;
+      allow create: if request.auth != null
+        && room.matches('^[A-Za-z0-9]{24}$')
+        && request.resource.data.keys().hasOnly(roomFields())
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.title.size() <= 90
+        && request.resource.data.open is bool
+        && request.resource.data.expires is timestamp
+        && request.resource.data.expires < request.time + duration.value(3, 'd')
+        && request.resource.data.queue is list && request.resource.data.queue.size() <= 40;
+      allow update: if request.auth != null
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == resource.data.owner
+        && request.resource.data.keys().hasOnly(roomFields())
+        && request.resource.data.title is string && request.resource.data.title.size() <= 90
+        && request.resource.data.expires == resource.data.expires
+        && request.resource.data.queue is list && request.resource.data.queue.size() <= 40;
+      allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
+
+      // A guest's song request. Guests don't sign in; they can only ADD a well-formed request
+      // to an open, unexpired room. Only the host can read (pick up) and delete them.
+      match /requests/{req} {
+        function rm() { return get(/databases/$(database)/documents/vk_rooms/$(room)).data; }
+        allow create: if rm().open == true
+          && rm().expires > request.time
+          && request.resource.data.keys().hasOnly(['name', 'av', 'c', 't', 'a', 'y', 'at'])
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 24
+          && request.resource.data.av is string && request.resource.data.av.matches('^[a-z]{2,10}$')
+          && request.resource.data.c is int && request.resource.data.c >= 1 && request.resource.data.c <= 99999
+          && request.resource.data.t is string && request.resource.data.t.size() <= 80
+          && request.resource.data.a is string && request.resource.data.a.size() <= 60
+          && request.resource.data.y is string && request.resource.data.y.matches('^[A-Za-z0-9_-]{11}$')
+          && request.resource.data.at == request.time;
+        allow read, delete: if request.auth != null && rm().owner == request.auth.uid;
+        allow update: if false;
+      }
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

@@ -2001,7 +2001,7 @@ function renderMusic() {
           <button class="btn btn--chili" onclick="addYouTube()">${ic('plus')}Idagdag</button></div></div>
         <div class="yt-head"><span class="field-label">Naka-save</span><small class="muted">${m.ytLinks.length}${BIDA.premium ? '' : ` / ${BIDA_CONFIG.freeYtLinks} libre`}</small></div>
         ${ytListHTML()}
-        <p class="note" style="margin-top:14px"><b>Tip:</b> Buksan ang Bida-Vibe sa <b>Brave browser</b> — kadalasang hinaharangan ng Brave Shields ang YouTube ads, kaya hindi maiistorbo ang party.</p>
+        ${braveTipHTML()}
       </div>
       <div ${m.src === 'spotify' ? '' : 'hidden'}>
         ${BIDA_CONFIG.spotifyClientId ? `
@@ -2058,9 +2058,12 @@ function vkState() {
   if (BIDA.vk && BIDA.vk === vkChecked) return BIDA.vk;
   const v = BIDA.vk && typeof BIDA.vk === 'object' ? BIDA.vk : {};
   vkChecked = BIDA.vk = {
-    queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)), c: q.c, singer: String(q.singer || '').slice(0, 30) })),
+    queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)).slice(0, 12), c: q.c, singer: String(q.singer || '').slice(0, 30),
+      av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
-    score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30)
+    score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30),
+    room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
+      ? { id: v.room.id, owner: v.room.owner.slice(0, 128), exp: +v.room.exp } : null
   };
   return BIDA.vk;
 }
@@ -2108,13 +2111,15 @@ function renderVideoke() {
       <div class="vk-queue card">
         <h3>Reserved <small class="muted">(${v.queue.length})</small></h3>
         ${now ? `<div class="vk-now">${ic('mic')}<div><b>${esc(now.t)}</b><small>Kumakanta: ${esc(VK.cur.singer || '—')} · ${now.c}</small></div></div>` : ''}
-        ${v.queue.length ? `<ol class="vk-q">${v.queue.map((q, i) => { const s = vkSong(q.c); return `<li><span class="vk-qn">${i + 1}</span>
-          <div><b>${esc(s ? s.t : 'Code ' + q.c)}</b><small>${q.c}${q.singer ? ' · ' + esc(q.singer) : ''}</small></div>
+        ${v.queue.length ? `<ol class="vk-q">${v.queue.map((q, i) => { const s = vkSong(q.c); return `<li><span class="vk-qav">${vkAvatar(q.av || vkAvatarFor(q.singer), 34)}</span>
+          <div><b>${esc(s ? s.t : 'Code ' + q.c)}</b><small>${i + 1}. ${q.singer ? esc(q.singer) : 'Bisita'} · ${q.c}${q.src === 'guest' ? ' · via link' : ''}</small></div>
           <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkQMove(${i},-1)" ${i ? '' : 'disabled'} aria-label="Taas">${ic('up')}</button>
           <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
           : '<p class="muted" style="margin-top:10px">Wala pang naka-reserve. I-type ang code o pumili sa listahan.</p>'}
       </div>
     </div>
+    ${vkRoomHTML()}
+    ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
       <div class="vk-search"><input class="input" id="vk-q" placeholder="Hanapin: kanta, artist o code" value="${esc(VK.q)}" oninput="vkFind(this.value)">
         <label class="toggle" style="margin:0"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
@@ -2123,6 +2128,26 @@ function renderVideoke() {
       <button class="btn btn--ghost btn--sm" style="margin-top:12px" onclick="vkAddMine()">${ic('plus')}Idagdag ang sariling kanta (YouTube link)</button>
     </div>
     ${isAdmin() ? vkAdminHTML() : ''}`;
+}
+// The family link card in the Videoke tab
+function vkRoomHTML() {
+  const on = vkRoomValid();
+  const left = on ? Math.max(1, Math.round((BIDA.vk.room.exp - Date.now()) / 36e5)) : 0;
+  return `<div class="card vk-room" style="margin-top:16px">
+    <div class="vk-room-ic">${ic('share')}</div>
+    <div class="vk-room-tx"><h3>Link para sa pamilya</h3>
+      <p class="muted">${on ? `Bukas ang link — ${left} oras pa. Ang may hawak ng link ay pwedeng mag-lagay ng pangalan, pumili ng avatar at mag-reserve. Diretso sa pila ang kanta nila.`
+        : 'Gumawa ng link para sa event na ito. Ang bisita ay makakapag-reserve lang ng kanta — wala silang access sa ibang bahagi ng app.'}</p></div>
+    <div class="vk-room-btns">${on
+      ? `<button class="btn btn--chili btn--sm" onclick="vkShareRoom()">${ic('share')}I-share ang link</button>
+         <button class="btn btn--ghost btn--sm" onclick="vkCloseRoom()">Isara ang link</button>`
+      : `<button class="btn btn--chili btn--sm" onclick="vkMakeRoom()">${ic('plus')}${AUTH.user ? 'Gumawa ng link' : 'Mag-sign in para gumawa ng link'}</button>`}</div>
+  </div>`;
+}
+// Brave blocks YouTube ads with Shields on. Shown in Videoke and Music.
+function braveTipHTML() {
+  if (navigator.brave) return `<p class="note brave-tip brave-on" style="margin-top:16px">${ic('check')}<span><b>Naka-Brave ka.</b> Hinaharangan ng Brave Shields ang ads sa YouTube — siguraduhing naka-ON ang Shields (icon na leon sa address bar).</span></p>`;
+  return `<p class="note brave-tip" style="margin-top:16px"><span><b>Ayaw ng ads sa gitna ng kanta?</b> Buksan ang Bida-Vibe sa <a href="https://brave.com/download/" target="_blank" rel="noopener noreferrer">Brave browser</a> — kusang hinaharangan ang YouTube ads. Kung may YouTube Premium ka, naka-sign in dapat ang Premium account sa YouTube sa parehong browser at device.</span></p>`;
 }
 function vkResultsHTML(shown, total) {
   if (!vkAll().length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang kanta sa library.' : 'Kinukuha ang library…'}</p>`;
@@ -2144,13 +2169,14 @@ async function vkReserve(c) {
   const singer = await askText(`Sino ang kakanta ng "${s.t}"?`, v.lastSinger || '', 30);
   if (singer === null) return;
   v.lastSinger = String(singer).slice(0, 30);
-  v.queue.push({ id: Math.random().toString(36).slice(2, 9), c, singer: v.lastSinger });
+  v.queue.push({ id: Math.random().toString(36).slice(2, 9), c, singer: v.lastSinger, av: vkAvatarFor(v.lastSinger), src: '' });
   saveState(); toast(`Na-reserve: ${c} · ${s.t}${v.lastSinger ? ' — ' + v.lastSinger : ''}`);
   if (BIDA.tab === 'videoke') renderVideoke();
-  if (!$('#vk-stage').hidden) vkStageInfo();
+  if (!$('#vk-stage').hidden) { vkStageInfo(); if (!VK.cur) vkNext(); }
+  vkPublish();
 }
-function vkQMove(i, d) { const q = vkState().queue, j = i + d; if (j < 0 || j >= q.length) return; [q[i], q[j]] = [q[j], q[i]]; saveState(); renderVideoke(); }
-function vkQDel(i) { vkState().queue.splice(i, 1); saveState(); renderVideoke(); if (!$('#vk-stage').hidden) vkStageInfo(); }
+function vkQMove(i, d) { const q = vkState().queue, j = i + d; if (j < 0 || j >= q.length) return; [q[i], q[j]] = [q[j], q[i]]; saveState(); renderVideoke(); vkPublish(); }
+function vkQDel(i) { vkState().queue.splice(i, 1); saveState(); renderVideoke(); if (!$('#vk-stage').hidden) vkStageInfo(); vkPublish(); }
 function vkScoreToggle(on) { vkState().score = on; saveState(); }
 
 /* ---- The big screen (cast / connect this to the TV) ---- */
@@ -2164,37 +2190,75 @@ async function vkStart() {
 function vkClose() {
   $('#vk-stage').hidden = true; document.body.classList.remove('in-vk'); document.body.style.overflow = '';
   try { VK.yt?.pauseVideo(); } catch (e) { }
+  clearTimeout(VK.introT); $('#vk-intro').hidden = true;
   if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
   VK.lock?.release?.(); VK.lock = null;
   if (BIDA.tab === 'videoke') renderVideoke();
 }
 function vkFullscreen() { const s = $('#vk-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser na ito ang full screen')); }
 async function vkNext() {
-  clearTimeout(VK.scoreT); $('#vk-score').hidden = true;
+  clearTimeout(VK.scoreT); clearTimeout(VK.introT); $('#vk-score').hidden = true; $('#vk-intro').hidden = true;
   const q = vkState().queue;
-  if (!q.length) { VK.cur = null; saveState(); vkStageInfo(); try { VK.yt?.stopVideo(); } catch (e) { } return; }
+  if (!q.length) { VK.cur = null; saveState(); vkStageInfo(); vkPublish(); try { VK.yt?.stopVideo(); } catch (e) { } return; }
   VK.cur = q.shift(); saveState();
   const s = vkSong(VK.cur.c); if (!s) { vkNext(); return; }
-  vkStageInfo(true);
+  vkStageInfo(); vkPublish();
   await ytApi();
-  if (VK.yt && VK.ytReady) { VK.yt.loadVideoById(s.y); return; }
-  $('#vk-player').innerHTML = '<div id="vk-yt"></div>';
-  VK.ytReady = false;
-  VK.yt = new YT.Player('vk-yt', {
-    videoId: s.y, playerVars: { playsinline: 1, rel: 0, modestbranding: 1, autoplay: 1 },
-    events: {
-      onReady: e => { VK.ytReady = true; e.target.setVolume(100); e.target.playVideo(); },
-      onStateChange: e => { if (e.data === YT.PlayerState.ENDED) vkSongEnded(); },
-      onError: () => { toast('Hindi pwedeng i-play dito ang video na ito — susunod na'); setTimeout(vkNext, 1500); }
-    }
-  });
+  VK.introDone = false; VK.ready2play = false;
+  const go = () => { if (VK.introDone && VK.ready2play) { try { VK.yt.setVolume(100); VK.yt.playVideo(); } catch (e) { } } };
+  if (VK.yt && VK.ytReady) { VK.yt.cueVideoById(s.y); VK.ready2play = true; }
+  else {
+    $('#vk-player').innerHTML = '<div id="vk-yt"></div>';
+    VK.ytReady = false;
+    VK.yt = new YT.Player('vk-yt', {
+      videoId: s.y, playerVars: { playsinline: 1, rel: 0, modestbranding: 1, autoplay: 0 },
+      events: {
+        onReady: () => { VK.ytReady = true; VK.ready2play = true; go(); },
+        onStateChange: e => { if (e.data === YT.PlayerState.ENDED) vkSongEnded(); },
+        onError: () => { toast('Hindi pwedeng i-play dito ang video na ito — susunod na'); setTimeout(vkNext, 1500); }
+      }
+    });
+  }
+  vkIntro(VK.cur, s, () => { VK.introDone = true; go(); });
 }
-function vkStageInfo(intro) {
-  const cur = VK.cur && vkSong(VK.cur.c), nxt = vkState().queue[0], ns = nxt && vkSong(nxt.c);
-  $('#vk-now').innerHTML = cur ? `<span class="vk-c">${cur.c}</span><div><b>${esc(cur.t)}</b><small>${esc(cur.a)} · Kumakanta: <b>${esc(VK.cur.singer || '—')}</b></small></div>`
-    : '<div><b>Wala nang naka-reserve</b><small>Mag-reserve sa Videoke tab o gamitin ang keypad</small></div>';
-  $('#vk-next').innerHTML = ns ? `Susunod: <b>${esc(nxt.singer || '—')}</b> · ${esc(ns.t)} <span class="muted">(${ns.c})</span>` : '';
-  if (intro && cur) { const b = $('#vk-banner'); b.innerHTML = `<small>Susunod na kakanta</small><b>${esc(VK.cur.singer || 'Ikaw na!')}</b><span>${esc(cur.t)}</span>`; b.hidden = false; setTimeout(() => b.hidden = true, 3200); }
+/* The queue on the left: one box per singer (no panel behind them), current singer on top.
+   It never goes below 3/4 of the screen height so the lyrics at the bottom stay visible. */
+function vkStageInfo() {
+  const cur = VK.cur && vkSong(VK.cur.c), q = vkState().queue;
+  $('#vk-now').innerHTML = cur ? `<span class="vk-c">${cur.c}</span><div><b>${esc(cur.t)}</b><small>${esc(cur.a)}</small></div>`
+    : '<div><b>Wala nang naka-reserve</b><small>Mag-reserve sa Videoke tab o sa guest link</small></div>';
+  const box = (it, s, i, now) => `<li class="vk-box ${now ? 'now' : ''}" style="--i:${i}">
+      <span class="vk-av">${vkAvatar(it.av || vkAvatarFor(it.singer), now ? 58 : 44)}</span>
+      <span class="vk-bt"><small>${now ? 'Kumakanta' : i === 1 ? 'Susunod' : '#' + i}</small><b>${esc(it.singer || 'Bisita')}</b><em>${esc(s ? s.t : 'Code ' + it.c)}</em></span></li>`;
+  const items = [];
+  if (cur) items.push(box(VK.cur, cur, 0, true));
+  q.slice(0, 5).forEach((it, i) => items.push(box(it, vkSong(it.c), i + 1, false)));
+  $('#vk-side').innerHTML = items.join('') + (q.length > 5 ? `<li class="vk-box vk-more">+${q.length - 5} pa sa pila</li>` : '');
+}
+/* "Susunod na kakanta" — a big, fun intro before each song, then the video starts */
+function vkIntro(it, s, done) {
+  const el = $('#vk-intro'), name = it.singer || 'Ikaw na!';
+  const conf = [...Array(36)].map((_, i) => `<i style="--x:${(i * 37) % 100};--d:${(i % 9) * .12}s;--c:${['#E2367A', '#F6B21B', '#0FA3A3', '#E4452B', '#3E9B4F', '#FFF6E5'][i % 6]};--r:${(i * 53) % 360}deg"></i>`).join('');
+  el.innerHTML = `<div class="vki-rays"></div><div class="vki-conf">${conf}</div>
+    <div class="vki-card">
+      <div class="vki-tag">Susunod na kakanta!</div>
+      <div class="vki-av">${vkAvatar(it.av || vkAvatarFor(it.singer), 180)}</div>
+      <div class="vki-name">${[...name].map((ch, i) => `<span style="--i:${i}">${ch === ' ' ? '&nbsp;' : esc(ch)}</span>`).join('')}</div>
+      <div class="vki-song"><span class="vk-c">${s.c}</span>${esc(s.t)}${s.a ? ` <small>· ${esc(s.a)}</small>` : ''}</div>
+      <div class="vki-count" id="vki-count">3</div>
+    </div>`;
+  el.hidden = false; el.classList.remove('out');
+  vkPlayPad(/drum/i);
+  const cnt = $('#vki-count'); let n = 3;
+  const step = () => {
+    n--;
+    if (n > 0) { cnt.textContent = n; cnt.classList.remove('pop'); void cnt.offsetWidth; cnt.classList.add('pop'); VK.introT = setTimeout(step, 900); }
+    else {
+      cnt.textContent = 'Kanta na!'; cnt.classList.add('go'); vkPlayPad(/palakpak|applause|clap|ta-?da/i);
+      VK.introT = setTimeout(() => { el.classList.add('out'); VK.introT = setTimeout(() => { el.hidden = true; done(); }, 450); }, 900);
+    }
+  };
+  VK.introT = setTimeout(() => { cnt.classList.add('pop'); VK.introT = setTimeout(step, 900); }, 1700);
 }
 function vkPlayPad(re) { const p = PADS.find(x => re.test(x.name) && canPlaySound(x.id)); if (p) playSound(p.id); }
 function vkSongEnded() {
@@ -2210,6 +2274,81 @@ function vkSongEnded() {
     if (k >= 1) { clearInterval(iv); vkPlayPad(/palakpak|applause|clap|ta-?da/i); }
   }, 40);
   VK.scoreT = setTimeout(vkNext, 6500);
+}
+
+/* ---- Guest link: a room in Firestore that guests can add songs to ----
+   The room belongs to the signed-in host and this event. Guests open sing.html?r=<room>,
+   type their name, pick an avatar and add songs; requests land here and join the queue. */
+const VKR = { unsub: null, pubT: 0, seen: new Set() };
+const ROOM_HOURS = 48;
+function vkFs() { return window.firebase && firebase.firestore ? firebase.firestore() : null; }
+function vkRoomUrl(id) { return new URL('sing.html?r=' + id, location.href).href; }
+function vkRoomValid() {
+  const r = BIDA.vk && BIDA.vk.room;
+  return !!(r && /^[A-Za-z0-9]{24}$/.test(r.id) && r.owner === AUTH.user?.uid && r.exp > Date.now());
+}
+async function vkMakeRoom() {
+  if (!authReady()) { toast('Hindi pa bukas ang sign-in'); return; }
+  if (!AUTH.user) { await signIn(); if (!AUTH.user) return; }
+  const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang guest link — i-refresh'); return; }
+  const old = BIDA.vk.room;
+  if (old && old.owner === AUTH.user.uid) fs.collection('vk_rooms').doc(old.id).update({ open: false }).catch(() => { });
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const id = [...crypto.getRandomValues(new Uint8Array(24))].map(b => abc[b % abc.length]).join('');
+  const exp = Date.now() + ROOM_HOURS * 36e5;
+  try {
+    await fs.collection('vk_rooms').doc(id).set({ owner: AUTH.user.uid, title: String(BIDA.event.name || eventType().label).slice(0, 90), open: true,
+      expires: firebase.firestore.Timestamp.fromMillis(exp), queue: [], now: null, updated: firebase.firestore.FieldValue.serverTimestamp() });
+  } catch (e) { toast(/permission/i.test(e.message) ? 'Hindi pa naka-publish ang bagong Firestore rules' : 'Hindi magawa ang link — subukan ulit'); return; }
+  vkState().room = { id, owner: AUTH.user.uid, exp }; saveState();
+  vkListen(); vkPublish(); renderVideoke(); vkShareRoom();
+}
+async function vkShareRoom() {
+  if (!vkRoomValid()) return;
+  const url = vkRoomUrl(BIDA.vk.room.id), text = `Mag-reserve ng kanta sa videoke ng ${BIDA.event.name || eventType().label}!`;
+  try { if (navigator.share) { await navigator.share({ title: 'Bida-Vibe Videoke', text, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); toast('Na-copy ang link — i-paste sa group chat'); } catch (e) { askText('I-copy ang link na ito', url, 600); }
+}
+async function vkCloseRoom() {
+  if (!BIDA.vk.room) return;
+  if (!await askConfirm('Isara ang guest link? Hindi na makakapag-reserve ang may hawak ng link.', 'Isara')) return;
+  const fs = vkFs(); if (fs && vkRoomValid()) fs.collection('vk_rooms').doc(BIDA.vk.room.id).update({ open: false }).catch(() => { });
+  VKR.unsub?.(); VKR.unsub = null; BIDA.vk.room = null; saveState(); renderVideoke();
+}
+// Live: pick up guests' requests as they arrive. Only songs that are really in the library are accepted.
+async function vkListen() {
+  VKR.unsub?.(); VKR.unsub = null;
+  const fs = vkFs(); if (!fs || !vkRoomValid()) return;
+  await loadVkLibrary();                                               // need the library to check requests
+  if (!vkRoomValid() || VKR.unsub) return;
+  const room = BIDA.vk.room.id;
+  VKR.unsub = fs.collection('vk_rooms').doc(room).collection('requests').orderBy('at').onSnapshot(snap => {
+    snap.docChanges().forEach(ch => {
+      if (ch.type !== 'added' || VKR.seen.has(ch.doc.id)) return;
+      VKR.seen.add(ch.doc.id);
+      const d = ch.doc.data(), s = VK.lib.find(x => x.c === d.c && x.y === d.y);
+      ch.doc.ref.delete().catch(() => { });
+      if (!s) return;                                                      // not from our library: ignored
+      const singer = String(d.name || 'Bisita').slice(0, 24), av = VK_AVATARS.some(a => a.id === d.av) ? d.av : vkAvatarFor(singer);
+      vkState().queue.push({ id: ch.doc.id.slice(0, 9), c: s.c, singer, av, src: 'guest' });
+      saveState(); toast(`${singer} nag-reserve: ${s.t}`);
+      if (BIDA.tab === 'videoke' && !$('#app').hidden) renderVideoke();
+      if (!$('#vk-stage').hidden) { vkStageInfo(); if (!VK.cur) vkNext(); }
+      vkPublish();
+    });
+  }, () => { /* rules not published yet, or the room closed */ });
+}
+// Guests see the queue on their page: keep the room's copy in sync (names, avatars, titles only)
+function vkPublish() {
+  clearTimeout(VKR.pubT);
+  VKR.pubT = setTimeout(() => {
+    const fs = vkFs(); if (!fs || !vkRoomValid()) return;
+    const item = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), t: s ? s.t : 'Kanta', c: it.c }; };
+    fs.collection('vk_rooms').doc(BIDA.vk.room.id).update({
+      queue: vkState().queue.slice(0, 40).map(item), now: VK.cur ? item(VK.cur) : null,
+      title: String(BIDA.event.name || eventType().label).slice(0, 90), updated: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => { });
+  }, 700);
 }
 
 /* ---- Hosts' own songs (saved only on this device) ---- */
@@ -2238,11 +2377,6 @@ async function vkAddMine() {
 }
 
 /* ---- Admin: the shared library (saved to karaoke/library.json via the admin's GitHub token) ---- */
-function vkStageReserve() {
-  const i = $('#vk-code'), c = parseInt(i.value, 10);
-  if (!vkSong(c)) { toast('Walang kantang ganyan ang code'); return; }
-  i.value = ''; vkReserve(c);
-}
 function vkAdminHTML() {
   const a = VK.admin, q = vkNorm(a.q);
   const list = VK.lib.filter(s => !q || String(s.c).startsWith(q) || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q));
@@ -2384,7 +2518,9 @@ function initAuth() {
         // A different Google account on this device must not inherit the last user's unlock
         if (BIDA.premiumUid && BIDA.premiumUid !== u.uid) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; applyEntitlement(); }
         await refreshPremium();
+        vkState(); vkListen();          // pick up guest song requests again after a reload
       } else {
+        VKR.unsub?.(); VKR.unsub = null;
         AUTH.admin = false;
         BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = '';
         applyEntitlement(); saveState(); rerenderPremiumViews();
@@ -2685,7 +2821,7 @@ Object.assign(window, {
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
   vkKey, vkReserveTyped, vkReserve, vkQMove, vkQDel, vkScoreToggle, vkFind, vkGenre, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
-  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkStageReserve,
+  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkMakeRoom, vkShareRoom, vkCloseRoom,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
