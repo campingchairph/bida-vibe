@@ -15,13 +15,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261110b">
+<link rel="stylesheet" href="bida.css?v=20261113">
 </head>
 <body>
 
 <!-- ============ SVG ICON SPRITE ============ -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
+    <symbol id="i-card" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 5l8 7 8-7M8 15h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
     <symbol id="i-event" viewBox="0 0 24 24"><path d="M4 9h16v11H4zM4 9l2-5h12l2 5M9 13h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
     <symbol id="i-program" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
     <symbol id="i-script" viewBox="0 0 24 24"><path d="M5 4h10l4 4v12H5zM9 11h6M9 15h6M15 4v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
@@ -99,6 +100,7 @@
 
   <nav class="tabs" id="tabs" aria-label="Sections">
     <button data-tab="plan"   onclick="goTab('plan')"><svg class="ic"><use href="#i-program"/></svg><span>Plan</span></button>
+    <button data-tab="card"   onclick="goTab('card')"><svg class="ic"><use href="#i-card"/></svg><span>Card</span></button>
     <button data-tab="games"  onclick="goTab('games')"><svg class="ic"><use href="#i-games"/></svg><span>Games</span></button>
     <button data-tab="sounds" onclick="goTab('sounds')"><svg class="ic"><use href="#i-sound"/></svg><span>Sounds</span></button>
     <button data-tab="music"  onclick="goTab('music')"><svg class="ic"><use href="#i-music"/></svg><span>Music</span></button>
@@ -106,6 +108,7 @@
 
   <main class="app-main">
     <section class="panel" id="panel-plan"></section>
+    <section class="panel" id="panel-card"></section>
     <section class="panel" id="panel-games"></section>
     <section class="panel" id="panel-sounds"></section>
     <section class="panel" id="panel-music"></section>
@@ -194,7 +197,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" integrity="sha384-lI+CxEx/bCvWP1b0OK13j5HTrTZP7yf1xle8TVOFq2smz6KC1RChTarRV/RHP5PP" crossorigin="anonymous"></script>
-<script src="bida-content.js?v=20261110b"></script>
-<script src="bida-app.js?v=20261110b"></script>
+<script src="bida-content.js?v=20261113"></script>
+<script src="bida-app.js?v=20261113"></script>
 </body>
 </html>

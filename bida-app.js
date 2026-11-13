@@ -62,7 +62,8 @@ function defaultState() {
     seenLanding: false,
     tab: 'plan',
     gameChecks: {},
-    liveIdx: 0
+    liveIdx: 0,
+    card: null        // invitation card: { theme, size, intro, title, sub, date, time, venue, msg, rsvp }
   };
 }
 function saveState() {
@@ -92,7 +93,7 @@ function loadState() {
       if (!Number.isInteger(BIDA.music.ytIdx) || BIDA.music.ytIdx >= BIDA.music.ytLinks.length) BIDA.music.ytIdx = -1;
       // v3: scripts/guide removed, tabs simplified
       delete BIDA.scriptEdits; delete BIDA.tones; delete BIDA.rulesOpen;
-      if (!['plan', 'games', 'sounds', 'music'].includes(BIDA.tab)) BIDA.tab = 'plan';
+      if (!['plan', 'card', 'games', 'sounds', 'music'].includes(BIDA.tab)) BIDA.tab = 'plan';
       // v4: Premium became a 30-day pass — drop any old lifetime unlock
       if ((d.v || 1) < 4) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; BIDA.premium = false; }
       BIDA.v = 4;
@@ -199,7 +200,7 @@ function showLanding() {
 }
 
 /* ---------- Tabs ---------- */
-const RENDER = { plan: renderPlan, games: renderGames, sounds: renderSounds, music: renderMusic };
+const RENDER = { plan: renderPlan, card: renderCard, games: renderGames, sounds: renderSounds, music: renderMusic };
 function goTab(name) {
   if (!RENDER[name]) name = 'plan';
   BIDA.tab = name; saveState();
@@ -340,6 +341,236 @@ function saveSeg(id) {
 function deleteSeg(id) {
   BIDA.program = BIDA.program.filter(s => s.id !== id);
   saveState(); closeSheet(); renderPlan(); toast('Natanggal');
+}
+
+/* ============================================================
+   CARD — the event's key details as an invitation card.
+   Drawn on a <canvas> so it downloads as a PNG (or shares straight to Messenger etc.).
+   Themes are matched to the event type; all themes are available for any event.
+   ============================================================ */
+const CARD_SIZES = { post: [1080, 1350, 'Post 4:5'], story: [1080, 1920, 'Story 9:16'] };
+const CARD_FONT = '"Bricolage Grotesque", "Nunito", sans-serif', BODY_FONT = '"Nunito", sans-serif';
+// tiny seeded random so decorations look the same every time the card is redrawn
+const seeded = s => () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+function starPath(ctx, x, y, r, n = 5, inner = .45, rot = -Math.PI / 2) {
+  ctx.beginPath();
+  for (let i = 0; i < n * 2; i++) { const rr = i % 2 ? r * inner : r, a = rot + i * Math.PI / n; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  ctx.closePath();
+}
+function parol(ctx, x, y, r, col, tail) {
+  starPath(ctx, x, y, r, 5, .5); ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = r * .08; ctx.strokeStyle = '#1E1A16'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r * .28, 0, 7); ctx.fillStyle = '#FFF6E5'; ctx.fill(); ctx.stroke();
+  ctx.lineWidth = r * .06; ctx.strokeStyle = tail;
+  [-.25, 0, .25].forEach(o => { ctx.beginPath(); ctx.moveTo(x + o * r, y + r * .4); ctx.quadraticCurveTo(x + o * r * 2, y + r * 1.3, x + o * r * 1.2, y + r * 1.9); ctx.stroke(); });
+}
+function balloon(ctx, x, y, r, col) {
+  ctx.strokeStyle = '#1E1A16'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x, y + r * 1.2); ctx.quadraticCurveTo(x + r * .5, y + r * 2.2, x - r * .2, y + r * 3.2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(x, y, r * .85, r * 1.1, 0, 0, 7); ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 4; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(x - r * .3, y - r * .4, r * .15, r * .25, -.5, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
+}
+function picadoRow(ctx, W, y, h, cols) {
+  ctx.strokeStyle = '#1E1A16'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(0, y); ctx.quadraticCurveTo(W / 2, y + 30, W, y); ctx.stroke();
+  const fw = h * .78, gap = fw * .25, n = Math.ceil(W / (fw + gap)) + 1;
+  for (let i = 0; i < n; i++) {
+    const x = i * (fw + gap) + gap / 2, sag = Math.sin((x / W) * Math.PI) * 26;
+    ctx.save(); ctx.translate(x, y + sag); ctx.rotate((i % 2 ? 1 : -1) * .04);
+    const p = new Path2D(flagPath(fw, h, i)); ctx.fillStyle = cols[i % cols.length]; ctx.fill(p, 'evenodd'); ctx.lineWidth = 3; ctx.stroke(p); ctx.restore();
+  }
+}
+function confetti(ctx, W, H, cols, n, seed, avoid) {
+  const rnd = seeded(seed);
+  for (let i = 0; i < n; i++) {
+    const x = rnd() * W, y = rnd() * H; if (avoid && x > avoid[0] && x < avoid[2] && y > avoid[1] && y < avoid[3]) continue;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rnd() * 6.3); ctx.fillStyle = cols[i % cols.length];
+    if (i % 3 === 0) { ctx.beginPath(); ctx.arc(0, 0, 9 + rnd() * 8, 0, 7); ctx.fill(); } else ctx.fillRect(-14, -6, 28 + rnd() * 10, 12);
+    ctx.restore();
+  }
+}
+function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+// Each theme: colours + a decoration painter + where the text panel sits. `for` = event types it suits.
+const CARD_THEMES = [
+  { id: 'parol', name: 'Parol', for: ['xmas'], area: [.27, .95], bg: '#1F5A3A', fg: '#FFF6E5', accent: '#F6B21B', panel: '#FFF6E5', panelFg: '#1E1A16',
+    deco(ctx, W, H) { [[W * .18, H * .1, 95, '#E4452B'], [W * .5, H * .07, 70, '#F6B21B'], [W * .82, H * .11, 100, '#E2367A']].forEach(([x, y, r, c]) => parol(ctx, x, y, r, c, '#F6B21B'));
+      confetti(ctx, W, H, ['rgba(255,246,229,.35)'], 60, 7, [0, H * .2, W, H * .95]); } },
+  { id: 'noche', name: 'Noche Buena', for: ['xmas', 'office'], area: [.07, .8], bg: '#B3262E', fg: '#FFF6E5', accent: '#F6B21B', panel: '#FFF6E5', panelFg: '#1E1A16',
+    deco(ctx, W, H) { const rnd = seeded(3); for (let i = 0; i < 70; i++) { ctx.beginPath(); ctx.arc(rnd() * W, rnd() * H, 4 + rnd() * 7, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fill(); }
+      [[W * .14, H * .9], [W * .86, H * .9]].forEach(([x, y]) => { starPath(ctx, x, y, 70); ctx.fillStyle = '#F6B21B'; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = '#1E1A16'; ctx.stroke(); }); } },
+  { id: 'banderitas', name: 'Banderitas', for: ['reunion', 'fiesta', 'custom', 'despedida'], area: [.18, .83], bg: '#FFF6E5', fg: '#1E1A16', accent: '#E2367A', panel: null,
+    deco(ctx, W, H) { picadoRow(ctx, W, 8, 150, ['#E2367A', '#F6B21B', '#0FA3A3', '#E4452B', '#3E9B4F']); picadoRow(ctx, W, H - 150, 130, ['#0FA3A3', '#E4452B', '#3E9B4F', '#E2367A', '#F6B21B']); } },
+  { id: 'pamilya', name: 'Pamilya', for: ['reunion', 'binyag'], area: [.07, .93], bg: '#C8553D', fg: '#FFF6E5', accent: '#FFE08A', panel: '#FFF6E5', panelFg: '#1E1A16',
+    deco(ctx, W, H) { const rnd = seeded(11);
+      for (let i = 0; i < 26; i++) { const x = (i % 2 ? W - 60 : 60) + (rnd() - .5) * 120, y = rnd() * H; ctx.beginPath(); ctx.ellipse(x, y, 34, 18, rnd() * 3, 0, 7); ctx.fillStyle = i % 3 ? '#3E9B4F' : '#F6B21B'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#1E1A16'; ctx.stroke(); } } },
+  { id: 'confetti', name: 'Confetti', for: ['birthday', 'barkada', 'office', 'custom'], area: [.16, .86], bg: '#FFFDF8', fg: '#1E1A16', accent: '#E2367A', panel: null,
+    deco(ctx, W, H) { confetti(ctx, W, H, ['#E2367A', '#F6B21B', '#0FA3A3', '#E4452B', '#3E9B4F'], 140, 5, [W * .08, H * .18, W * .92, H * .86]); } },
+  { id: 'lobo', name: 'Lobo', for: ['birthday', 'binyag'], area: [.27, .78], bg: '#BDE7F2', fg: '#1E1A16', accent: '#E2367A', panel: '#FFFDF8', panelFg: '#1E1A16',
+    deco(ctx, W, H) { [[W * .12, H * .1, 70, '#E2367A'], [W * .27, H * .06, 55, '#F6B21B'], [W * .78, H * .07, 62, '#0FA3A3'], [W * .9, H * .12, 50, '#E4452B'], [W * .1, H * .82, 52, '#3E9B4F'], [W * .9, H * .8, 66, '#E2367A']].forEach(([x, y, r, c]) => balloon(ctx, x, y, r, c)); } },
+  { id: 'gabi', name: 'Barkada Night', for: ['barkada', 'birthday'], area: [.2, .8], bg: '#1E1A16', fg: '#FFF6E5', accent: '#F6B21B', panel: null,
+    deco(ctx, W, H) { ctx.fillStyle = '#E2367A'; ctx.fillRect(0, 0, W, 26); ctx.fillStyle = '#0FA3A3'; ctx.fillRect(0, H - 26, W, 26);
+      const rnd = seeded(9); for (let i = 0; i < 40; i++) { starPath(ctx, rnd() * W, rnd() * H * .2 + 40, 6 + rnd() * 10, 4, .35); ctx.fillStyle = i % 2 ? '#F6B21B' : '#FFF6E5'; ctx.fill(); }
+      for (let i = 0; i < 30; i++) { starPath(ctx, rnd() * W, H - 60 - rnd() * H * .12, 6 + rnd() * 9, 4, .35); ctx.fillStyle = i % 2 ? '#E2367A' : '#0FA3A3'; ctx.fill(); } } },
+  { id: 'opisina', name: 'Gold Classic', for: ['office', 'xmas', 'despedida'], area: [.1, .9], bg: '#13243A', fg: '#FFF6E5', accent: '#E8C26A', panel: null,
+    deco(ctx, W, H) { ctx.strokeStyle = '#E8C26A'; ctx.lineWidth = 6; ctx.strokeRect(44, 44, W - 88, H - 88); ctx.lineWidth = 2; ctx.strokeRect(68, 68, W - 136, H - 136);
+      [[68, 68], [W - 68, 68], [68, H - 68], [W - 68, H - 68]].forEach(([x, y]) => { starPath(ctx, x, y, 22, 4, .3); ctx.fillStyle = '#E8C26A'; ctx.fill(); }); } },
+  { id: 'binyag', name: 'Binyag', for: ['binyag'], area: [.17, .82], bg: '#EAF3FB', fg: '#1F3B5C', accent: '#6FA8DC', panel: null,
+    deco(ctx, W, H) { const cloud = (x, y, s) => { ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = '#1F3B5C'; ctx.lineWidth = 3; ctx.beginPath(); [[0, 0, 40], [38, -14, 46], [80, 0, 38]].forEach(([dx, dy, r]) => ctx.arc(x + dx * s, y + dy * s, r * s, 0, 7)); ctx.fill(); ctx.stroke(); };
+      cloud(80, 150, 1.2); cloud(W - 260, 110, 1); cloud(120, H - 160, 1); cloud(W - 300, H - 200, 1.3);
+      ctx.strokeStyle = '#6FA8DC'; ctx.lineWidth = 3; ctx.setLineDash([10, 14]); ctx.strokeRect(54, 54, W - 108, H - 108); ctx.setLineDash([]); } },
+  { id: 'byahe', name: 'Byahe', for: ['despedida'], area: [.22, .76], bg: '#F7E1C8', fg: '#1E1A16', accent: '#E4452B', panel: '#FFFDF8', panelFg: '#1E1A16',
+    deco(ctx, W, H) { [['#F6B21B', .78], ['#E4452B', .84], ['#C8553D', .9], ['#1F5A3A', .96]].forEach(([c, y]) => { ctx.fillStyle = c; ctx.fillRect(0, H * y, W, H * .07); });
+      ctx.beginPath(); ctx.arc(W * .8, H * .78, 110, Math.PI, 0); ctx.fillStyle = '#F6B21B'; ctx.fill();
+      ctx.strokeStyle = '#1E1A16'; ctx.lineWidth = 4; ctx.setLineDash([16, 14]); ctx.beginPath(); ctx.moveTo(60, H * .2); ctx.quadraticCurveTo(W * .5, 40, W - 140, H * .12); ctx.stroke(); ctx.setLineDash([]);
+      ctx.save(); ctx.translate(W - 120, H * .11); ctx.rotate(.15); ctx.fillStyle = '#0FA3A3'; ctx.beginPath(); ctx.moveTo(-60, 0); ctx.lineTo(50, -8); ctx.lineTo(70, 0); ctx.lineTo(50, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-20, -44); ctx.lineTo(10, -4); ctx.moveTo(0, 0); ctx.lineTo(-20, 44); ctx.lineTo(10, 4); ctx.fill(); ctx.stroke(); ctx.restore(); } },
+  { id: 'pista', name: 'Pista', for: ['fiesta', 'reunion', 'birthday'], area: [.21, .95], bg: '#E2367A', fg: '#FFF6E5', accent: '#F6B21B', panel: '#FFF6E5', panelFg: '#1E1A16',
+    deco(ctx, W, H) { picadoRow(ctx, W, 8, 170, ['#F6B21B', '#0FA3A3', '#FFF6E5', '#3E9B4F', '#E4452B']);
+      confetti(ctx, W, H, ['#F6B21B', '#0FA3A3', '#FFF6E5'], 70, 13, [0, 0, W, H * .9]); } }
+];
+function cardTheme() { return CARD_THEMES.find(t => t.id === BIDA.card.theme) || CARD_THEMES[0]; }
+function cardDefaults() {
+  const e = BIDA.event, et = eventType();
+  const theme = (CARD_THEMES.find(t => t.for.includes(e.type)) || CARD_THEMES[2]).id;
+  return { theme, size: 'post', intro: 'Inaanyayahan ka sa', title: e.name || et.label, sub: '', date: e.date || '', time: e.start || '', venue: '', msg: 'Kain, laro at kwentuhan — kumpleto ang saya kapag nandiyan ka!', rsvp: '' };
+}
+function ensureCard() {
+  const d = cardDefaults(), c = BIDA.card && typeof BIDA.card === 'object' ? BIDA.card : {};
+  const out = {};
+  for (const k of Object.keys(d)) out[k] = typeof c[k] === 'string' ? c[k].slice(0, k === 'msg' ? 220 : 90) : d[k];
+  if (!CARD_THEMES.some(t => t.id === out.theme)) out.theme = d.theme;
+  if (!CARD_SIZES[out.size]) out.size = 'post';
+  BIDA.card = out;
+}
+function fmtCardDate(d) {
+  if (!d) return '';
+  const dt = new Date(d + 'T00:00'); if (isNaN(dt)) return d;
+  try { return dt.toLocaleDateString('fil-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }); }
+  catch (e) { return dt.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }); }
+}
+function wrapLines(ctx, text, maxW) {
+  const words = String(text).split(/\s+/).filter(Boolean), lines = []; let line = '';
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
+  if (line) lines.push(line); return lines;
+}
+// Paints the whole card. Text is measured so long titles shrink to fit instead of overflowing.
+function drawCard(canvas) {
+  const c = BIDA.card, th = cardTheme(), [W, H] = CARD_SIZES[c.size];
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, W, H);
+  ctx.save(); th.deco(ctx, W, H); ctx.restore();
+  const story = c.size === 'story', px = th.panel ? 150 : 120, maxW = W - px * 2;
+  // each theme keeps its decorations visible: text only goes inside its safe area
+  const [aTop, aBot] = th.area || [.2, .86], pad = th.panel ? 44 : 0;
+  const top = H * aTop + pad + (story ? H * .03 : 0), bottom = H * aBot - pad - (story ? H * .03 : 0);
+  const fg = th.panel ? th.panelFg : th.fg, dateCol = th.panel ? '#E2367A' : th.accent;
+  const when = [fmtCardDate(c.date), c.time ? fmtTime(toMin(c.time)) : ''].filter(Boolean).join(' · ');
+  // build the text blocks at scale s; shrink everything until it fits the safe area
+  const build = s => {
+    const blocks = [], z = n => Math.round(n * s * (story ? 1.1 : 1));
+    const add = (txt, font, color, gap, maxLines = 4) => { if (!txt) return; ctx.font = font; const lines = wrapLines(ctx, txt, maxW).slice(0, maxLines); blocks.push({ lines, font, color, gap: gap * s, lh: parseInt(font.match(/(\d+)px/)[1], 10) * 1.12 }); };
+    add(c.intro, `700 ${z(40)}px ${BODY_FONT}`, fg, 0);
+    let ts = z(124); ctx.font = `800 ${ts}px ${CARD_FONT}`;
+    while (ts > 56 && wrapLines(ctx, c.title || ' ', maxW).length > 3) { ts -= 6; ctx.font = `800 ${ts}px ${CARD_FONT}`; }
+    add(c.title, `800 ${ts}px ${CARD_FONT}`, fg, 16, 3);
+    add(c.sub, `700 ${z(42)}px ${BODY_FONT}`, fg, 12, 2);
+    add(when, `800 ${z(44)}px ${CARD_FONT}`, dateCol, 34, 2);
+    add(c.venue, `700 ${z(38)}px ${BODY_FONT}`, fg, 10, 3);
+    add(c.msg, `italic 600 ${z(34)}px ${BODY_FONT}`, fg, 32, 4);
+    add(c.rsvp ? 'RSVP: ' + c.rsvp : '', `800 ${z(34)}px ${BODY_FONT}`, fg, 32, 2);
+    return { blocks, total: blocks.reduce((sum, b) => sum + b.gap + b.lines.length * b.lh, 0) };
+  };
+  let s = 1, L = build(s);
+  while (L.total > bottom - top && s > .62) { s -= .04; L = build(s); }
+  const { blocks, total } = L;
+  let y = top + Math.max(0, (bottom - top - total) / 2);
+  if (th.panel) {   // a solid card behind the text keeps it readable on busy themes
+    ctx.fillStyle = th.panel; roundRect(ctx, px - pad, y - pad, maxW + pad * 2, total + pad * 2, 36); ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#1E1A16'; ctx.stroke();
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const b of blocks) {
+    y += b.gap; ctx.font = b.font; ctx.fillStyle = b.color;
+    for (const l of b.lines) { ctx.fillText(l, W / 2, y); y += b.lh; }
+  }
+  ctx.font = `800 24px ${CARD_FONT}`; ctx.fillStyle = th.panel ? th.fg : fg; ctx.globalAlpha = .55; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('ginawa sa Bida-Vibe', W - 40, H - 34); ctx.globalAlpha = 1;
+}
+let cardRAF = 0, cardFontsReady = false;
+function redrawCard() {
+  cancelAnimationFrame(cardRAF);
+  cardRAF = requestAnimationFrame(() => { const cv = $('#card-canvas'); if (cv) drawCard(cv); });
+}
+function renderCard() {
+  ensureCard();
+  const c = BIDA.card, type = BIDA.event.type;
+  const fit = CARD_THEMES.filter(t => t.for.includes(type)), rest = CARD_THEMES.filter(t => !t.for.includes(type));
+  const chip = t => `<button class="theme-chip ${t.id === c.theme ? 'on' : ''}" onclick="setCard('theme','${t.id}')" aria-pressed="${t.id === c.theme}">
+      <span class="theme-sw" style="background:${t.bg};color:${t.accent}"><span style="background:${t.accent}"></span></span>${esc(t.name)}</button>`;
+  const field = (k, label, ph, type = 'text') => `<div class="field"><label for="cd-${k}">${label}</label>${type === 'area'
+    ? `<textarea class="input" id="cd-${k}" rows="3" maxlength="220" placeholder="${esc(ph)}" oninput="setCard('${k}',this.value)">${esc(c[k])}</textarea>`
+    : `<input class="input" id="cd-${k}" type="${type}" maxlength="90" placeholder="${esc(ph)}" value="${esc(c[k])}" oninput="setCard('${k}',this.value)">`}</div>`;
+  $('#panel-card').innerHTML = `
+    <div class="panel-head"><div><h2>Invitation card</h2>
+      <p>Ang mahahalagang detalye ng event — i-edit, pumili ng theme, i-download o i-share.</p></div></div>
+    <div class="card-layout">
+      <div class="card-preview-wrap">
+        <canvas id="card-canvas" class="card-canvas card-canvas--${c.size}" aria-label="Preview ng invitation card"></canvas>
+        <div class="card-actions">
+          <button class="btn btn--magenta" onclick="downloadCard()">${ic('upload')}I-download</button>
+          ${navigator.share ? `<button class="btn btn--ink" onclick="shareCard()">${ic('arrow')}I-share</button>` : ''}
+        </div>
+      </div>
+      <div class="card-form">
+        <span class="field-label">Theme — bagay sa ${esc(eventType().label)}</span>
+        <div class="theme-chips">${fit.map(chip).join('')}</div>
+        <details class="more-themes"><summary>Iba pang themes</summary><div class="theme-chips">${rest.map(chip).join('')}</div></details>
+        <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Laki ng card" style="margin:14px 0 4px">
+          ${Object.entries(CARD_SIZES).map(([k, v]) => `<button class="${c.size === k ? 'on' : ''}" onclick="setCard('size','${k}')">${v[2]}</button>`).join('')}</div>
+        <div class="stack" style="margin-top:12px">
+          ${field('intro', 'Pambungad', 'Inaanyayahan ka sa')}
+          ${field('title', 'Pangalan ng event', eventType().label)}
+          ${field('sub', 'Mula kay / ng', 'hal. Pamilya Santos')}
+          <div class="grid-2">${field('date', 'Petsa', '', 'date')}${field('time', 'Oras', '', 'time')}</div>
+          ${field('venue', 'Saan', 'hal. Bahay ni Lola, Brgy. San Jose, Batangas')}
+          ${field('msg', 'Mensahe', 'Maikling paanyaya', 'area')}
+          ${field('rsvp', 'RSVP / contact', 'hal. Tita Bing · 0917 123 4567')}
+          <button class="btn btn--ghost btn--sm" onclick="resetCard()">Kunin ulit ang detalye mula sa Plan</button>
+        </div>
+      </div>
+    </div>`;
+  const draw = () => { const cv = $('#card-canvas'); if (cv) drawCard(cv); };
+  draw();
+  if (!cardFontsReady && document.fonts) Promise.all([document.fonts.load(`800 80px "Bricolage Grotesque"`), document.fonts.load(`700 40px "Nunito"`), document.fonts.load(`italic 600 40px "Nunito"`)])
+    .then(() => { cardFontsReady = true; draw(); }).catch(() => { });
+}
+function setCard(k, v) {
+  ensureCard(); BIDA.card[k] = String(v).slice(0, k === 'msg' ? 220 : 90); saveState();
+  if (k === 'theme' || k === 'size') renderCard(); else redrawCard();
+}
+async function resetCard() {
+  if (!await askConfirm('Palitan ng detalye mula sa Plan ang pangalan, petsa at oras?', 'Palitan')) return;
+  const d = cardDefaults(); Object.assign(BIDA.card, { title: d.title, date: d.date, time: d.time }); saveState(); renderCard();
+}
+function cardBlob() {
+  const cv = document.createElement('canvas'); drawCard(cv);
+  return new Promise(res => cv.toBlob(res, 'image/png'));
+}
+const cardFileName = () => (String(BIDA.card.title || 'invitation').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'invitation') + '-bida-vibe.png';
+async function downloadCard() {
+  const blob = await cardBlob(); if (!blob) { toast('Hindi ma-save ang card'); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = cardFileName();
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('Na-download ang card!');
+}
+async function shareCard() {
+  const blob = await cardBlob(); if (!blob) return;
+  const file = new File([blob], cardFileName(), { type: 'image/png' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: BIDA.card.title });
+    else downloadCard();
+  } catch (e) { if (e.name !== 'AbortError') downloadCard(); }
 }
 
 /* ============================================================
@@ -2138,6 +2369,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 Object.assign(window, {
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
+  setCard, resetCard, downloadCard, shareCard,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
