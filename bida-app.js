@@ -63,7 +63,8 @@ function defaultState() {
     tab: 'plan',
     gameChecks: {},
     liveIdx: 0,
-    card: null        // invitation card: { theme, size, intro, title, sub, date, time, venue, msg, rsvp }
+    card: null,       // invitation card: { theme, size, intro, title, sub, date, time, venue, msg, rsvp }
+    vk: null          // videoke: { queue, mine, score, lastSinger }
   };
 }
 function saveState() {
@@ -93,7 +94,7 @@ function loadState() {
       if (!Number.isInteger(BIDA.music.ytIdx) || BIDA.music.ytIdx >= BIDA.music.ytLinks.length) BIDA.music.ytIdx = -1;
       // v3: scripts/guide removed, tabs simplified
       delete BIDA.scriptEdits; delete BIDA.tones; delete BIDA.rulesOpen;
-      if (!['plan', 'card', 'games', 'sounds', 'music'].includes(BIDA.tab)) BIDA.tab = 'plan';
+      if (!['plan', 'card', 'games', 'videoke', 'sounds', 'music'].includes(BIDA.tab)) BIDA.tab = 'plan';
       // v4: Premium became a 30-day pass — drop any old lifetime unlock
       if ((d.v || 1) < 4) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; BIDA.premium = false; }
       BIDA.v = 4;
@@ -200,7 +201,7 @@ function showLanding() {
 }
 
 /* ---------- Tabs ---------- */
-const RENDER = { plan: renderPlan, card: renderCard, games: renderGames, sounds: renderSounds, music: renderMusic };
+const RENDER = { plan: renderPlan, card: renderCard, games: renderGames, videoke: renderVideoke, sounds: renderSounds, music: renderMusic };
 function goTab(name) {
   if (!RENDER[name]) name = 'plan';
   BIDA.tab = name; saveState();
@@ -2037,6 +2038,318 @@ function openExt() {
 }
 
 /* ============================================================
+   VIDEOKE — Pinoy-style: every song has a number code.
+   Library = karaoke/library.json in the repo (admin curates it in the app,
+   saved through the same GitHub token as the sound pads). Each song is a
+   YouTube karaoke video, so nothing copyrighted is hosted here.
+   Hosts can also add their own songs — saved only on their device.
+   ============================================================ */
+const VK_LIB_PATH = 'karaoke/library.json';
+const VK = { lib: [], loaded: false, input: '', q: '', genre: '', yt: null, cur: null, scoreT: 0, admin: { busy: false, q: '', page: 0, msg: '' } };
+const vkNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+function vkCleanSong(s) {
+  const c = parseInt(s && s.c, 10), y = String(s && s.y || '');
+  if (!(c >= 1 && c <= 99999) || !/^[\w-]{11}$/.test(y)) return null;
+  return { c, y, t: String(s.t || 'Kanta').slice(0, 80), a: String(s.a || '').slice(0, 60), g: String(s.g || '').slice(0, 20) };
+}
+let vkChecked = null;   // the BIDA.vk object we've already validated (saved data is untrusted, so check it once)
+function vkState() {
+  if (BIDA.vk && BIDA.vk === vkChecked) return BIDA.vk;
+  const v = BIDA.vk && typeof BIDA.vk === 'object' ? BIDA.vk : {};
+  vkChecked = BIDA.vk = {
+    queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)), c: q.c, singer: String(q.singer || '').slice(0, 30) })),
+    mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
+    score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30)
+  };
+  return BIDA.vk;
+}
+async function loadVkLibrary(force) {
+  if (VK.loaded && !force) return;
+  try {
+    const r = await fetch(VK_LIB_PATH + '?t=' + Math.floor(Date.now() / 6e5), { cache: 'no-cache' });
+    const j = r.ok ? await r.json() : { songs: [] };
+    VK.lib = (j.songs || []).map(vkCleanSong).filter(Boolean);
+  } catch (e) { VK.lib = []; }
+  VK.loaded = true;
+}
+const vkAll = () => [...VK.lib, ...vkState().mine];
+const vkSong = c => vkAll().find(s => s.c === c);
+function vkSearch() {
+  const q = vkNorm(VK.q), g = VK.genre;
+  let list = vkAll();
+  if (g) list = list.filter(s => s.g === g);
+  if (q) list = list.filter(s => String(s.c).startsWith(q) || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q));
+  return list.sort((a, b) => a.c - b.c);
+}
+
+/* ---- Videoke tab ---- */
+function renderVideoke() {
+  const v = vkState();
+  if (!VK.loaded) { loadVkLibrary().then(() => { if (BIDA.tab === 'videoke') renderVideoke(); }); }
+  const typed = VK.input, match = typed.length === 5 ? vkSong(+typed) : null;
+  const genres = [...new Set(vkAll().map(s => s.g).filter(Boolean))].sort();
+  const res = vkSearch(), shown = res.slice(0, 60);
+  const now = VK.cur && vkSong(VK.cur.c);
+  $('#panel-videoke').innerHTML = `
+    <div class="panel-head"><div><h2>Videoke</h2>
+      <p>I-type ang code o hanapin ang kanta, i-reserve, at kanta na! ${vkAll().length} kanta sa library.</p></div>
+      <button class="btn btn--chili" onclick="vkStart()" ${v.queue.length || VK.cur ? '' : 'disabled'}>${ic('play')}${VK.cur ? 'Buksan ang screen' : 'Simulan'}</button></div>
+    <div class="vk-top">
+      <div class="vk-remote card">
+        <div class="vk-display" aria-live="polite">
+          <div class="vk-code">${(typed || '').padEnd(5, '–').split('').map(ch => `<span>${ch}</span>`).join('')}</div>
+          <div class="vk-title">${typed.length === 5 ? (match ? `${esc(match.t)}<small>${esc(match.a)}</small>` : 'Walang kantang ganyan ang code') : 'I-type ang 5-digit code'}</div>
+        </div>
+        <div class="vk-keys">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button onclick="vkKey('${n}')">${n}</button>`).join('')}
+          <button class="vk-k-clr" onclick="vkKey('C')">Clear</button><button onclick="vkKey('0')">0</button>
+          <button class="vk-k-res" onclick="vkReserveTyped()" ${match ? '' : 'disabled'}>Reserve</button></div>
+      </div>
+      <div class="vk-queue card">
+        <h3>Reserved <small class="muted">(${v.queue.length})</small></h3>
+        ${now ? `<div class="vk-now">${ic('mic')}<div><b>${esc(now.t)}</b><small>Kumakanta: ${esc(VK.cur.singer || '—')} · ${now.c}</small></div></div>` : ''}
+        ${v.queue.length ? `<ol class="vk-q">${v.queue.map((q, i) => { const s = vkSong(q.c); return `<li><span class="vk-qn">${i + 1}</span>
+          <div><b>${esc(s ? s.t : 'Code ' + q.c)}</b><small>${q.c}${q.singer ? ' · ' + esc(q.singer) : ''}</small></div>
+          <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkQMove(${i},-1)" ${i ? '' : 'disabled'} aria-label="Taas">${ic('up')}</button>
+          <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
+          : '<p class="muted" style="margin-top:10px">Wala pang naka-reserve. I-type ang code o pumili sa listahan.</p>'}
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="vk-search"><input class="input" id="vk-q" placeholder="Hanapin: kanta, artist o code" value="${esc(VK.q)}" oninput="vkFind(this.value)">
+        <label class="toggle" style="margin:0"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
+      ${genres.length ? `<div class="game-filters" style="margin-top:10px"><button class="chip ${VK.genre ? '' : 'on'}" onclick="vkGenre('')">Lahat</button>${genres.map(g => `<button class="chip ${VK.genre === g ? 'on' : ''}" onclick="vkGenre('${esc(g)}')">${esc(g)}</button>`).join('')}</div>` : ''}
+      <div id="vk-results">${vkResultsHTML(shown, res.length)}</div>
+      <button class="btn btn--ghost btn--sm" style="margin-top:12px" onclick="vkAddMine()">${ic('plus')}Idagdag ang sariling kanta (YouTube link)</button>
+    </div>
+    ${isAdmin() ? vkAdminHTML() : ''}`;
+}
+function vkResultsHTML(shown, total) {
+  if (!vkAll().length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang kanta sa library.' : 'Kinukuha ang library…'}</p>`;
+  if (!shown.length) return '<p class="muted" style="margin-top:12px">Walang nahanap.</p>';
+  return `<ul class="vk-list">${shown.map(s => `<li><span class="vk-c">${s.c}</span><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.c >= 90000 ? ' · sarili mo' : ''}</small></div>
+    <button class="btn btn--gold btn--sm" onclick="vkReserve(${s.c})">Reserve</button></li>`).join('')}</ul>
+    ${total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa — i-type pa para lumiit ang listahan.</p>` : ''}`;
+}
+function vkFind(q) { VK.q = q; const res = vkSearch(); $('#vk-results').innerHTML = vkResultsHTML(res.slice(0, 60), res.length); }
+function vkGenre(g) { VK.genre = g; renderVideoke(); }
+function vkKey(k) {
+  if (k === 'C') VK.input = ''; else if (VK.input.length < 5) VK.input += k;
+  renderVideoke();
+}
+function vkReserveTyped() { if (VK.input.length === 5 && vkSong(+VK.input)) { vkReserve(+VK.input); VK.input = ''; renderVideoke(); } }
+async function vkReserve(c) {
+  const s = vkSong(c); if (!s) return;
+  const v = vkState();
+  const singer = await askText(`Sino ang kakanta ng "${s.t}"?`, v.lastSinger || '');
+  if (singer === null) return;
+  v.lastSinger = String(singer).slice(0, 30);
+  v.queue.push({ id: Math.random().toString(36).slice(2, 9), c, singer: v.lastSinger });
+  saveState(); toast(`Na-reserve: ${c} · ${s.t}${v.lastSinger ? ' — ' + v.lastSinger : ''}`);
+  if (BIDA.tab === 'videoke') renderVideoke();
+  if (!$('#vk-stage').hidden) vkStageInfo();
+}
+function vkQMove(i, d) { const q = vkState().queue, j = i + d; if (j < 0 || j >= q.length) return; [q[i], q[j]] = [q[j], q[i]]; saveState(); renderVideoke(); }
+function vkQDel(i) { vkState().queue.splice(i, 1); saveState(); renderVideoke(); if (!$('#vk-stage').hidden) vkStageInfo(); }
+function vkScoreToggle(on) { vkState().score = on; saveState(); }
+
+/* ---- The big screen (cast / connect this to the TV) ---- */
+async function vkStart() {
+  const stage = $('#vk-stage');
+  stage.hidden = false; document.body.classList.add('in-vk'); document.body.style.overflow = 'hidden';
+  if (M.playing) musicPause();                         // party music stops while someone sings
+  try { navigator.wakeLock?.request('screen').then(l => VK.lock = l).catch(() => { }); } catch (e) { }
+  if (!VK.cur) vkNext(); else vkStageInfo();
+}
+function vkClose() {
+  $('#vk-stage').hidden = true; document.body.classList.remove('in-vk'); document.body.style.overflow = '';
+  try { VK.yt?.pauseVideo(); } catch (e) { }
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+  VK.lock?.release?.(); VK.lock = null;
+  if (BIDA.tab === 'videoke') renderVideoke();
+}
+function vkFullscreen() { const s = $('#vk-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser na ito ang full screen')); }
+async function vkNext() {
+  clearTimeout(VK.scoreT); $('#vk-score').hidden = true;
+  const q = vkState().queue;
+  if (!q.length) { VK.cur = null; saveState(); vkStageInfo(); try { VK.yt?.stopVideo(); } catch (e) { } return; }
+  VK.cur = q.shift(); saveState();
+  const s = vkSong(VK.cur.c); if (!s) { vkNext(); return; }
+  vkStageInfo(true);
+  await ytApi();
+  if (VK.yt && VK.ytReady) { VK.yt.loadVideoById(s.y); return; }
+  $('#vk-player').innerHTML = '<div id="vk-yt"></div>';
+  VK.ytReady = false;
+  VK.yt = new YT.Player('vk-yt', {
+    videoId: s.y, playerVars: { playsinline: 1, rel: 0, modestbranding: 1, autoplay: 1 },
+    events: {
+      onReady: e => { VK.ytReady = true; e.target.setVolume(100); e.target.playVideo(); },
+      onStateChange: e => { if (e.data === YT.PlayerState.ENDED) vkSongEnded(); },
+      onError: () => { toast('Hindi pwedeng i-play dito ang video na ito — susunod na'); setTimeout(vkNext, 1500); }
+    }
+  });
+}
+function vkStageInfo(intro) {
+  const cur = VK.cur && vkSong(VK.cur.c), nxt = vkState().queue[0], ns = nxt && vkSong(nxt.c);
+  $('#vk-now').innerHTML = cur ? `<span class="vk-c">${cur.c}</span><div><b>${esc(cur.t)}</b><small>${esc(cur.a)} · Kumakanta: <b>${esc(VK.cur.singer || '—')}</b></small></div>`
+    : '<div><b>Wala nang naka-reserve</b><small>Mag-reserve sa Videoke tab o gamitin ang keypad</small></div>';
+  $('#vk-next').innerHTML = ns ? `Susunod: <b>${esc(nxt.singer || '—')}</b> · ${esc(ns.t)} <span class="muted">(${ns.c})</span>` : '';
+  if (intro && cur) { const b = $('#vk-banner'); b.innerHTML = `<small>Susunod na kakanta</small><b>${esc(VK.cur.singer || 'Ikaw na!')}</b><span>${esc(cur.t)}</span>`; b.hidden = false; setTimeout(() => b.hidden = true, 3200); }
+}
+function vkPlayPad(re) { const p = PADS.find(x => re.test(x.name) && canPlaySound(x.id)); if (p) playSound(p.id); }
+function vkSongEnded() {
+  if (!vkState().score) { setTimeout(vkNext, 1500); return; }
+  // Pinoy videoke-style score: just for fun (it doesn't really judge the singing)
+  const r = Math.random(), score = r < .08 ? 100 : r < .7 ? 88 + Math.floor(Math.random() * 12) : 75 + Math.floor(Math.random() * 13);
+  const label = score === 100 ? 'PERFECT!' : score >= 92 ? 'Ang galing!' : score >= 85 ? 'Pwede na!' : 'Kanta pa!';
+  const el = $('#vk-score'); el.innerHTML = `<small>Score</small><b>0</b><span>${label}</span>`; el.hidden = false;
+  vkPlayPad(/drum/i);
+  const n = el.querySelector('b'), t0 = performance.now();
+  const iv = setInterval(() => {   // timer, not rAF, so it still counts on a cast / background screen
+    const k = Math.min(1, (performance.now() - t0) / 1800); n.textContent = Math.round(score * k);
+    if (k >= 1) { clearInterval(iv); vkPlayPad(/palakpak|applause|clap|ta-?da/i); }
+  }, 40);
+  VK.scoreT = setTimeout(vkNext, 6500);
+}
+
+/* ---- Hosts' own songs (saved only on this device) ---- */
+function vkParseTitle(raw) {
+  let t = String(raw || '').replace(/\[[^\]]*\]|\([^)]*(karaoke|videoke|lyrics?|instrumental|minus ?one|hd|4k|version|official|remaster|video|audio|m\/v)[^)]*\)/gi, '')
+    .replace(/\b(karaoke|videoke|minus ?one|instrumental|with lyrics|lyrics|hd|4k|m\/v|official (music )?video)\b/gi, '')
+    .replace(/\(\s*\)/g, '').replace(/[|｜].*$/, '').replace(/\s{2,}/g, ' ').trim();
+  const m = t.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+  return m ? { a: m[1].trim().slice(0, 60), t: m[2].trim().slice(0, 80) } : { a: '', t: t.slice(0, 80) || 'Kanta' };
+}
+async function vkOembed(id) {
+  const r = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id));
+  if (r.status === 401 || r.status === 403) throw new Error('no_embed');   // the owner doesn't allow playing it on other sites
+  if (!r.ok) throw new Error('not_found');
+  return r.json();
+}
+async function vkAddMine() {
+  const link = await askText('I-paste ang YouTube karaoke link', ''); if (!link) return;
+  const p = parseYouTube(link); if (!p || !p.id) { toast('Hindi valid ang YouTube video link'); return; }
+  let info; try { info = await vkOembed(p.id); } catch (e) { toast(e.message === 'no_embed' ? 'Hindi pwedeng i-play sa ibang site ang video na ito — pumili ng iba' : 'Hindi mahanap ang video'); return; }
+  const v = vkState(); if (vkAll().some(s => s.y === p.id)) { toast('Nasa library na ito'); return; }
+  const parsed = vkParseTitle(info.title);
+  const c = Math.max(90000, ...v.mine.map(s => s.c)) + 1;
+  v.mine.push({ c, y: p.id, t: parsed.t, a: parsed.a || String(info.author_name || '').slice(0, 60), g: 'Sarili' });
+  saveState(); toast(`Naidagdag: ${c} · ${parsed.t}`); renderVideoke();
+}
+
+/* ---- Admin: the shared library (saved to karaoke/library.json via the admin's GitHub token) ---- */
+function vkStageReserve() {
+  const i = $('#vk-code'), c = parseInt(i.value, 10);
+  if (!vkSong(c)) { toast('Walang kantang ganyan ang code'); return; }
+  i.value = ''; vkReserve(c);
+}
+function vkAdminHTML() {
+  const a = VK.admin, q = vkNorm(a.q);
+  const list = VK.lib.filter(s => !q || String(s.c).startsWith(q) || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q));
+  const page = list.slice(a.page * 40, a.page * 40 + 40);
+  return `<div class="card admin-card" style="margin-top:20px">
+    <h3>${ic('lock')}Admin: Videoke library</h3>
+    <p class="muted">${VK.lib.length} kanta · ang bagong kanta ay may sariling code (mula 10001). Gumagamit ng parehong GitHub token ng Sound manager.</p>
+    <div class="admin-up">
+      <button class="btn btn--ink" ${a.busy ? 'disabled' : ''} onclick="vkAdminAdd()">${ic('plus')}Magdagdag ng kanta</button>
+      <button class="btn btn--ghost" ${a.busy ? 'disabled' : ''} onclick="vkAdminImport()">${ic('upload')}I-import ang YouTube playlist</button>
+    </div>
+    ${a.msg ? `<p class="note" style="margin-top:10px">${esc(a.msg)}</p>` : ''}
+    ${VK.lib.length ? `<input class="input" style="margin-top:12px" placeholder="Hanapin sa library" value="${esc(a.q)}" oninput="vkAdminFind(this.value)">
+    <ul class="admin-list">${page.map(s => `<li><span class="vk-c">${s.c}</span><b>${esc(s.t)}<small class="muted"> · ${esc(s.a)}${s.g ? ' · ' + esc(s.g) : ''}</small></b>
+      <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkAdminEdit(${s.c})" aria-label="I-edit" ${a.busy ? 'disabled' : ''}>${ic('edit')}</button>
+      <button class="icon-btn icon-btn--plain" onclick="vkAdminDelete(${s.c})" aria-label="Tanggalin" ${a.busy ? 'disabled' : ''}>${ic('trash')}</button></span></li>`).join('')}</ul>
+    ${list.length > 40 ? `<div class="admin-up"><button class="btn btn--ghost btn--sm" ${a.page ? '' : 'disabled'} onclick="vkAdminPage(-1)">Nakaraan</button><span class="muted">${a.page + 1} / ${Math.ceil(list.length / 40)}</span><button class="btn btn--ghost btn--sm" ${(a.page + 1) * 40 < list.length ? '' : 'disabled'} onclick="vkAdminPage(1)">Susunod</button></div>` : ''}` : ''}
+  </div>`;
+}
+function vkAdminFind(q) { VK.admin.q = q; VK.admin.page = 0; renderVideoke(); setTimeout(() => { const i = $$('.admin-card .input').pop(); if (i) { i.focus(); i.setSelectionRange(q.length, q.length); } }, 0); }
+function vkAdminPage(d) { VK.admin.page = Math.max(0, VK.admin.page + d); renderVideoke(); }
+async function vkGhReady() {
+  if (!isAdmin()) throw new Error('admin_only');
+  if (!GH.token) GH.token = await ghLoadToken();
+  if (!GH.token) throw new Error('no_gh_token');
+}
+// Re-read the file from GitHub right before saving so two edits never overwrite each other
+async function vkSaveLib(mutate, message) {
+  await vkGhReady();
+  const r = await ghApi('contents/' + VK_LIB_PATH);
+  let sha = '', songs = [];
+  if (r.ok) { const j = await r.json(); sha = j.sha; try { songs = (JSON.parse(decodeURIComponent(escape(atob(String(j.content).replace(/\s/g, ''))))).songs || []).map(vkCleanSong).filter(Boolean); } catch (e) { songs = []; } }
+  const out = mutate(songs) || songs;
+  const json = JSON.stringify({ v: 1, updated: new Date().toISOString(), songs: out.sort((a, b) => a.c - b.c) }, null, 1);
+  await ghPut(VK_LIB_PATH, b64(new TextEncoder().encode(json)), message, sha || undefined);
+  VK.lib = out; VK.loaded = true;
+}
+const VK_ERR = { no_gh_token: 'Ilagay muna ang GitHub token sa Sounds → Admin: Sound manager.', gh_token: 'Hindi tanggap ng GitHub ang token (expired?). Palitan sa Sound manager.', gh_perm: 'Walang permiso ang token na mag-edit ng repo.', rules: 'Hindi pa naka-publish ang Firestore rules.', admin_only: 'Admin lang.' };
+async function vkAdminWork(fn) {
+  if (VK.admin.busy) return; VK.admin.busy = true; VK.admin.msg = ''; renderVideoke();
+  try { await fn(); } catch (e) { VK.admin.msg = VK_ERR[e.message] || ('Hindi natuloy: ' + e.message); }
+  finally { VK.admin.busy = false; renderVideoke(); }
+}
+const vkNextCode = songs => Math.max(10000, ...songs.map(s => s.c).filter(c => c < 90000)) + 1;
+async function vkAdminAdd() {
+  const link = await askText('I-paste ang YouTube karaoke video link', ''); if (!link) return;
+  const p = parseYouTube(link); if (!p || !p.id) { toast('Hindi valid ang YouTube video link'); return; }
+  vkAdminWork(async () => {
+    const info = await vkOembed(p.id).catch(e => { throw new Error(e.message === 'no_embed' ? 'Hindi pwedeng i-play sa ibang site ang video na ito — pumili ng iba.' : 'Hindi mahanap ang video.'); });
+    const parsed = vkParseTitle(info.title);
+    let code = 0;
+    await vkSaveLib(songs => {
+      if (songs.some(s => s.y === p.id)) throw new Error('Nasa library na ang video na ito.');
+      code = vkNextCode(songs);
+      songs.push({ c: code, y: p.id, t: parsed.t, a: parsed.a || String(info.author_name || '').slice(0, 60), g: '' });
+      return songs;
+    }, `Videoke: add ${parsed.t}`);
+    VK.admin.msg = `Naidagdag: ${code} · ${parsed.t}. I-edit kung mali ang title o artist.`;
+  });
+}
+// Bulk import: load the playlist in a hidden YouTube player to read its video list (no API key needed)
+function vkPlaylistIds(list) {
+  return ytApi().then(() => new Promise((res, rej) => {
+    const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-9999px;width:200px;height:200px'; host.innerHTML = '<div id="vk-pl"></div>'; document.body.appendChild(host);
+    let done = false; const finish = (v, e) => { if (done) return; done = true; try { p.destroy(); } catch (x) { } host.remove(); e ? rej(e) : res(v); };
+    const p = new YT.Player('vk-pl', { playerVars: { listType: 'playlist', list, autoplay: 0 }, events: {
+      onReady: () => { const t0 = Date.now(); (function poll() { const ids = p.getPlaylist && p.getPlaylist(); if (ids && ids.length) finish(ids); else if (Date.now() - t0 > 12000) finish(null, new Error('Hindi mabasa ang playlist (private o walang laman?)')); else setTimeout(poll, 400); })(); },
+      onError: () => finish(null, new Error('Hindi mabasa ang playlist')) } });
+    setTimeout(() => finish(null, new Error('Hindi mabasa ang playlist')), 20000);
+  }));
+}
+async function vkAdminImport() {
+  const link = await askText('I-paste ang YouTube playlist link (hanggang 200 kanta)', ''); if (!link) return;
+  const p = parseYouTube(link); if (!p || !p.list) { toast('Hindi playlist link ito'); return; }
+  const genre = (await askText('Genre / category ng mga kantang ito (hal. OPM, Love Songs, Christmas)', 'OPM')) || '';
+  vkAdminWork(async () => {
+    const ids = (await vkPlaylistIds(p.list)).filter(id => /^[\w-]{11}$/.test(id)).slice(0, 200);
+    const have = new Set(VK.lib.map(s => s.y)), fresh = [];
+    let skipped = 0;
+    for (let i = 0; i < ids.length; i++) {
+      if (have.has(ids[i])) continue;
+      VK.admin.msg = `Binabasa ang mga kanta… ${i + 1}/${ids.length}`; $$('.admin-card .note').forEach(n => n.textContent = VK.admin.msg);
+      try { const info = await vkOembed(ids[i]); const pt = vkParseTitle(info.title); fresh.push({ y: ids[i], t: pt.t, a: pt.a || String(info.author_name || '').slice(0, 60), g: String(genre).slice(0, 20) }); }
+      catch (e) { skipped++; }   // private, deleted, or not allowed on other sites
+    }
+    let added = 0;
+    await vkSaveLib(songs => {
+      const seen = new Set(songs.map(s => s.y)); let code = vkNextCode(songs) - 1;
+      for (const f of fresh) if (!seen.has(f.y)) { songs.push({ c: ++code, ...f }); seen.add(f.y); added++; }
+      return songs;
+    }, `Videoke: import ${added} songs`);
+    VK.admin.msg = `Na-import: ${added} kanta${skipped ? ` · ${skipped} nilaktawan (hindi pwedeng i-play sa ibang site o wala na)` : ''}.`;
+  });
+}
+async function vkAdminEdit(c) {
+  const s = VK.lib.find(x => x.c === c); if (!s) return;
+  const t = await askText(`Title (code ${c})`, s.t); if (t === null) return;
+  const a = await askText('Artist', s.a); if (a === null) return;
+  const g = await askText('Genre / category', s.g); if (g === null) return;
+  vkAdminWork(() => vkSaveLib(songs => songs.map(x => x.c === c ? { ...x, t: (t || x.t).slice(0, 80), a: a.slice(0, 60), g: g.slice(0, 20) } : x), `Videoke: edit ${c}`));
+}
+async function vkAdminDelete(c) {
+  const s = VK.lib.find(x => x.c === c); if (!s) return;
+  if (!await askConfirm(`Tanggalin ang ${c} · "${s.t}" sa library?`, 'Tanggalin')) return;
+  vkAdminWork(() => vkSaveLib(songs => songs.filter(x => x.c !== c), `Videoke: remove ${c}`));
+}
+
+/* ============================================================
    ACCOUNT · PREMIUM PASS · ADMIN
    - Everyone must sign in with Google to subscribe.
    - Premium = ₱50 pass for 30 days (no auto-charge); paying again adds 30 days.
@@ -2370,6 +2683,8 @@ Object.assign(window, {
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
+  vkKey, vkReserveTyped, vkReserve, vkQMove, vkQDel, vkScoreToggle, vkFind, vkGenre, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkStageReserve,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,

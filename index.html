@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261113">
+<link rel="stylesheet" href="bida.css?v=20261113b">
 </head>
 <body>
 
@@ -102,6 +102,7 @@
     <button data-tab="plan"   onclick="goTab('plan')"><svg class="ic"><use href="#i-program"/></svg><span>Plan</span></button>
     <button data-tab="card"   onclick="goTab('card')"><svg class="ic"><use href="#i-card"/></svg><span>Card</span></button>
     <button data-tab="games"  onclick="goTab('games')"><svg class="ic"><use href="#i-games"/></svg><span>Games</span></button>
+    <button data-tab="videoke" onclick="goTab('videoke')"><svg class="ic"><use href="#i-mic"/></svg><span>Videoke</span></button>
     <button data-tab="sounds" onclick="goTab('sounds')"><svg class="ic"><use href="#i-sound"/></svg><span>Sounds</span></button>
     <button data-tab="music"  onclick="goTab('music')"><svg class="ic"><use href="#i-music"/></svg><span>Music</span></button>
   </nav>
@@ -110,6 +111,7 @@
     <section class="panel" id="panel-plan"></section>
     <section class="panel" id="panel-card"></section>
     <section class="panel" id="panel-games"></section>
+    <section class="panel" id="panel-videoke"></section>
     <section class="panel" id="panel-sounds"></section>
     <section class="panel" id="panel-music"></section>
   </main>
@@ -175,8 +177,25 @@
   </div>
 </section>
 
-<!-- ============ SHEET (modal) ============ -->
-<div class="sheet-wrap" id="sheet-wrap" hidden onclick="if(event.target===this)closeSheet()">
+<!-- ============ VIDEOKE SCREEN (cast or connect to the TV) ============ -->
+<section id="vk-stage" class="vk-stage" hidden aria-label="Videoke screen">
+  <div class="vk-bar">
+    <button class="btn btn--ghost btn--sm vk-exit" onclick="vkClose()"><svg class="ic"><use href="#i-x"/></svg>Exit</button>
+    <div class="vk-nowbar" id="vk-now"></div>
+    <div class="vk-btns">
+      <input class="input vk-codein" id="vk-code" inputmode="numeric" maxlength="5" placeholder="Code" aria-label="Song code" onkeydown="if(event.key==='Enter')vkStageReserve()">
+      <button class="btn btn--gold btn--sm" onclick="vkStageReserve()">Reserve</button>
+      <button class="btn btn--ink btn--sm" onclick="vkNext()"><svg class="ic"><use href="#i-next"/></svg>Skip</button>
+      <button class="btn btn--ghost btn--sm vk-fs" onclick="vkFullscreen()">Full screen</button>
+    </div>
+  </div>
+  <div class="vk-player" id="vk-player"></div>
+  <div class="vk-next" id="vk-next"></div>
+  <div class="vk-banner" id="vk-banner" hidden></div>
+  <div class="vk-score" id="vk-score" hidden></div>
+</section>
+
+<!-- ============ SHEET (modal) ============ --><div class="sheet-wrap" id="sheet-wrap" hidden onclick="if(event.target===this)closeSheet()">
   <div class="sheet" role="dialog" aria-modal="true" id="sheet"></div>
 </div>
 
@@ -197,7 +216,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" integrity="sha384-lI+CxEx/bCvWP1b0OK13j5HTrTZP7yf1xle8TVOFq2smz6KC1RChTarRV/RHP5PP" crossorigin="anonymous"></script>
-<script src="bida-content.js?v=20261113"></script>
-<script src="bida-app.js?v=20261113"></script>
+<script src="bida-content.js?v=20261113b"></script>
+<script src="bida-app.js?v=20261113b"></script>
 </body>
 </html>
