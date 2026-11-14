@@ -582,15 +582,27 @@ body.in-live .pl-panel { bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)
 .vk-frame-title small { display: block; margin-top: 2px; font: 800 clamp(12px, 1.8vmin, 17px)/1.2 var(--f); opacity: .85; }
 .vk-frame-title.has-panel { border: 4px solid var(--ink); box-shadow: 5px 5px 0 rgba(0,0,0,.45); }
 .vk-frame-title.has-panel b { text-shadow: none; }
-.vk-stage.framed { grid-template-rows: auto auto 1fr; background: var(--fr-bg, #000); }
-.vk-stage.framed .vk-player, .vk-stage.framed .vk-side, .vk-stage.framed .vk-qr { grid-row: 3; }
-.vk-stage.framed .vk-player { z-index: 1; margin: 0 12px 12px; border: 5px solid var(--ink); border-radius: 18px; overflow: hidden; background: #000; box-shadow: 8px 8px 0 rgba(0,0,0,.45); }
-@media (min-width: 900px) {
-  .vk-stage.framed .vk-player { margin: 0 clamp(240px, 22vw, 320px) 22px; }
-  .vk-stage.framed .vk-side { width: clamp(220px, 21vw, 300px); max-height: 100%; }
-  .vk-stage.framed .vk-qr { margin: 0 22px 0 0; }
-}
-
+.vk-stage.framed { grid-template-rows: auto 1fr; background: var(--fr-bg, #000); }
+.vk-stage.framed .vk-player, .vk-stage.framed .vk-side, .vk-stage.framed .vk-qr { grid-row: 2; }
+.vk-s.vk-stage.framed .vk-player { z-index: 1; justify-self: center; align-self: center; overflow: hidden; border-top: 5px solid var(--ink); border-bottom: 5px solid var(--ink); background: #000; box-shadow: 0 8px 0 rgba(0,0,0,.35); }
+.vk-stage.framed .vk-player iframe, .vk-stage.framed .vk-player > div { top: calc(-1 * var(--crop, 0px)); bottom: auto; height: calc(100% + 2 * var(--crop, 0px)); }
+/* Title sits in the top bar, between Exit and Skip; the bar takes the frame's look */
+/* The title owns the top band; the buttons sit small and faint in its corners */
+.vk-stage.framed .vk-bar { grid-row: 1; grid-column: 1; align-self: stretch; align-items: flex-start; background: transparent; border-bottom: 0; min-height: clamp(76px, 11vmin, 124px); opacity: .45; transition: opacity .2s; }
+.vk-stage.framed .vk-bar:hover, .vk-stage.framed .vk-bar:focus-within { opacity: 1; }
+.vk-stage.framed .vk-nowbar { visibility: hidden; }
+.vk-stage.framed .vk-frame-title { grid-row: 1; align-self: center; z-index: 4; margin: 0 16px; padding: 6px 26px 8px; pointer-events: none; max-width: calc(100% - 360px); }
+.vk-stage.framed .vk-frame-title b { font-size: clamp(26px, 5.6vmin, 64px); }
+.vk-stage.framed .vk-frame-title small { font-size: clamp(12px, 1.9vmin, 20px); }
+@media (max-width: 700px) { .vk-stage.framed .vk-frame-title { max-width: calc(100% - 32px); grid-row: 1; align-self: end; margin-top: 52px; } }
+.vk-stage.framed .vk-exit, .vk-stage.framed .vk-fs { background: rgba(30,26,22,.55); }
+rd shown full screen on the TV */
+.card-tv { position: fixed; inset: 0; z-index: 62; background: #000; display: grid; place-items: center; }
+.card-tv[hidden] { display: none; }
+.card-tv img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.card-tv-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; opacity: .25; transition: opacity .2s; }
+.card-tv:hover .card-tv-bar, .card-tv-bar:focus-within { opacity: 1; }
+.card-canvas--tv { max-width: 640px; }
 /* Scoreboard */
 .sb-stage { position: fixed; inset: 0; z-index: 60; background: var(--ink); color: #fff; display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
 .sb-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 4px solid var(--gold); flex-wrap: wrap; }

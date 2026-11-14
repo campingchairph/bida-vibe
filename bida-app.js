@@ -353,7 +353,7 @@ function deleteSeg(id) {
    Drawn on a <canvas> so it downloads as a PNG (or shares straight to Messenger etc.).
    Themes are matched to the event type; all themes are available for any event.
    ============================================================ */
-const CARD_SIZES = { post: [1080, 1350, 'Post 4:5'], story: [1080, 1920, 'Story 9:16'] };
+const CARD_SIZES = { post: [1080, 1350, 'Post 4:5'], story: [1080, 1920, 'Story 9:16'], tv: [1920, 1080, 'TV 16:9'] };
 const CARD_FONT = '"Bricolage Grotesque", "Nunito", sans-serif', BODY_FONT = '"Nunito", sans-serif';
 // tiny seeded random so decorations look the same every time the card is redrawn
 const seeded = s => () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -523,13 +523,14 @@ function wrapLines(ctx, text, maxW) {
   if (line) lines.push(line); return lines;
 }
 // Paints the whole card. Text is measured so long titles shrink to fit instead of overflowing.
-function drawCard(canvas) {
-  const c = BIDA.card, th = cardTheme(), [W, H] = CARD_SIZES[c.size];
+function drawCard(canvas, size) {      // size: optional override, e.g. 'tv' for the full-screen TV view
+  const c = BIDA.card, th = cardTheme(), sz = CARD_SIZES[size] ? size : c.size, [W, H] = CARD_SIZES[sz];
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = th.bg; ctx.fillRect(0, 0, W, H);
   ctx.save(); th.deco(ctx, W, H); ctx.restore();
-  const story = c.size === 'story', px = th.panel ? 150 : 120, maxW = W - px * 2;
+  // widescreen: keep the text in a centred column so lines don't stretch across the whole TV
+  const story = sz === 'story', wide = sz === 'tv', px = th.panel ? 150 : 120, maxW = wide ? Math.min(1200, W - px * 2) : W - px * 2, x0 = (W - maxW) / 2;
   // each theme keeps its decorations visible: text only goes inside its safe area
   const [aTop, aBot] = th.area || [.2, .86], pad = th.panel ? 44 : 0;
   const top = H * aTop + pad + (story ? H * .03 : 0), bottom = H * aBot - pad - (story ? H * .03 : 0);
@@ -555,7 +556,7 @@ function drawCard(canvas) {
   const { blocks, total } = L;
   let y = top + Math.max(0, (bottom - top - total) / 2);
   if (th.panel) {   // a solid card behind the text keeps it readable on busy themes
-    ctx.fillStyle = th.panel; roundRect(ctx, px - pad, y - pad, maxW + pad * 2, total + pad * 2, 36); ctx.fill();
+    ctx.fillStyle = th.panel; roundRect(ctx, x0 - pad, y - pad, maxW + pad * 2, total + pad * 2, 36); ctx.fill();
     ctx.lineWidth = 6; ctx.strokeStyle = '#1E1A16'; ctx.stroke();
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -588,6 +589,7 @@ function renderCard() {
         <canvas id="card-canvas" class="card-canvas card-canvas--${c.size}" aria-label="Preview ng invitation card"></canvas>
         <div class="card-actions">
           <button class="btn btn--magenta" onclick="downloadCard()">${ic('upload')}I-download</button>
+          <button class="btn btn--chili" onclick="cardShowTV()">${ic('play')}Ipakita sa TV</button>
           ${navigator.share ? `<button class="btn btn--ink" onclick="shareCard()">${ic('arrow')}I-share</button>` : ''}
         </div>
       </div>
@@ -628,6 +630,24 @@ async function resetCard() {
   if (!await askConfirm('Palitan ng detalye mula sa Plan ang pangalan, petsa at oras?', 'Palitan')) return;
   const d = cardDefaults(); Object.assign(BIDA.card, { title: d.title, date: d.date, time: d.time }); saveState(); renderCard();
 }
+// Full-screen card for the TV (always the 16:9 layout, whatever size is picked for sharing)
+function cardShowTV() {
+  ensureCard();
+  const cv = document.createElement('canvas'); drawCard(cv, 'tv');
+  let el = $('#card-tv');
+  if (!el) { el = document.createElement('div'); el.id = 'card-tv'; el.className = 'card-tv'; document.body.appendChild(el); }
+  el.innerHTML = `<img alt="Invitation card" src="${cv.toDataURL('image/jpeg', .92)}">
+    <div class="card-tv-bar"><button class="btn btn--ghost btn--sm sb-light" onclick="cardHideTV()">${ic('x')}Exit</button>
+      <button class="btn btn--ghost btn--sm sb-light" onclick="cardTVFull()">Full screen</button></div>`;
+  el.hidden = false; document.body.style.overflow = 'hidden';
+}
+function cardHideTV() {
+  const el = $('#card-tv'); if (el) { el.hidden = true; el.innerHTML = ''; }
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+  if ($('#vk-stage').hidden && $('#sb-stage').hidden && $('#live').hidden) document.body.style.overflow = '';
+}
+function cardTVFull() { const el = $('#card-tv'); (el && el.requestFullscreen ? el.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser ang full screen')); }
+addEventListener('keydown', e => { if (e.key === 'Escape') { const el = $('#card-tv'); if (el && !el.hidden) cardHideTV(); } });
 function cardBlob() {
   const cv = document.createElement('canvas'); drawCard(cv);
   return new Promise(res => cv.toBlob(res, 'image/png'));
@@ -2138,7 +2158,7 @@ function vkState() {
       av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
     score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30),
-    frame: typeof v.frame === 'string' && vkFrameOk(v.frame) ? v.frame : '',
+    frame: typeof v.frame === 'string' && vkFrameOk(v.frame) && v.frame !== '' ? v.frame : 'card',   // default: follow the invitation card
     room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
       ? { id: v.room.id, owner: v.room.owner.slice(0, 128), exp: +v.room.exp } : null
   };
@@ -2546,9 +2566,11 @@ function vkPublish() {
 }
 
 /* ---- TV frame: the event's title + the card theme's colours and art around the video ---- */
-const vkFrameOk = id => id === '' || id === 'card' || CARD_THEMES.some(t => t.id === id);
+// 'card' (default) = same theme as the invitation card · 'none' = plain video · or a theme id
+const vkFrameOk = id => id === 'none' || id === 'card' || CARD_THEMES.some(t => t.id === id);
 function vkFrameTheme() {
   const id = vkState().frame;
+  if (id === 'none') return null;
   if (id === 'card') { ensureCard(); return cardTheme(); }
   return CARD_THEMES.find(t => t.id === id) || null;
 }
@@ -2559,7 +2581,7 @@ function vkFrameHTML() {
   const chip = (id, label, swatch) => `<button class="theme-chip ${cur === id ? 'on' : ''}" data-fr="${id}" onclick="vkSetFrame('${id}')" aria-pressed="${cur === id}">${swatch}${esc(label)}</button>`;
   return `<div class="card" style="margin-top:16px"><h3>Frame ng TV screen</h3>
     <p class="muted">Lagyan ng frame at pangalan ng event ang video para bagay sa theme ng party.</p>
-    <div class="theme-chips" style="margin-top:10px">${chip('', 'Walang frame', '<span class="theme-sw" style="background:#000"></span>')}${chip('card', 'Kapareho ng card', ct.id === 'own' ? `<span class="theme-sw own-sw" style="background-image:url('${CARD_BG.url}')"></span>` : sw(ct))}
+    <div class="theme-chips" style="margin-top:10px">${chip('none', 'Walang frame', '<span class="theme-sw" style="background:#000"></span>')}${chip('card', 'Kapareho ng card (default)', ct.id === 'own' ? `<span class="theme-sw own-sw" style="background-image:url('${CARD_BG.url}')"></span>` : sw(ct))}
       ${CARD_THEMES.map(t => chip(t.id, t.name, sw(t))).join('')}</div></div>`;
 }
 function vkSetFrame(id) {
@@ -2571,7 +2593,7 @@ function vkSetFrame(id) {
 function vkApplyFrame() {
   const st = $('#vk-stage'), th = vkFrameTheme(), cv = $('#vk-frame-bg'), tt = $('#vk-frame-title');
   st.classList.toggle('framed', !!th);
-  if (!th) { cv.hidden = true; tt.hidden = true; return; }
+  if (!th) { cv.hidden = true; tt.hidden = true; vkFitVideo(); return; }
   if (th.id === 'own' && !CARD_BG.img) { loadCardBg().then(() => { if (CARD_BG.img) vkApplyFrame(); }); }
   st.style.setProperty('--fr-bg', th.bg);
   const title = (BIDA.card && BIDA.card.title) || BIDA.event.name || eventType().label;
@@ -2586,6 +2608,22 @@ function vkApplyFrame() {
   const ctx = cv.getContext('2d'); ctx.setTransform(devicePixelRatio * k, 0, 0, devicePixelRatio * k, 0, 0);
   ctx.fillStyle = th.bg; ctx.fillRect(0, 0, 1600, H / k);
   try { ctx.save(); th.deco(ctx, 1600, H / k); ctx.restore(); } catch (e) { }
+  setTimeout(vkFitVideo, 30);          // after the title has its size (a timer, so it also runs on a background screen)
+}
+// Framed: the video spans the full width at 16:9; the frame only shows above (title bar) and below.
+// On a 16:9 TV there isn't quite room for that, so a thin, equal sliver is trimmed off the video's
+// top and bottom edges (max 10% in total, 5% per edge, so the lyrics stay on screen). Only on very short
+// windows does the video get narrower instead.
+const VK_MAX_CROP = .10;
+function vkFitVideo() {
+  const st = $('#vk-stage'), pl = $('#vk-player');
+  if (!st.classList.contains('framed')) { pl.style.width = pl.style.height = ''; pl.style.removeProperty('--crop'); return; }
+  const top = Math.max($('.vk-bar').offsetHeight, $('#vk-frame-title').offsetHeight);
+  const availH = st.clientHeight - top - 12, availW = st.clientWidth;
+  let w = availW, full = w * 9 / 16, h = Math.min(full, availH);
+  if ((full - h) / full > VK_MAX_CROP) { full = h / (1 - VK_MAX_CROP); w = full * 16 / 9; }   // too short: narrow it a bit
+  pl.style.width = Math.floor(w) + 'px'; pl.style.height = Math.floor(h) + 'px';
+  pl.style.setProperty('--crop', Math.max(0, Math.floor((full - h) / 2)) + 'px');
 }
 addEventListener('resize', () => { clearTimeout(VK.frT); VK.frT = setTimeout(() => { if (!$('#vk-stage').hidden && vkFrameTheme()) vkApplyFrame(); }, 200); });
 
@@ -3369,7 +3407,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- exports for inline handlers ---------- */
-Object.assign(window, { vkSetFrame, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
+Object.assign(window, { cardShowTV, cardHideTV, cardTVFull, vkSetFrame, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
