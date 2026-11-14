@@ -764,6 +764,47 @@ body.in-sb .mbar, body.in-sb .pl-fab, body.in-sb .pl-panel { display: none !impo
 .hy-card.hid .hy-cover { display: grid; }
 .cl-chips small { font-weight: 700; }
 
+/* Dice: the face that landed in front pulses */
+.df.win { animation: dieWin .7s ease-in-out 3; box-shadow: 0 0 0 6px var(--gold), 0 0 26px 6px rgba(246,178,27,.8); }
+@keyframes dieWin { 50% { filter: brightness(1.18); box-shadow: 0 0 0 10px var(--gold), 0 0 40px 12px rgba(246,178,27,.95); } }
+
+/* Host view / TV view switch */
+.view-btn .ic { width: 16px; height: 16px; }
+@media (max-width: 599px) { .view-btn span { display: none; } .view-btn { padding: 0 10px; } }
+/* TV view: only what the audience needs — no setup, no controls, no app messages */
+body.tv-mode #tabs button:not([data-tab="games"]):not([data-tab="videoke"]),
+body.tv-mode .acct-btn, body.tv-mode .remote-btn, body.tv-mode .mbar, body.tv-mode .pl-fab, body.tv-mode .pl-panel,
+body.tv-mode .toast, body.tv-mode .tools-row, body.tv-mode .game-filters { display: none !important; }
+body.tv-mode .view-btn { opacity: .35; }
+body.tv-mode .view-btn:hover, body.tv-mode .view-btn:focus-visible { opacity: 1; }
+body.tv-mode #tabs { grid-template-columns: repeat(2, 1fr); }
+body.tv-mode .head-event b { font-size: 1.15em; }
+
+/* Videoke lobby on the TV: who's singing, the queue, and a big QR */
+.tvl { display: grid; gap: clamp(16px, 3vw, 40px); align-items: start; }
+@media (min-width: 760px) { .tvl { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); } }
+.tvl-title { font: 800 clamp(34px, 5vw, 64px)/1 var(--f2); }
+.tvl-now { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 12px 16px; background: var(--gold); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 5px 5px 0 var(--ink); }
+.tvl-now small { display: block; font: 800 12px/1 var(--f); letter-spacing: .1em; text-transform: uppercase; }
+.tvl-now b { display: block; font: 800 clamp(22px, 2.6vw, 34px)/1.1 var(--f2); }
+.tvl-now em { display: block; font: 700 clamp(14px, 1.6vw, 20px)/1.2 var(--f); font-style: normal; }
+.tvl-h { margin-top: 22px; font: 800 clamp(20px, 2.2vw, 28px)/1 var(--f2); display: flex; align-items: center; gap: 10px; }
+.tvl-h span { font: 800 14px/1 var(--f); padding: 5px 10px; border-radius: 99px; background: var(--ink); color: var(--gold); }
+.tvl-q { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.tvl-q li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #fff; border: 2.5px solid var(--ink); border-radius: 16px; }
+.tvl-q .n { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--cream); border: 2px solid var(--ink); display: grid; place-items: center; font: 800 14px/1 var(--f); }
+.tvl-q li > div { min-width: 0; }
+.tvl-q b { display: block; font: 800 clamp(16px, 1.8vw, 22px)/1.15 var(--f2); }
+.tvl-q em { display: block; font: 700 clamp(13px, 1.4vw, 17px)/1.2 var(--f); font-style: normal; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tvl-more { margin-top: 8px; font: 800 15px/1 var(--f); color: var(--ink-3); }
+.tvl-empty { margin-top: 12px; font: 700 clamp(16px, 1.8vw, 22px)/1.4 var(--f); color: var(--ink-3); }
+.tvl-qr { position: sticky; top: 20px; text-align: center; background: #fff; border: 4px solid var(--ink); border-radius: 26px; padding: clamp(14px, 2vw, 24px); box-shadow: 8px 8px 0 var(--ink); }
+.tvl-qr canvas { width: 100%; max-width: 420px; height: auto; display: block; margin: 0 auto; image-rendering: pixelated; }
+.tvl-qr b { display: block; margin-top: 12px; font: 800 clamp(22px, 2.6vw, 34px)/1.1 var(--f2); color: var(--chili); }
+.tvl-qr small { display: block; margin-top: 4px; font: 700 clamp(13px, 1.4vw, 18px)/1.3 var(--f); color: var(--ink-3); }
+.vk-lock { display: flex; gap: 16px; align-items: flex-start; }
+.vk-lock > .ic { flex: none; width: 44px; height: 44px; padding: 10px; border-radius: 14px; background: var(--magenta); color: #fff; border: 2px solid var(--ink); }
+
 /* Floating game timer */
 .gtimer { position: fixed; right: 14px; bottom: calc(var(--mbar-h, 84px) + 14px); z-index: 61; width: 210px; background: #FFF6E5; color: var(--ink); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 5px 5px 0 var(--ink); padding: 6px 8px 8px; touch-action: none; }
 .gtimer[hidden] { display: none; }

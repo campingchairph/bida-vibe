@@ -109,7 +109,7 @@ service cloud.firestore {
         allow create: if rr().open == true
           && rr().expires > request.time
           && request.resource.data.keys().hasOnly(['k', 'v', 'n', 's', 'av', 'ph', 'mo', 'at'])
-          && request.resource.data.k in ['pad', 'stop', 'music', 'plan', 'vk', 'score']
+          && request.resource.data.k in ['pad', 'stop', 'music', 'plan', 'vk', 'score', 'show']
           && okPhoto(request.resource.data) && okMouth(request.resource.data)
           && request.resource.data.v is string && request.resource.data.v.size() <= 40
           && request.resource.data.n is int && request.resource.data.n >= -1 && request.resource.data.n <= 999999

@@ -14,9 +14,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261117a">
+<link rel="stylesheet" href="bida.css?v=20261115x">
 <style>
-  body { background: var(--cream); min-height: 100vh; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  body { background: var(--cream); min-height: 100vh; padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+  /* Floating "Sa TV" navigator: pick what the TV shows */
+  .rm-tv { position: fixed; left: 8px; right: 8px; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 11; background: var(--ink); color: #fff; border-radius: 18px; padding: 8px 8px 8px 10px; box-shadow: 0 6px 18px rgba(0,0,0,.25); display: flex; align-items: center; gap: 8px; }
+  .rm-tv[hidden] { display: none; }
+  .rm-tv-l { flex: none; font: 800 11px/1.1 var(--f); color: var(--gold); text-transform: uppercase; letter-spacing: .08em; width: 34px; }
+  .rm-tv-s { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rm-tv-s::-webkit-scrollbar { display: none; }
+  .rm-tv-s button { flex: none; display: grid; justify-items: center; gap: 2px; min-width: 56px; padding: 6px 6px 5px; border: 2px solid rgba(255,255,255,.25); border-radius: 12px; background: rgba(255,255,255,.08); color: #fff; font: 800 11px/1.1 var(--f); cursor: pointer; }
+  .rm-tv-s button span { font-size: 18px; line-height: 1; }
+  .rm-tv-s button.on { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .rm-tv-go { flex: none; width: 54px; height: 54px; border-radius: 50%; border: 3px solid #fff; background: var(--chili); color: #fff; font: 800 13px/1 var(--f); cursor: pointer; }
   .rm { max-width: 640px; margin: 0 auto; padding: 14px 14px 30px; }
   .rm-head { display: flex; align-items: center; gap: 10px; background: var(--ink); color: var(--cream); border-radius: 18px; padding: 12px 14px; }
   .rm-head small { display: block; font: 800 11px/1 var(--f); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
@@ -94,13 +104,14 @@
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
 </svg>
 <main class="rm" id="rm"><p class="muted" style="padding:40px 0;text-align:center">Kumokonekta sa TV…</p></main>
+<div class="rm-tv" id="rm-tv" hidden role="group" aria-label="Ano ang nasa TV"></div>
 <nav class="rm-tabs" id="rm-tabs" hidden></nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261117a"></script>
+<script src="vk-avatars.js?v=20261115x"></script>
 <script>
 /* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
    Reads the snapshot the TV app keeps in vk_remotes/{id} and sends small commands back.
@@ -145,6 +156,7 @@
     done(id) { send('plan', 'done', id); },
     vk(v) { send('vk', v); },
     del(i) { send('vk', 'del', i); },
+    show(v) { S.sending = 0; send('show', v); if (navigator.vibrate) navigator.vibrate(12); },
     score(v, n = -1) { if (v === 'reset' && !confirm('Ibalik sa 0 ang lahat ng score?')) return; S.sending = 0; send('score', v, n); if (navigator.vibrate) navigator.vibrate(10); },
     find(q) { S.q = q; songs(); },
     name(v) { S.who.name = v.replace(/\s+/g, ' ').slice(0, 24); store.set('bv_rm_who', S.who); },
@@ -158,9 +170,23 @@
   };
 
   const TABS = [['plan', 'Plan', 'list'], ['sounds', 'Sounds', 'sound'], ['videoke', 'Videoke', 'mic'], ['music', 'Music', 'music'], ['score', 'Score', 'trophy']];
+  // Which screen is on the TV, and buttons to switch it. TV view = only the audience sees it.
+  const TV_SCREENS = [['card', '💌', 'Card'], ['videoke', '🎤', 'Videoke'], ['stage', '📺', 'Kanta'], ['games', '🎲', 'Laro'], ['score', '🏆', 'Score'],
+    ['raffle', '🎟️', 'Raffle'], ['dice', '🎲', 'Dice'], ['color', '🎨', 'Kulay'], ['henyo', '🧠', 'Henyo'], ['timer', '⏱️', 'Timer'], ['close', '✕', 'Isara']];
+  function tvBar(st) {
+    const tv = st.tv; const bar = $('#rm-tv');
+    if (!tv) { bar.hidden = true; return; }
+    const cur = tv.view === 'tv' ? tv.screen : '';
+    const list = TV_SCREENS.filter(([id]) => tv.pro || !['videoke', 'stage'].includes(id));
+    bar.innerHTML = `<span class="rm-tv-l">Sa TV</span><div class="rm-tv-s">${list.map(([id, icon, label]) => `<button class="${cur === id ? 'on' : ''}" onclick="RM.show('${id}')"><span>${icon}</span>${label}</button>`).join('')}
+      ${tv.view === 'tv' ? '<button onclick="RM.show(\'host\')"><span>🖥️</span>Host</button>' : ''}</div>
+      <button class="rm-tv-go" onclick="RM.show('go')" aria-label="Go: spin, roll o bunot">▶ Go</button>`;
+    bar.hidden = false;
+  }
   function render() {
     const st = S.st; if (!st) return;
     $('#rm-tabs').hidden = false;
+    tvBar(st);
     $('#rm-tabs').innerHTML = TABS.map(([id, label, i]) => `<button class="${S.tab === id ? 'on' : ''}" onclick="RM.tab('${id}')">${ic(i)}${label}</button>`).join('');
     const head = `<div class="rm-head"><span class="rm-dot"></span><div><small>Remote · naka-connect sa TV</small><b>${esc(st.ev || 'Event')}</b></div></div>`;
     $('#rm').innerHTML = head + (S.tab === 'plan' ? planHTML(st) : S.tab === 'sounds' ? soundsHTML(st) : S.tab === 'videoke' ? vkHTML(st) : S.tab === 'score' ? scoreHTML(st) : musicHTML(st));

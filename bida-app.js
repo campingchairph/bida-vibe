@@ -64,6 +64,7 @@ function defaultState() {
     liveIdx: 0,
     card: null,       // invitation card: { theme, size, intro, title, sub, date, time, venue, msg, rsvp }
     vk: null,         // videoke: { queue, mine, score, lastSinger, room }
+    view: 'host',     // 'host' = everything · 'tv' = the audience screen (Games + Videoke only)
     remote: null      // host remote link: { id, owner, exp }
   };
 }
@@ -109,6 +110,7 @@ function loadState() {
   if (!BIDA_EVENTS.some(e => e.id === BIDA.event.type)) BIDA.event.type = 'reunion';
   if (!/^\d{2}:\d{2}$/.test(BIDA.event.start)) BIDA.event.start = '15:00';
   if (!BIDA.program.length) buildProgram(BIDA.event.type);
+  BIDA.view = BIDA.view === 'tv' ? 'tv' : 'host';
   const r = BIDA.remote;
   BIDA.remote = r && /^[A-Za-z0-9]{24}$/.test(r.id) && typeof r.owner === 'string' && r.exp > Date.now() ? { id: r.id, owner: r.owner.slice(0, 128), exp: +r.exp } : null;
 }
@@ -134,6 +136,7 @@ const askText = (msg, def, max = 40) => openDlg(msg, { input: def, yes: 'I-save'
 /* ---------- Helpers ---------- */
 let toastT;
 function toast(msg) {
+  if (BIDA && BIDA.view === 'tv') return;          // TV view: the audience doesn't see app messages
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400);
 }
@@ -204,10 +207,61 @@ function showLanding() {
   requestAnimationFrame(renderAllBunting);
 }
 
+/* ---------- Host view / TV view ----------
+   TV view is what the audience sees: only Games and Videoke, no setup, no controls, no pop-up messages.
+   The card goes on the TV from the host or the phone remote; the Card tab itself stays host-only. */
+const TV_TABS = ['games', 'videoke'];
+const isTV = () => BIDA.view === 'tv';
+function applyView() {
+  document.body.classList.toggle('tv-mode', isTV());
+  const b = $('#view-btn'); if (b) b.innerHTML = isTV() ? `${ic('people')}<span>Host view</span>` : `${ic('live')}<span>TV view</span>`;
+}
+function setView(v) {
+  BIDA.view = v === 'tv' ? 'tv' : 'host'; saveState(); applyView();
+  if (isTV() && !TV_TABS.includes(BIDA.tab)) goTab('videoke'); else if (!$('#app').hidden) RENDER[BIDA.tab]();
+  if (!isTV()) toast('Host view');
+  rmtPublish();
+}
+function toggleView() { setView(isTV() ? 'host' : 'tv'); }
+// What's on the TV right now (the phone remote highlights it)
+function tvScreen() {
+  const c = $('#card-tv'); if (c && !c.hidden) return 'card';
+  if (!$('#tl-stage').hidden) return TL.kind;
+  if (!$('#sb-stage').hidden) return 'score';
+  if (!$('#vk-stage').hidden) return 'stage';
+  return BIDA.tab;
+}
+// The phone remote picks the screen; the TV switches to TV view by itself
+function tvShow(v) {
+  const closeAll = () => { cardHideTV(); if (!$('#tl-stage').hidden) tlClose(); if (!$('#sb-stage').hidden) sbHide(); };
+  if (v === 'host') { setView('host'); return; }
+  if (v === 'go') { tvGo(); return; }
+  if (v === 'timer') { timerOpen(); rmtPublish(); return; }          // the timer floats over whatever is showing
+  if (v === 'close') { closeAll(); if (!$('#vk-stage').hidden) vkClose(); rmtPublish(); return; }
+  if (!isTV()) setView('tv');
+  closeAll(); if (v !== 'stage' && !$('#vk-stage').hidden) vkClose();
+  if (v === 'card') cardShowTV();
+  else if (v === 'videoke' || v === 'games') { if (BIDA.tab !== v) goTab(v); else RENDER[v](); }
+  else if (v === 'stage') vkStart();
+  else if (v === 'score') sbShow();
+  else if (v === 'raffle') raffleShow();
+  else if (v === 'dice') diceShow();
+  else if (v === 'color') colorShow();
+  else if (v === 'henyo') henyoShow();
+  rmtPublish();
+}
+// "Go" from the remote: spin / roll / draw / pick a colour / start the timer — whatever is on screen
+function tvGo() {
+  if (!$('#tl-stage').hidden) { ({ raffle: raffleGo, dice: diceRoll, color: colorGo, henyo: henyoNext })[TL.kind]?.(); }
+  else if (!$('#sb-stage').hidden) sbWinner();
+  else if (!$('#gtimer').hidden) timerToggle();
+}
+
 /* ---------- Tabs ---------- */
 const RENDER = { plan: renderPlan, card: renderCard, games: renderGames, videoke: renderVideoke, sounds: renderSounds, music: renderMusic };
 function goTab(name) {
   if (!RENDER[name]) name = 'plan';
+  if (isTV() && !TV_TABS.includes(name)) name = 'videoke';          // TV view: audience screens only
   BIDA.tab = name; saveState();
   $$('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   $$('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
@@ -639,7 +693,7 @@ function cardShowTV() {
   el.innerHTML = `<img alt="Invitation card" src="${cv.toDataURL('image/jpeg', .92)}">
     <div class="card-tv-bar"><button class="btn btn--ghost btn--sm sb-light" onclick="cardHideTV()">${ic('x')}Exit</button>
       <button class="btn btn--ghost btn--sm sb-light" onclick="cardTVFull()">Full screen</button></div>`;
-  el.hidden = false; document.body.style.overflow = 'hidden';
+  el.hidden = false; document.body.style.overflow = 'hidden'; rmtPublish();
 }
 function cardHideTV() {
   const el = $('#card-tv'); if (el) { el.hidden = true; el.innerHTML = ''; }
@@ -2288,6 +2342,14 @@ function vkSearch() {
 
 /* ---- Videoke tab ---- */
 function renderVideoke() {
+  if (isTV()) { renderVideokeTV(); return; }
+  if (!BIDA.premium) {        // Videoke is part of Premium
+    $('#panel-videoke').innerHTML = `<div class="panel-head"><div><h2>Videoke</h2><p>Kasama sa Premium (${esc(BIDA_CONFIG.price)} one-time).</p></div></div>
+      <div class="card vk-lock">${ic('mic')}<div><h3>Videoke para sa buong pamilya</h3>
+        <p class="muted">Song library na may search, QR para makapag-reserve ang mga bisita gamit ang phone nila, at TV screen na may banderitas, pila at score.</p>
+        <button class="btn btn--magenta" style="margin-top:12px" onclick="openPremium('Videoke')">${ic('star')}I-unlock ang Premium</button></div></div>`;
+    return;
+  }
   const v = vkState();
   if (!VK.loaded) { loadVkLibrary().then(() => { if (BIDA.tab === 'videoke') renderVideoke(); }); }
   const letters = [...new Set(vkAll().map(s => vkFirst(s.t)))].sort((a, b) => a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b));
@@ -2324,6 +2386,23 @@ function renderVideoke() {
       <button class="btn btn--ghost btn--sm" style="margin-top:12px" onclick="vkAddMine()">${ic('plus')}Idagdag ang sariling kanta (YouTube link)</button>
     </div>
     ${isAdmin() ? vkAdminHTML() : ''}`;
+}
+// TV view of the Videoke tab: what the guests see between songs
+function renderVideokeTV() {
+  const q = vkState().queue, cur = VK.cur && vkSong(VK.cur.c);
+  const face = (it, n) => vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, n);
+  $('#panel-videoke').innerHTML = `<div class="tvl">
+    <div class="tvl-main"><h2 class="tvl-title">Videoke</h2>
+      ${cur ? `<div class="tvl-now">${face(VK.cur, 64)}<div><small>Kumakanta</small><b>${esc(VK.cur.singer || 'Bisita')}</b><em>${esc(cur.t)}</em></div></div>` : ''}
+      <h3 class="tvl-h">Nakapila <span>${q.length}</span></h3>
+      ${q.length ? `<ol class="tvl-q">${q.slice(0, 8).map((it, i) => { const s = vkSong(it.c); return `<li><span class="n">${i + 1}</span>${face(it, 44)}<div><b>${esc(it.singer || 'Bisita')}</b><em>${esc(s ? s.t : '')}</em></div></li>`; }).join('')}</ol>
+        ${q.length > 8 ? `<p class="tvl-more">+${q.length - 8} pa</p>` : ''}` : '<p class="tvl-empty">Wala pang nakapila. Ikaw na mauna!</p>'}
+    </div>
+    <div class="tvl-qr" id="tvl-qr">${BIDA.premium ? '<p class="tvl-empty">Inihahanda ang QR…</p>' : ''}</div></div>`;
+  if (!BIDA.premium) return;
+  const paint = () => qrCanvas(vkRoomUrl(BIDA.vk.room.id), 640).then(c => { const b = $('#tvl-qr'); if (!b) return; b.innerHTML = '<b>Gusto mong kumanta?</b><small>I-scan para pumili ng kanta</small>'; b.prepend(c); }).catch(() => { });
+  if (vkRoomValid()) paint();
+  else if (AUTH.user) vkMakeRoom(true);              // makes the link, then this screen redraws with the QR
 }
 // The family link card in the Videoke tab
 function vkRoomHTML() {
@@ -2389,6 +2468,7 @@ function vkSetArtistIdx(i) { const a = VK.artistList[i]; if (a) vkSetArtist(a.k)
 // Host reserves for someone: their name, plus an avatar or a photo (camera with the mouth guide)
 const VKP = { c: 0, av: '', ph: '', mo: '' };
 function vkReserve(c) {
+  if (needPro('Videoke')) return;
   const s = vkSong(c); if (!s) return;
   const v = vkState();
   Object.assign(VKP, { c, av: '', ph: '', mo: '' });      // nothing picked = the singer's own default avatar
@@ -2422,6 +2502,7 @@ function vkScoreToggle(on) { vkState().score = on; saveState(); }
 
 /* ---- The big screen (cast / connect this to the TV) ---- */
 async function vkStart() {
+  if (needPro('Videoke')) return;
   const stage = $('#vk-stage');
   stage.hidden = false; document.body.classList.add('in-vk'); document.body.style.overflow = 'hidden';
   vkDressStage();
@@ -2533,6 +2614,7 @@ function vkRoomValid() {
   return !!(r && /^[A-Za-z0-9]{24}$/.test(r.id) && r.owner === AUTH.user?.uid && r.exp > Date.now());
 }
 async function vkMakeRoom(silent) {
+  if (!BIDA.premium) { if (!silent) needPro('Videoke'); return; }
   if (!authReady()) { if (!silent) toast('Hindi pa bukas ang sign-in'); return; }
   if (!AUTH.user) { if (silent) return; await signIn(); if (!AUTH.user) return; }
   const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang link. I-refresh mo.'); return; }
@@ -2898,13 +2980,14 @@ function tlOpen(kind, title, body) {
         <button class="btn btn--ghost btn--sm sb-light" onclick="tlFull()">Full screen</button></div></div>
     <div class="tl-body" id="tl-body">${body}</div>
     <div class="sb-win" id="tl-win" hidden onclick="tlWinClose()"></div>`;
-  el.hidden = false; document.body.classList.add('in-sb'); document.body.style.overflow = 'hidden';
+  el.hidden = false; document.body.classList.add('in-sb'); document.body.style.overflow = 'hidden'; rmtPublish();
 }
 function tlClose() {
   TL.busy = false; $('#tl-stage').hidden = true;
   if ($('#sb-stage').hidden) document.body.classList.remove('in-sb');
   if ($('#vk-stage').hidden && $('#sb-stage').hidden && $('#live').hidden) document.body.style.overflow = '';
   if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+  rmtPublish();
 }
 function tlFull() { const s = $('#tl-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser ang full screen')); }
 function tlSettings() { if (TL.kind === 'raffle') raffleSetup(); else if (TL.kind === 'dice') diceSetup(); else if (TL.kind === 'color') colorSetup(); else if (TL.kind === 'henyo') henyoSetup(); }
@@ -3029,9 +3112,9 @@ const DIE_SPIN = [];                                                            
 const pipsHTML = v => `<div class="pips">${[...Array(9)].map((_, i) => `<i class="${DICE_PIPS[v].includes(i) ? 'on' : ''}"></i>`).join('')}</div>`;
 function die3dHTML(i, kind, faceColors) {
   return `<div class="die3d-wrap"><div class="die3d" id="die-${i}">${DIE_FACES.map(([pos, v]) => {
-    if (kind !== 'color') return `<div class="df df--${pos}">${pipsHTML(v)}</div>`;
+    if (kind !== 'color') return `<div class="df df--${pos}" data-v="${v}">${pipsHTML(v)}</div>`;
     const [nm, hex] = TOOL_COLORS[faceColors[v - 1]];
-    return `<div class="df df--${pos} df--color" style="background:${hex};color:${tlDark(hex) ? '#fff' : '#1E1A16'}"><span>${nm}</span></div>`;
+    return `<div class="df df--${pos} df--color" data-v="${v}" style="background:${hex};color:${tlDark(hex) ? '#fff' : '#1E1A16'}"><span>${nm}</span></div>`;
   }).join('')}</div></div>`;
 }
 // Colour dice: the six faces cycle through the chosen colours (so every colour shows up)
@@ -3049,7 +3132,7 @@ function diceShow() {
 }
 async function diceRoll() {
   const d = toolsState().dice; if (TL.busy) return; TL.busy = true;
-  $$('.tl-go').forEach(b => b.disabled = true); $('#dice-sum').innerHTML = '&nbsp;';
+  $$('.tl-go').forEach(b => b.disabled = true); $('#dice-sum').innerHTML = '&nbsp;'; $$('.df.win').forEach(f => f.classList.remove('win'));
   const vals = TL.faces.map(() => 1 + tlRand(6));          // which face lands in front (fair 1–6)
   vals.forEach((v, i) => {
     const el = $('#die-' + i), [tx, ty] = DIE_TURN[v], [cx, cy] = DIE_SPIN[i];
@@ -3061,6 +3144,7 @@ async function diceRoll() {
   });
   for (let k = 0; k < 6; k++) { vkSfx('rattle'); await tlWait(150); }
   await tlWait(500 + TL.faces.length * 120);
+  vals.forEach((v, i) => $(`#die-${i} .df[data-v="${v}"]`)?.classList.add('win'));   // the result face pulses
   vkSfx('go');
   $('#dice-sum').textContent = d.kind === 'num' ? (d.n > 1 ? `Total: ${vals.reduce((a, b) => a + b, 0)}` : `${vals[0]}!`)
     : vals.map((v, i) => TOOL_COLORS[TL.faces[i][v - 1]][0]).join(' · ');
@@ -3221,6 +3305,7 @@ function timerDrag() {
 const RMT = { unsub: null, pubT: 0, seen: new Set(), last: '' };
 const REMOTE_HOURS = 24;
 function rmtValid() {
+  BIDA.view = BIDA.view === 'tv' ? 'tv' : 'host';
   const r = BIDA.remote;
   return !!(r && /^[A-Za-z0-9]{24}$/.test(r.id) && r.owner === AUTH.user?.uid && r.exp > Date.now());
 }
@@ -3271,6 +3356,7 @@ function rmtState() {
     pads: padList().filter(p => canPlaySound(p.id)).slice(0, 40).map(p => ({ id: p.id, n: p.name.slice(0, 24), c: p.c })),
     music: { has: !!M.kind, on: !!M.playing, t: String(M.title || '').slice(0, 90), duck: !!M.ducked, faded: !!M.faded, pro: !!BIDA.premium },
     vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song) },
+    tv: { view: BIDA.view, screen: tvScreen(), pro: !!BIDA.premium },
     sb: (s => ({ on: !$('#sb-stage').hidden, title: s.title, mode: s.mode, teams: s.teams.map(x => ({ n: x.n, c: x.c, s: x.s })) }))(sbState())
   };
 }
@@ -3315,6 +3401,7 @@ function rmtRun(d) {
       else if (v === 'fade' && BIDA.premium) fadeToggle();
       else if (v === 'talk' && BIDA.premium) (M.ducked ? duckUp() : duckDown());
       break;
+    case 'show': tvShow(v); break;
     case 'score':
       if (v === 'add' || v === 'sub') sbAdd(n, v === 'add' ? 1 : -1);
       else if (v === 'show') sbShow();
@@ -3324,6 +3411,7 @@ function rmtRun(d) {
       break;
     case 'plan': if (v === 'done' && BIDA.program.some(p => p.id === n)) { toggleDone(n); if (BIDA.tab === 'plan') renderPlan(); } break;
     case 'vk':
+      if (!BIDA.premium) break;                     // Videoke is Premium
       if (v === 'start') vkStart();
       else if (v === 'close') { if (!$('#vk-stage').hidden) vkClose(); }
       else if (v === 'skip') { if (!$('#vk-stage').hidden) vkNext(); }
@@ -3720,6 +3808,7 @@ function openPremium(feature) {
         <li>${ic('star')}Lahat ng sound pads + walang limit na sariling upload</li>
         <li>${ic('star')}Walang limit na YouTube links, Spotify at sariling music files</li>
         <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
+        <li>${ic('star')}Videoke: song library, QR para sa mga bisita at TV screen</li>
       </ul>
       <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">one-time · walang monthly, walang auto-charge</small></p>
     </div>
@@ -3882,12 +3971,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
   updateBar();
+  applyView();
   micResume();          // auto-fade turns itself back on (asks only if the browser needs a tap)
   await probing;
 });
 
 /* ---------- exports for inline handlers ---------- */
-Object.assign(window, { henyoSetup, henyoCat, henyoShow, henyoNext, henyoHide, henyoTimer, timerPreset, raffleSetup, raffleNames, raffleMode, raffleShow, raffleGo, diceSetup, diceSet, diceShow, diceRoll, colorSetup, colorToggle, colorShow, colorGo, tlClose, tlFull, tlSettings, tlWinClose, toolsState, timerOpen, timerToggle, timerAdd, timerReset, timerEdit, timerBig, timerClose, cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
+Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyoShow, henyoNext, henyoHide, henyoTimer, timerPreset, raffleSetup, raffleNames, raffleMode, raffleShow, raffleGo, diceSetup, diceSet, diceShow, diceRoll, colorSetup, colorToggle, colorShow, colorGo, tlClose, tlFull, tlSettings, tlWinClose, toolsState, timerOpen, timerToggle, timerAdd, timerReset, timerEdit, timerBig, timerClose, cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
