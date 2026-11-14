@@ -2207,6 +2207,7 @@ function renderVideoke() {
       </div>
     </div>
     ${vkRoomHTML()}
+    ${vkFrameHTML()}
     ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
       <div class="vk-search">
