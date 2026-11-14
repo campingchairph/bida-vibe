@@ -661,6 +661,39 @@ body.in-live .pl-panel { bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)
 .sb-setup .input { flex: 1; }
 .sb-dot { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--ink); cursor: pointer; }
 body.in-sb .mbar, body.in-sb .pl-fab, body.in-sb .pl-panel { display: none !important; }
+/* Videoke tab: compact queue */
+.vk-qhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.vk-nowtag { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 5px 10px; border-radius: 99px; background: var(--gold); border: 2px solid var(--ink); font: 700 12.5px/1.2 var(--f); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vk-nowtag .ic { width: 14px; height: 14px; flex: none; }
+.vk-q--slim { gap: 4px; margin-top: 8px; }
+@media (min-width: 760px) { .vk-q--slim { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; } }
+.vk-q--slim li { padding: 4px 6px; gap: 8px; border-width: 1.5px; border-radius: 10px; }
+.vk-q--slim .vk-qn { width: 20px; height: 20px; font-size: 11px; }
+.vk-q--slim li > div { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.vk-q--slim b { font-size: 13.5px; flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vk-q--slim small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vk-q--slim .admin-act .icon-btn { width: 26px; height: 26px; }
+.vk-q--slim .vk-qav svg, .vk-q--slim .vk-qav img { width: 26px; height: 26px; }
+
+/* Host reserve sheet: avatar / photo picker */
+.rv-avs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.rv-avs button { width: 52px; height: 52px; padding: 2px; border-radius: 50%; border: 2.5px solid transparent; background: none; cursor: pointer; display: grid; place-items: center; }
+.rv-avs button.on { border-color: var(--ink); background: var(--gold); }
+.rv-avs .rv-cam { background: var(--turq-soft); border-color: var(--ink); font-size: 22px; }
+.rv-avs .rv-cam.on { background: var(--gold); }
+
+/* Camera: face oval + where the mouth goes */
+.cam-guide { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cam-tip { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 6px 10px; border-radius: 10px; background: rgba(30,26,22,.72); color: #fff; font: 700 12.5px/1.3 var(--f); text-align: center; }
+.cam-tip[hidden] { display: none; }
+
+/* Talking mouth over the stickman's face (photo or avatar) */
+.vk-sm-head { overflow: visible; }
+.vk-mouth { position: absolute; left: 50%; top: 72%; width: 26%; height: 15%; transform: translate(-50%, -50%) scaleY(.2); border-radius: 50%;
+  background: #4A1B1B; border: 2px solid var(--ink); box-shadow: inset 0 -3px 0 #E4452B; animation: vkTalk .32s ease-in-out infinite alternate; }
+@keyframes vkTalk { 0% { transform: translate(-50%, -50%) scaleY(.15); } 60% { transform: translate(-50%, -50%) scaleY(.9); } 100% { transform: translate(-50%, -50%) scaleY(.45); } }
+@media (prefers-reduced-motion: reduce) { .vk-mouth { animation-duration: 1s; } }
+
 /* Guest link card + Brave tip */
 .vk-q .vk-qav { flex: none; display: grid; }
 .vk-room { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }

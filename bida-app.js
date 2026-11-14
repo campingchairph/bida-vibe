@@ -2246,7 +2246,7 @@ function vkState() {
     queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)).slice(0, 12), c: q.c, singer: String(q.singer || '').slice(0, 30),
       av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
-    score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30),
+    score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30), lastAv: /^[a-z]{2,10}$/.test(v.lastAv) ? v.lastAv : '',
     room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
       ? { id: v.room.id, owner: v.room.owner.slice(0, 128), exp: +v.room.exp } : null
   };
@@ -2283,7 +2283,6 @@ function vkSearch() {
 function renderVideoke() {
   const v = vkState();
   if (!VK.loaded) { loadVkLibrary().then(() => { if (BIDA.tab === 'videoke') renderVideoke(); }); }
-  const typed = VK.input, match = typed.length === 5 ? vkSong(+typed) : null;
   const letters = [...new Set(vkAll().map(s => vkFirst(s.t)))].sort((a, b) => a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b));
   const artists = vkArtists();
   if (VK.letter && !letters.includes(VK.letter)) VK.letter = '';
@@ -2292,33 +2291,23 @@ function renderVideoke() {
   const now = VK.cur && vkSong(VK.cur.c);
   $('#panel-videoke').innerHTML = `
     <div class="panel-head"><div><h2>Videoke</h2>
-      <p>I-type ang code o hanapin ang kanta, i-reserve, tapos kanta na. ${vkAll().length} songs sa library.</p></div>
+      <p>Hanapin ang kanta, i-reserve, tapos kanta na. ${vkAll().length} songs sa library.</p></div>
       <button class="btn btn--chili" onclick="vkStart()" ${v.queue.length || VK.cur ? '' : 'disabled'}>${ic('play')}${VK.cur ? 'Buksan ang screen' : 'Simulan'}</button></div>
-    <div class="vk-top">
-      <div class="vk-remote card">
-        <div class="vk-display" aria-live="polite">
-          <div class="vk-code">${(typed || '').padEnd(5, '–').split('').map(ch => `<span>${ch}</span>`).join('')}</div>
-          <div class="vk-title">${typed.length === 5 ? (match ? `${esc(match.t)}<small>${esc(match.a)}</small>` : 'Walang kantang ganyan ang code') : 'I-type ang 5-digit code'}</div>
-        </div>
-        <div class="vk-keys">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button onclick="vkKey('${n}')">${n}</button>`).join('')}
-          <button class="vk-k-clr" onclick="vkKey('C')">Clear</button><button onclick="vkKey('0')">0</button>
-          <button class="vk-k-res" onclick="vkReserveTyped()" ${match ? '' : 'disabled'}>Reserve</button></div>
-      </div>
-      <div class="vk-queue card">
-        <h3>Reserved <small class="muted">(${v.queue.length})</small></h3>
-        ${now ? `<div class="vk-now">${ic('mic')}<div><b>${esc(now.t)}</b><small>Kumakanta: ${esc(VK.cur.singer || '—')} · ${now.c}</small></div></div>` : ''}
-        ${v.queue.length ? `<ol class="vk-q">${v.queue.map((q, i) => { const s = vkSong(q.c); return `<li><span class="vk-qav">${vkFace({ av: q.av || vkAvatarFor(q.singer), ph: q.ph }, 34)}</span>
-          <div><b>${esc(s ? s.t : 'Code ' + q.c)}</b><small>${i + 1}. ${q.singer ? esc(q.singer) : 'Bisita'} · ${q.c}${q.src === 'guest' ? ' · via link' : ''}</small></div>
-          <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkQMove(${i},-1)" ${i ? '' : 'disabled'} aria-label="Taas">${ic('up')}</button>
-          <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
-          : '<p class="muted" style="margin-top:10px">Wala pang nakapila. I-type ang code o pumili sa list.</p>'}
-      </div>
+    <div class="card vk-queue">
+      <div class="vk-qhead"><h3>Nakapila <small class="muted">(${v.queue.length})</small></h3>
+        ${now ? `<span class="vk-nowtag">${ic('mic')}<b>${esc(VK.cur.singer || 'Bisita')}</b> · ${esc(now.t)}</span>` : ''}</div>
+      ${v.queue.length ? `<ol class="vk-q vk-q--slim">${v.queue.map((q, i) => { const s = vkSong(q.c); return `<li><span class="vk-qn">${i + 1}</span>
+        <span class="vk-qav">${vkFace({ av: q.av || vkAvatarFor(q.singer), ph: q.ph }, 26)}</span>
+        <div><b>${esc(q.singer || 'Bisita')}</b><small>${esc(s ? s.t : 'Kanta')}${q.src === 'guest' ? ' · via link' : ''}</small></div>
+        <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkQMove(${i},-1)" ${i ? '' : 'disabled'} aria-label="Taas">${ic('up')}</button>
+        <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
+        : '<p class="muted" style="margin-top:6px">Wala pang nakapila. Pumili ng kanta sa baba.</p>'}
     </div>
     ${vkRoomHTML()}
     ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
       <div class="vk-search">
-        <div class="vk-find"><input class="input" id="vk-q" placeholder="Hanapin: kanta, artist o code" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
+        <div class="vk-find"><input class="input" id="vk-q" placeholder="Hanapin: kanta o artist" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
           <button class="vk-find-x" id="vk-q-x" ${VK.q ? '' : 'hidden'} onclick="vkFind('');$('#vk-q').value='';$('#vk-q').focus()" aria-label="Burahin ang search">${ic('x')}</button></div>
         <button class="vk-art-btn ${VK.artist ? 'on' : ''}" onclick="vkPickArtist()" aria-haspopup="dialog">${ic('people')}<span>${VK.artist ? esc((artists.find(([k]) => k === VK.artist) || [, 'Artist'])[1]) : 'Artist'}</span>${ic('down')}</button>
         <label class="toggle" style="margin:0"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
@@ -2353,7 +2342,7 @@ function braveTipHTML() {
 function vkResultsHTML(shown, total) {
   if (!vkAll().length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang kanta sa library.' : 'Kinukuha ang library…'}</p>`;
   if (!shown.length) return '<p class="muted" style="margin-top:12px">Walang nahanap.</p>';
-  return `<ul class="vk-list">${shown.map(s => `<li><span class="vk-c">${s.c}</span><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.c >= 90000 ? ' · sarili mo' : ''}</small></div>
+  return `<ul class="vk-list">${shown.map(s => `<li><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.c >= 90000 ? ' · sarili mo' : ''}</small></div>
     <button class="vk-add" onclick="vkReserve(${s.c})" aria-label="Reserve ${esc(s.t)}" title="Reserve">${ic('plus')}</button></li>`).join('')}</ul>
     ${total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa. Mag-type o gamitin ang filter para lumiit.</p>` : ''}`;
 }
@@ -2390,19 +2379,32 @@ function vkArtistList(q) {
     + (list.length ? '' : '<li class="muted" style="padding:12px 4px">Walang ganyang artist.</li>');
 }
 function vkSetArtistIdx(i) { const a = VK.artistList[i]; if (a) vkSetArtist(a.k); }
-function vkKey(k) {
-  if (k === 'C') VK.input = ''; else if (VK.input.length < 5) VK.input += k;
-  renderVideoke();
-}
-function vkReserveTyped() { if (VK.input.length === 5 && vkSong(+VK.input)) { vkReserve(+VK.input); VK.input = ''; renderVideoke(); } }
-async function vkReserve(c) {
+// Host reserves for someone: their name, plus an avatar or a photo (camera with the mouth guide)
+const VKP = { c: 0, av: '', ph: '' };
+function vkReserve(c) {
   const s = vkSong(c); if (!s) return;
   const v = vkState();
-  const singer = await askText(`Sino ang kakanta ng "${s.t}"?`, v.lastSinger || '', 30);
-  if (singer === null) return;
-  v.lastSinger = String(singer).slice(0, 30);
-  v.queue.push({ id: Math.random().toString(36).slice(2, 9), c, singer: v.lastSinger, av: vkAvatarFor(v.lastSinger), src: '' });
-  saveState(); toast(`Na-reserve: ${c} · ${s.t}${v.lastSinger ? ' — ' + v.lastSinger : ''}`);
+  Object.assign(VKP, { c, av: '', ph: '' });      // nothing picked = the singer's own default avatar
+  openSheet(`<div class="sheet-head"><div><span class="kicker">I-reserve</span><h3>${esc(s.t)}</h3></div><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <div class="field"><label for="rv-name">Sino ang kakanta?</label>
+      <input class="input" id="rv-name" maxlength="24" value="${esc(v.lastSinger || '')}" placeholder="hal. Tita Baby" autocomplete="off" onkeydown="if(event.key==='Enter')vkReserveGo()"></div>
+    <span class="field-label" style="display:block;margin-top:12px">Picture o avatar</span>
+    <div class="rv-avs" id="rv-avs">${vkPickHTML()}</div>
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="vkReserveGo()">${ic('mic')}I-reserve</button>`);
+  setTimeout(() => { const i = $('#rv-name'); if (i) { i.focus(); i.select(); } }, 60);
+}
+function vkPickHTML() {
+  return `<button type="button" class="rv-cam ${VKP.ph ? 'on' : ''}" onclick="vkPickCam()" aria-label="Kunan ng picture">${VKP.ph ? vkFace({ ph: VKP.ph }, 44) : '<span>📷</span>'}</button>`
+    + VK_AVATARS.map(a => `<button type="button" class="${!VKP.ph && VKP.av === a.id ? 'on' : ''}" onclick="vkPickAv('${a.id}')" aria-label="${esc(a.name)}">${a.svg(44)}</button>`).join('');
+}
+function vkPickAv(id) { VKP.av = id; VKP.ph = ''; const b = $('#rv-avs'); if (b) b.innerHTML = vkPickHTML(); }
+function vkPickCam() { vkCamera(p => { VKP.ph = p; const b = $('#rv-avs'); if (b) b.innerHTML = vkPickHTML(); }); }
+function vkReserveGo() {
+  const s = vkSong(VKP.c); if (!s) return;
+  const v = vkState(), singer = (($('#rv-name') || {}).value || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
+  v.queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av: VKP.av || (singer === v.lastSinger && v.lastAv) || vkAvatarFor(singer), ph: vkPhotoOk(VKP.ph) ? VKP.ph : '', src: '' });
+  v.lastSinger = singer; v.lastAv = v.queue[v.queue.length - 1].av;
+  closeSheet(); saveState(); toast(`Na-reserve: ${s.t} — ${singer}`);
   if (BIDA.tab === 'videoke') renderVideoke();
   if (!$('#vk-stage').hidden) { vkStageInfo(); if (!VK.cur) vkNext(); }
   vkPublish();
@@ -2460,7 +2462,7 @@ async function vkNext() {
    the rest are plain text that fades out down the list. Never below 3/4 of the screen (lyrics). */
 function vkStageInfo() {
   const cur = VK.cur && vkSong(VK.cur.c), q = vkState().queue;
-  $('#vk-now').innerHTML = cur ? `<span class="vk-c">${cur.c}</span><div><b>${esc(cur.t)}</b><small>${esc(cur.a)}</small></div>`
+  $('#vk-now').innerHTML = cur ? `<div><b>${esc(cur.t)}</b><small>${esc(cur.a)}</small></div>`
     : '<div><b>Wala pang nakapila</b><small>Mag-reserve sa Videoke tab o sa link</small></div>';
   const box = (it, s, i, now) => `<li class="vk-box ${now ? 'now' : ''}" style="--i:${i}">
       <span class="vk-av">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, now ? 58 : 44)}</span>
@@ -2480,7 +2482,7 @@ function vkIntro(it, s, done) {
       <div class="vki-tag">Susunod na kakanta!</div>
       <div class="vki-av">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, 180)}</div>
       <div class="vki-name">${[...name].map((ch, i) => `<span style="--i:${i}">${ch === ' ' ? '&nbsp;' : esc(ch)}</span>`).join('')}</div>
-      <div class="vki-song"><span class="vk-c">${s.c}</span>${esc(s.t)}${s.a ? ` <small>· ${esc(s.a)}</small>` : ''}</div>
+      <div class="vki-song">${esc(s.t)}${s.a ? ` <small>· ${esc(s.a)}</small>` : ''}</div>
       <div class="vki-count" id="vki-count">3</div>
     </div>`;
   el.hidden = false; el.classList.remove('out');
@@ -2700,7 +2702,7 @@ function vkSinger() {
         </g>`).join('')}
         <g transform="rotate(-24 92 82)"><rect x="86" y="68" width="12" height="24" rx="5" fill="#1E1A16" stroke="#FFF6E5" stroke-width="2"/><circle cx="92" cy="68" r="8.5" fill="#5F5E5A" stroke="#1E1A16" stroke-width="3"/></g>
       </svg>
-      <div class="vk-sm-head">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, 80)}</div>
+      <div class="vk-sm-head">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, 80)}${vkMouth()}</div>
     </div>
     <div class="vk-notes" aria-hidden="true"><i>♪</i><i>♫</i><i>♪</i><i>♬</i><i>♫</i></div>`;
   el.hidden = false;
@@ -3521,7 +3523,7 @@ Object.assign(window, { cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbT
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
-  vkKey, vkReserveTyped, vkReserve, vkQMove, vkQDel, vkScoreToggle, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,

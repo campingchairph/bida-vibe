@@ -67,21 +67,31 @@
   window.vkFace = (it, size) => it && window.vkPhotoOk(it.ph)
     ? `<img class="vk-ph" src="${it.ph}" width="${size}" height="${size}" alt="">`
     : window.vkAvatar(it && it.av, size);
+  // A mouth that opens and closes, laid over a face. The camera guide puts the real mouth at
+  // 50% across / 72% down, and the cartoon avatars have theirs in the same spot.
+  window.vkMouth = () => '<span class="vk-mouth" aria-hidden="true"></span>';
 
   // Opens the front camera, lets them take a selfie, and gives back a 160×160 JPEG (about 8 KB)
   window.vkCamera = function (onPhoto) {
     const wrap = document.createElement('div');
     wrap.className = 'cam-wrap';
     wrap.innerHTML = `<div class="cam" role="dialog" aria-modal="true" aria-label="Kunan ng picture">
-      <div class="cam-view"><video playsinline muted autoplay></video><img alt="" hidden><p class="cam-msg">Binubuksan ang camera…</p></div>
+      <div class="cam-view"><video playsinline muted autoplay></video><img alt="" hidden>
+        <svg class="cam-guide" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <ellipse cx="50" cy="46" rx="29" ry="37" fill="none" stroke="#fff" stroke-width="1.2" stroke-dasharray="3 2.5"/>
+          <path d="M39 70 Q50 64 61 70 Q50 79 39 70Z" fill="rgba(226,54,122,.35)" stroke="#E2367A" stroke-width="1.4"/>
+        </svg>
+        <span class="cam-tip">Ilagay ang mukha sa bilog, at ang bibig sa pink na guhit</span>
+        <p class="cam-msg">Binubuksan ang camera…</p></div>
       <div class="cam-btns"><button type="button" class="btn btn--ghost" data-a="no">Kanselahin</button><button type="button" class="btn btn--chili" data-a="snap" disabled>Kunan</button></div></div>`;
     document.body.appendChild(wrap);
     const video = wrap.querySelector('video'), img = wrap.querySelector('img'), msg = wrap.querySelector('.cam-msg'), btns = wrap.querySelector('.cam-btns');
     let stream = null, shot = '';
     const stop = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
     const close = () => { stop(); wrap.remove(); };
+    const guide = wrap.querySelector('.cam-guide'), tip = wrap.querySelector('.cam-tip');
     const live = () => {
-      shot = ''; img.hidden = true; video.hidden = false;
+      shot = ''; img.hidden = true; video.hidden = false; guide.style.display = ''; tip.hidden = false;
       btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="no">Kanselahin</button><button type="button" class="btn btn--chili" data-a="snap">Kunan</button>';
     };
     wrap.addEventListener('click', e => {
@@ -95,7 +105,7 @@
         let q = .75; shot = c.toDataURL('image/jpeg', q);
         while (shot.length > PH_MAX && q > .3) { q -= .1; shot = c.toDataURL('image/jpeg', q); }
         if (!window.vkPhotoOk(shot)) { msg.hidden = false; msg.textContent = 'Hindi nakuha ang picture. Ulitin.'; return; }
-        img.src = shot; img.hidden = false; video.hidden = true;
+        img.src = shot; img.hidden = false; video.hidden = true; guide.style.display = 'none'; tip.hidden = true;
         btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="again">Ulitin</button><button type="button" class="btn btn--chili" data-a="use">Gamitin</button>';
       } else if (a.dataset.a === 'again') live();
       else if (a.dataset.a === 'use') { const p = shot; close(); onPhoto(p); }

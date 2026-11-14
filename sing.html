@@ -14,31 +14,58 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116a">
+<link rel="stylesheet" href="bida.css?v=20261116b">
 <style>
   body { background: var(--cream); min-height: 100vh; }
-  .sg { max-width: 560px; margin: 0 auto; padding: 18px 16px 60px; }
-  .sg-hero { background: var(--magenta); color: #fff; border: 3px solid var(--ink); border-radius: 22px; padding: 18px 18px 20px; box-shadow: 6px 6px 0 var(--ink); }
-  .sg-hero small { font: 800 12px/1 var(--f); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
-  .sg-hero h1 { font: 800 clamp(26px, 7vw, 36px)/1.1 var(--f2); margin: 6px 0 0; }
-  .sg-card { margin-top: 16px; }
-  .sg-avs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
-  .sg-avs button { background: #fff; border: 2.5px solid var(--ink); border-radius: 16px; padding: 8px 4px 6px; display: grid; justify-items: center; gap: 4px; font: 800 12px/1 var(--f); color: var(--ink); cursor: pointer; }
-  .sg-avs button.on { background: var(--gold); box-shadow: 3px 3px 0 var(--ink); transform: translate(-2px, -2px); }
-  .sg-avs svg, .sg-avs .vk-ph { width: 100%; max-width: 64px; height: auto; }
-  .sg-cam { background: var(--turq-soft) !important; } .sg-cam.on { background: var(--gold) !important; }
-  .sg-cam-ic { font-size: 34px; line-height: 64px; height: 64px; display: block; }
-  .sg-me { display: flex; align-items: center; gap: 12px; }
-  .sg-me b { font: 800 20px/1.1 var(--f2); display: block; }
-  .sg-q { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
-  .sg-q li { display: flex; align-items: center; gap: 10px; padding: 7px 10px; background: #fff; border: 2px solid var(--ink); border-radius: 14px; }
-  .sg-q li.now { background: var(--gold); }
-  .sg-q li > div { min-width: 0; flex: 1; }
-  .sg-q b { display: block; font: 800 15px/1.2 var(--f); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sg-q small { display: block; font: 700 12.5px/1.2 var(--f); color: var(--ink-3); }
+  .sg { max-width: 640px; margin: 0 auto; padding: 14px 12px 50px; }
+  .sg-card { margin-top: 12px; }
+  .sg-card h3 { font: 800 17px/1.2 var(--f2); }
+  /* 1 · title + me */
+  .sg-top { background: var(--magenta); color: #fff; border: 3px solid var(--ink); border-radius: 20px; padding: 14px 14px 12px; box-shadow: 5px 5px 0 var(--ink); }
+  .sg-top small.k { font: 800 11px/1 var(--f); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+  .sg-top h1 { font: 800 clamp(22px, 6.4vw, 32px)/1.1 var(--f2); margin: 4px 0 10px; }
+  .sg-me { display: flex; align-items: center; gap: 10px; background: #FFF6E5; color: var(--ink); border: 2.5px solid var(--ink); border-radius: 14px; padding: 8px 10px; }
+  .sg-me .face { flex: none; border: 0; background: none; padding: 0; cursor: pointer; border-radius: 50%; position: relative; }
+  .sg-me .face svg, .sg-me .face img { width: 52px; height: 52px; display: block; }
+  .sg-me .face::after { content: "✎"; position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 50%; background: var(--gold); border: 2px solid var(--ink); font-size: 11px; line-height: 16px; text-align: center; }
+  .sg-me .nm { flex: 1; min-width: 0; }
+  .sg-me .nm small { display: block; font: 700 11.5px/1 var(--f); color: var(--ink-3); }
+  .sg-me .nm input { width: 100%; border: 0; border-bottom: 2px dashed rgba(30,26,22,.35); background: transparent; font: 800 19px/1.3 var(--f2); color: var(--ink); padding: 2px 0; }
+  .sg-me .nm input:focus { outline: none; border-bottom-color: var(--magenta); }
+  .sg-avs { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; margin-top: 10px; background: #FFF6E5; border: 2.5px solid var(--ink); border-radius: 14px; padding: 8px; }
+  .sg-avs[hidden] { display: none; }
+  .sg-avs button { background: #fff; border: 2px solid transparent; border-radius: 12px; padding: 3px; display: grid; justify-items: center; cursor: pointer; font: 800 10px/1.2 var(--f); color: var(--ink); }
+  .sg-avs button.on { border-color: var(--ink); background: var(--gold); }
+  .sg-avs svg, .sg-avs img { width: 44px; height: 44px; display: block; }
+  .sg-avs .cam { background: var(--turq-soft); border-color: var(--ink); }
+  .sg-avs .cam span { font-size: 22px; line-height: 44px; height: 44px; }
+  /* 2 · my songs */
+  .sg-mine { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+  .sg-mine li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #fff; border: 2px solid var(--ink); border-radius: 12px; }
+  .sg-mine li.now { background: var(--gold); }
+  .sg-mine li > div { flex: 1; min-width: 0; }
+  .sg-mine b { display: block; font: 800 14px/1.2 var(--f); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sg-mine small { display: block; font: 700 12px/1.2 var(--f); color: var(--ink-3); }
+  .sg-pos { flex: none; font: 800 12px/1 var(--f); padding: 5px 8px; border-radius: 99px; background: var(--ink); color: var(--gold); white-space: nowrap; }
+  /* 3 · pick a song */
+  .sg-find { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .sg-find .input { min-height: 42px; }
+  .sg-find #sg-q { flex: 1 1 100%; }
+  .sg-find select { flex: 1 1 0; min-width: 0; }
+  .sg-tbl { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+  .sg-tbl td { padding: 6px 4px; border-bottom: 1px solid rgba(30,26,22,.12); vertical-align: middle; }
+  .sg-tbl td:last-child { width: 96px; text-align: right; }
+  .sg-tbl b { display: block; font: 800 13.5px/1.2 var(--f); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sg-tbl small { display: block; font: 700 11.5px/1.2 var(--f); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sg-add { min-height: 34px; padding: 0 10px; border-radius: 99px; border: 2px solid var(--ink); background: var(--gold); color: var(--ink); font: 800 12.5px/1 var(--f); cursor: pointer; white-space: nowrap; }
+  .sg-add.done { background: var(--leaf-soft); cursor: default; }
+  .sg-add:disabled { opacity: 1; }
+  .sg-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font: 700 13px/1 var(--f); }
+  .sg-pager .btn { min-height: 36px; }
+  .sg-count { font: 700 12.5px/1.2 var(--f); color: var(--ink-3); margin-top: 8px; }
   .sg-closed { text-align: center; padding: 40px 10px; }
-  .sg-closed h2 { font: 800 26px/1.2 var(--f2); }
-  .sg-foot { text-align: center; margin-top: 26px; font: 700 12.5px/1.4 var(--f); color: var(--ink-3); }
+  .sg-closed h2 { font: 800 24px/1.2 var(--f2); }
+  .sg-foot { text-align: center; margin-top: 20px; font: 700 12px/1.4 var(--f); color: var(--ink-3); }
 </style>
 </head>
 <body>
@@ -48,9 +75,9 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116a"></script>
+<script src="vk-avatars.js?v=20261116b"></script>
 <script>
-/* Bida-Vibe guest page: a family member opens the host's link, types a name, picks an avatar
+/* Bida-Vibe guest page: a family member opens the host's link, sets a name and a selfie/avatar,
    and adds songs. They can't see or change anything else in the host's app — the Firestore rules
    only let them ADD a well-formed song request to that one open room. */
 (function () {
@@ -60,14 +87,21 @@
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const first = t => { const ch = norm(t).charAt(0); return /[a-z]/.test(ch) ? ch.toUpperCase() : '#'; };
   let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); };
   const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
 
   const room = new URLSearchParams(location.search).get('r') || '';
-  const S = { room: null, lib: [], q: '', me: store.get('bidavibe_guest', null), editing: false, lastAdd: 0, sent: store.get('bidavibe_guest_sent_' + room, 0) };
-  const MAX_PER_GUEST = 8, COOLDOWN = 10000;
-  if (S.me && !(typeof S.me.name === 'string' && S.me.name.trim() && VK_AVATARS.some(a => a.id === S.me.av))) S.me = null;
-  if (S.me && !vkPhotoOk(S.me.ph)) S.me.ph = '';
+  const PER_PAGE = 50, MAX_PER_GUEST = 8, COOLDOWN = 10000;
+  const S = { room: null, lib: [], q: '', by: '', val: '', page: 0, pickOpen: false, lastAdd: 0,
+    me: store.get('bidavibe_guest', null), sent: store.get('bidavibe_guest_sent_' + room, []) };
+  if (!S.me || typeof S.me !== 'object') S.me = { name: '', av: '', ph: '' };
+  S.me.name = String(S.me.name || '').slice(0, 24);
+  if (!VK_AVATARS.some(a => a.id === S.me.av)) S.me.av = '';
+  if (!vkPhotoOk(S.me.ph)) S.me.ph = '';
+  if (!Array.isArray(S.sent)) S.sent = [];               // [{c, at}] songs this phone sent to this room
+  const saveMe = () => store.set('bidavibe_guest', S.me);
+  const ready = () => S.me.name.trim() && (S.me.av || S.me.ph);
 
   function closed(msg) {
     $('#sg').innerHTML = `<div class="card sg-closed">${vkAvatar('dj', 96)}<h2>${esc(msg)}</h2>
@@ -75,86 +109,116 @@
   }
   if (!/^[A-Za-z0-9]{24}$/.test(room)) { closed('Mali ang link na ito'); return; }
 
+  // Page skeleton once; the parts below refresh on their own so typing is never interrupted
   function render() {
-    const r = S.room;
-    if (!r) return;
+    const r = S.room; if (!r) return;
     if (!r.open || !(r.expires && r.expires.toMillis() > Date.now())) { closed('Sarado na ang videoke link'); return; }
-    const who = !S.me || S.editing;
-    $('#sg').innerHTML = `
-      <div class="sg-hero"><small>Videoke · Pili ng kanta</small><h1>${esc(r.title || 'Videoke')}</h1></div>
-      ${who ? profileHTML() : `
-        <div class="card sg-card sg-me">${vkFace(S.me, 56)}<div style="flex:1"><small class="muted">Kakanta</small><b>${esc(S.me.name)}</b></div>
-          <button class="btn btn--ghost btn--sm" id="sg-edit">Palitan</button></div>
-        <div class="card sg-card"><h3>Pili ng kanta</h3>
-          <input class="input" id="sg-q" style="margin-top:10px" placeholder="Hanapin: kanta, artist o code" value="${esc(S.q)}" autocomplete="off">
-          <div id="sg-res"></div></div>`}
-      <div class="card sg-card"><h3>Pila <small class="muted">(${(r.queue || []).length})</small></h3>${queueHTML(r)}</div>
-      <p class="sg-foot">Bida-Vibe Videoke · Ang host lang ang may hawak ng screen at pila.</p>`;
-    if (who) bindProfile(); else {
-      $('#sg-edit').onclick = () => { S.editing = true; render(); };
-      $('#sg-q').oninput = e => { S.q = e.target.value; results(); };
-      results();
+    if (!$('#sg-skel')) {
+      $('#sg').innerHTML = `<div id="sg-skel">
+        <section class="sg-top"><small class="k">Videoke</small><h1 id="sg-title"></h1>
+          <div class="sg-me"><button class="face" id="sg-face" aria-label="Palitan ang picture o avatar"></button>
+            <div class="nm"><small>Pangalan mo</small><input id="sg-name" maxlength="24" placeholder="I-type ang pangalan mo" autocomplete="nickname"></div></div>
+          <div class="sg-avs" id="sg-avs" hidden></div></section>
+        <section class="card sg-card"><h3>Kanta ko</h3><div id="sg-mine"></div></section>
+        <section class="card sg-card"><h3>Pili ng kanta</h3>
+          <div class="sg-find">
+            <input class="input" id="sg-q" placeholder="Hanapin: kanta o artist" autocomplete="off">
+            <select class="input" id="sg-by" aria-label="Filter"><option value="">Lahat ng kanta</option><option value="letter">Ayon sa letra</option><option value="artist">Ayon sa artist</option></select>
+            <select class="input" id="sg-val" aria-label="Pili" hidden></select>
+          </div>
+          <div id="sg-res"></div></section>
+        <p class="sg-foot">Bida-Vibe Videoke · Ang host lang ang may hawak ng screen at pila.</p></div>`;
+      bind();
     }
+    $('#sg-title').textContent = r.title || 'Videoke';
+    meHTML(); mine(); results();
   }
-  function profileHTML() {
-    const me = S.me || { name: '', av: '' };
-    return `<div class="card sg-card"><h3>Sino ka?</h3>
-      <div class="field" style="margin-top:10px"><label for="sg-name">Pangalan mo</label>
-        <input class="input" id="sg-name" maxlength="24" placeholder="hal. Tita Baby" value="${esc(me.name)}" autocomplete="nickname"></div>
-      <p style="margin-top:12px;font-weight:800">Selfie o avatar</p>
-      <div class="sg-avs" role="radiogroup" aria-label="Avatar"><button type="button" class="sg-cam ${me.ph ? 'on' : ''}" id="sg-cam" aria-label="Kunan ng selfie">${me.ph ? vkFace(me, 64) : '<span class="sg-cam-ic">📷</span>'}${me.ph ? 'Ulitin' : 'Selfie'}</button>${VK_AVATARS.map(a => `<button type="button" role="radio" aria-checked="${!me.ph && a.id === me.av}" data-av="${a.id}" class="${!me.ph && a.id === me.av ? 'on' : ''}">${a.svg(64)}${esc(a.name)}</button>`).join('')}</div>
-      <button class="btn btn--chili btn--block" id="sg-go" style="margin-top:14px">Tara, pili na ng kanta</button></div>`;
-  }
-  function bindProfile() {
-    let av = S.me ? S.me.av : '', ph = S.me && S.me.ph || '';
-    document.querySelectorAll('.sg-avs button').forEach(b => b.onclick = () => {
-      if (!b.dataset.av) return;
-      av = b.dataset.av; ph = '';                           // picking a cartoon avatar replaces the selfie
-      document.querySelectorAll('.sg-avs button').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b); });
-      const cam = $('#sg-cam'); cam.innerHTML = '<span class="sg-cam-ic">📷</span>Selfie';
-    });
-    // Selfie: camera only, no photo upload
-    $('#sg-cam').onclick = () => vkCamera(p => {
-      ph = p; const cam = $('#sg-cam');
-      document.querySelectorAll('.sg-avs button').forEach(x => { x.classList.toggle('on', x === cam); x.setAttribute('aria-checked', x === cam); });
-      cam.innerHTML = vkFace({ ph }, 64) + 'Ulitin';
-    });
-    $('#sg-go').onclick = () => {
-      const name = $('#sg-name').value.replace(/\s+/g, ' ').trim().slice(0, 24);
-      if (!name) { toast('I-type muna ang pangalan mo'); $('#sg-name').focus(); return; }
-      if (!av && !ph) { toast('Mag-selfie o pumili ng avatar'); return; }
-      S.me = { name, av: av || vkAvatarFor(name), ph }; S.editing = false; store.set('bidavibe_guest', S.me); render();
+  function bind() {
+    const nm = $('#sg-name');
+    nm.value = S.me.name;
+    nm.oninput = () => { S.me.name = nm.value.replace(/\s+/g, ' ').slice(0, 24); if (!S.me.av && !S.me.ph) S.me.av = vkAvatarFor(S.me.name.trim()); saveMe(); meHTML(); };
+    $('#sg-face').onclick = () => { S.pickOpen = !S.pickOpen; pickHTML(); };
+    $('#sg-q').oninput = e => { S.q = e.target.value; if (S.q && S.by) { S.by = ''; S.val = ''; $('#sg-by').value = ''; } S.page = 0; filters(); results(); };   // typing clears the filter
+    $('#sg-by').onchange = e => { S.by = e.target.value; S.val = ''; S.page = 0; if (S.by) { S.q = ''; $('#sg-q').value = ''; } filters(); results(); };
+    $('#sg-val').onchange = e => { S.val = e.target.value; S.page = 0; results(); };
+    $('#sg-avs').onclick = e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.cam) { vkCamera(p => { S.me.ph = p; saveMe(); S.pickOpen = false; meHTML(); pickHTML(); }); return; }
+      S.me.av = b.dataset.av; S.me.ph = ''; saveMe(); S.pickOpen = false; meHTML(); pickHTML();
     };
+    $('#sg-res').onclick = e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.c) add(+b.dataset.c, b);
+      if (b.dataset.pg) { S.page += +b.dataset.pg; results(); $('#sg-res').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    };
+    filters();
   }
-  function queueHTML(r) {
-    const list = [];
-    if (r.now) list.push([r.now, true]);
-    (r.queue || []).forEach(it => list.push([it, false]));
-    if (!list.length) return '<p class="muted" style="margin-top:8px">Wala pang nakapila. Ikaw na mauna!</p>';
-    return `<ol class="sg-q">${list.slice(0, 40).map(([it, now], i) => `<li class="${now ? 'now' : ''}">${vkFace({ av: String(it.av || ''), ph: it.ph }, 38)}
-      <div><b>${esc(it.t)}</b><small>${now ? 'Kumakanta: ' : (r.now ? i : i + 1) + '. '}${esc(it.n)}</small></div></li>`).join('')}</ol>`;
+  function meHTML() {
+    $('#sg-face').innerHTML = S.me.ph || S.me.av ? vkFace(S.me, 52) : '<span style="display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#fff;border:2px dashed var(--ink);font-size:22px">📷</span>';
+    if (!ready() && !S.pickOpen && !S.me.av && !S.me.ph) { S.pickOpen = true; pickHTML(); }
+  }
+  function pickHTML() {
+    const box = $('#sg-avs'); box.hidden = !S.pickOpen; if (!S.pickOpen) return;
+    box.innerHTML = `<button type="button" class="cam ${S.me.ph ? 'on' : ''}" data-cam="1" aria-label="Kunan ng selfie">${S.me.ph ? vkFace(S.me, 44) : '<span>📷</span>'}Selfie</button>`
+      + VK_AVATARS.map(a => `<button type="button" data-av="${a.id}" class="${!S.me.ph && S.me.av === a.id ? 'on' : ''}">${a.svg(44)}${esc(a.name)}</button>`).join('');
+  }
+  // Songs I sent, matched to the host's queue (it only shows names, songs and pictures)
+  function myState() {
+    const r = S.room || {}, me = norm(S.me.name), out = [];
+    const q = r.queue || [];
+    if (r.now && norm(r.now.n) === me) out.push({ c: r.now.c, t: r.now.t, status: 'now' });
+    q.forEach((it, i) => { if (norm(it.n) === me) out.push({ c: it.c, t: it.t, status: 'q', pos: i + 1 }); });
+    // sent in the last minute but not in the queue yet
+    S.sent.filter(x => Date.now() - x.at < 60000 && !out.some(o => o.c === x.c)).forEach(x => { const s = S.lib.find(l => l.c === x.c); out.push({ c: x.c, t: s ? s.t : 'Kanta', status: 'sending' }); });
+    return out;
+  }
+  function mine() {
+    const list = myState();
+    $('#sg-mine').innerHTML = list.length ? `<ol class="sg-mine">${list.map(m => `<li class="${m.status === 'now' ? 'now' : ''}">${vkFace(S.me, 32)}<div><b>${esc(m.t)}</b>
+      <small>${m.status === 'now' ? 'Ikaw na! Kanta na!' : m.status === 'sending' ? 'Pinapadala sa host…' : 'Nasa pila'}</small></div>
+      ${m.status === 'q' ? `<span class="sg-pos">#${m.pos} sa pila</span>` : ''}</li>`).join('')}</ol>`
+      : `<p class="muted" style="margin-top:6px">${ready() ? 'Wala ka pang kanta. Pili ka sa baba!' : 'Ilagay muna ang pangalan mo at mag-selfie o pumili ng avatar.'}</p>`;
+  }
+  function filters() {
+    const sel = $('#sg-val');
+    if (!S.by) { sel.hidden = true; return; }
+    let opts;
+    if (S.by === 'letter') opts = [...new Set(S.lib.map(s => first(s.t)))].sort((a, b) => a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b)).map(l => [l, l]);
+    else { const m = new Map(); S.lib.forEach(s => { const k = norm(s.a); if (k && !m.has(k)) m.set(k, s.a); }); opts = [...m].sort((a, b) => a[1].localeCompare(b[1])); }
+    sel.innerHTML = `<option value="">${S.by === 'letter' ? 'Pili ng letra' : 'Pili ng artist'}</option>` + opts.map(([v, l]) => `<option value="${esc(v)}" ${S.val === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    sel.hidden = false;
   }
   function results() {
     const box = $('#sg-res'); if (!box) return;
-    if (!S.lib.length) { box.innerHTML = '<p class="muted" style="margin-top:12px">Wala pang kanta sa library.</p>'; return; }
+    if (!S.lib.length) { box.innerHTML = '<p class="muted" style="margin-top:12px">Kinukuha ang mga kanta…</p>'; return; }
     const q = norm(S.q);
-    const res = (q ? S.lib.filter(s => String(s.c).startsWith(q) || norm(s.t).includes(q) || norm(s.a).includes(q)) : S.lib).slice(0, 50);
-    box.innerHTML = res.length ? `<ul class="vk-list">${res.map(s => `<li><span class="vk-c">${s.c}</span><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div>
-      <button class="btn btn--gold btn--sm" data-c="${s.c}">Kanta ko!</button></li>`).join('')}</ul>` : '<p class="muted" style="margin-top:12px">Walang nahanap.</p>';
-    box.querySelectorAll('button[data-c]').forEach(b => b.onclick = () => add(+b.dataset.c, b));
+    let list = S.lib;
+    if (q) list = list.filter(s => norm(s.t).includes(q) || norm(s.a).includes(q));
+    else if (S.by === 'letter' && S.val) list = list.filter(s => first(s.t) === S.val);
+    else if (S.by === 'artist' && S.val) list = list.filter(s => norm(s.a) === S.val);
+    const pages = Math.max(1, Math.ceil(list.length / PER_PAGE)); S.page = Math.min(Math.max(0, S.page), pages - 1);
+    const page = list.slice(S.page * PER_PAGE, S.page * PER_PAGE + PER_PAGE), mineC = new Set(myState().map(m => m.c));
+    box.innerHTML = list.length ? `<div class="sg-count">${list.length} kanta${pages > 1 ? ` · page ${S.page + 1} of ${pages}` : ''}</div>
+      <table class="sg-tbl"><tbody>${page.map(s => `<tr><td><b>${esc(s.t)}</b><small>${esc(s.a)}</small></td>
+        <td>${mineC.has(s.c) ? '<button class="sg-add done" disabled>✓ Naka-pila</button>' : `<button class="sg-add" data-c="${s.c}">Kanta ko</button>`}</td></tr>`).join('')}</tbody></table>
+      ${pages > 1 ? `<div class="sg-pager"><button class="btn btn--ghost btn--sm" data-pg="-1" ${S.page ? '' : 'disabled'}>‹ Back</button><span>${S.page + 1} / ${pages}</span><button class="btn btn--ghost btn--sm" data-pg="1" ${S.page + 1 < pages ? '' : 'disabled'}>Next ›</button></div>` : ''}`
+      : '<p class="muted" style="margin-top:12px">Walang nahanap.</p>';
   }
   async function add(c, btn) {
-    const s = S.lib.find(x => x.c === c); if (!s || !S.me) return;
-    if (S.sent >= MAX_PER_GUEST) { toast('Naka-' + MAX_PER_GUEST + ' kanta ka na. Bigyan mo naman ng chance ang iba!'); return; }
+    const s = S.lib.find(x => x.c === c); if (!s) return;
+    if (!S.me.name.trim()) { toast('I-type muna ang pangalan mo sa taas'); $('#sg-name').focus(); return; }
+    if (!S.me.av && !S.me.ph) { toast('Mag-selfie o pumili ng avatar sa taas'); S.pickOpen = true; pickHTML(); return; }
+    if (S.sent.length >= MAX_PER_GUEST) { toast('Naka-' + MAX_PER_GUEST + ' kanta ka na. Bigyan mo naman ng chance ang iba!'); return; }
     if (Date.now() - S.lastAdd < COOLDOWN) { toast('Teka lang, isa-isa muna.'); return; }
-    S.lastAdd = Date.now(); btn.disabled = true;
+    S.lastAdd = Date.now(); btn.disabled = true; btn.textContent = 'Sandali…';
     try {
       await db.collection('vk_rooms').doc(room).collection('requests').add({
-        name: S.me.name, av: S.me.av, c: s.c, t: s.t, a: s.a, y: s.y, ...(vkPhotoOk(S.me.ph) ? { ph: S.me.ph } : {}), at: firebase.firestore.FieldValue.serverTimestamp() });
-      S.sent++; store.set('bidavibe_guest_sent_' + room, S.sent);
+        name: S.me.name.trim(), av: S.me.av || vkAvatarFor(S.me.name), c: s.c, t: s.t, a: s.a, y: s.y,
+        ...(vkPhotoOk(S.me.ph) ? { ph: S.me.ph } : {}), at: firebase.firestore.FieldValue.serverTimestamp() });
+      S.sent.push({ c: s.c, at: Date.now() }); store.set('bidavibe_guest_sent_' + room, S.sent);
       toast(`Sent na: ${s.t}! Lalabas sa pila in a few seconds.`);
     } catch (e) { S.lastAdd = 0; toast('Hindi na-send. Baka sarado na ang link, try ulit.'); }
-    btn.disabled = false;
+    mine(); results();
   }
   function cleanSong(s) {
     const c = parseInt(s && s.c, 10), y = String(s && s.y || '');
@@ -165,14 +229,12 @@
   let db;
   try { firebase.initializeApp(FIREBASE); db = firebase.firestore(); } catch (e) { closed('Hindi ma-load ang videoke'); return; }
   fetch('karaoke/library.json?t=' + Math.floor(Date.now() / 6e5), { cache: 'no-cache' }).then(r => r.ok ? r.json() : { songs: [] })
-    .then(j => { S.lib = (j.songs || []).map(cleanSong).filter(Boolean).sort((a, b) => a.c - b.c); results(); }).catch(() => { });
+    .then(j => { S.lib = (j.songs || []).map(cleanSong).filter(Boolean).sort((a, b) => norm(a.t).localeCompare(norm(b.t))); if ($('#sg-skel')) { filters(); results(); mine(); } }).catch(() => { });
   db.collection('vk_rooms').doc(room).onSnapshot(d => {
     if (!d.exists) { closed('Walang ganitong videoke link'); return; }
-    const first = !S.room; S.room = d.data();
-    // Re-render the queue only, so typing in the search box isn't interrupted
-    if (!first && $('#sg-q') && S.room.open) { const cards = document.querySelectorAll('.sg-card'); const qc = cards[cards.length - 1]; if (qc) { qc.innerHTML = `<h3>Pila <small class="muted">(${(S.room.queue || []).length})</small></h3>${queueHTML(S.room)}`; return; } }
-    render();
+    S.room = d.data(); render();
   }, () => closed('Hindi mabuksan ang link, baka sarado na'));
+  setInterval(() => { if ($('#sg-mine')) { mine(); } }, 15000);   // "sending" turns into "nasa pila" or drops off
 })();
 </script>
 </body>
