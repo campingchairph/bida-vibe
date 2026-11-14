@@ -1103,7 +1103,7 @@ let AC = null, SFX_BUS = null, MUSIC_BUS = null;
 function ac() {
   if (!AC) {
     // Pads must play ON TOP of the music, never duck or pause it: mix with other audio where the browser supports it
-    try { if (navigator.audioSession && M.kind !== 'local') navigator.audioSession.type = 'ambient'; } catch (e) { }
+    try { if (navigator.audioSession && M.kind !== 'local' && !MIC.stream) navigator.audioSession.type = 'ambient'; } catch (e) { }
     AC = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
     // Pads go through a limiter with extra gain so they cut through the music without distorting
     const lim = AC.createDynamicsCompressor();
@@ -1564,8 +1564,9 @@ let micRetry = null;
 async function micDenied() {
   try { return (await navigator.permissions?.query({ name: 'microphone' }))?.state === 'denied'; } catch (e) { return false; }
 }
-function micHelp(err, retry) {
+function micHelp(err, retry, perm) {
   micRetry = retry || null;
+  const detail = `${err && err.name || 'Error'}${err && err.message ? ': ' + String(err.message).slice(0, 120) : ''} · permission: ${perm || '?'}`;
   const ua = navigator.userAgent;
   const inApp = /FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\/|TikTok|musical_ly|Snapchat|GSA\//i.test(ua);
   const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1590,10 +1591,21 @@ function micHelp(err, retry) {
   } else {
     steps = ['I-click ang icon sa kaliwa ng address bar.', 'Microphone → Allow.', 'I-reload ang page kung kailangan, tapos pindutin ang "Subukan ulit".'];
   }
+  // The website IS allowed, but the phone/computer itself blocks the browser from the mic
+  if (!inApp && name === 'NotAllowedError' && perm === 'granted') {
+    why = 'Naka-allow na ang mic sa Bida-Vibe, pero naka-block pa ito sa mismong phone o computer para sa browser mo.';
+    const mac = /Macintosh/.test(ua) && !ios, win = /Windows/.test(ua), bname = brave ? 'Brave' : /Edg\//.test(ua) ? 'Edge' : /Firefox/.test(ua) ? 'Firefox' : ios && !iosOther ? 'Safari' : 'Chrome';
+    steps = android ? [`Buksan ang Settings ng phone → Apps → ${bname}.`, 'Permissions → Microphone → Allow.', 'Bumalik dito at pindutin ang "Subukan ulit".']
+      : ios ? [`Buksan ang Settings app → ${bname === 'Safari' ? 'Apps → Safari' : bname} → Microphone → i-ON.`, 'I-reload ang page, tapos "Subukan ulit".']
+      : mac ? ['System Settings → Privacy & Security → Microphone.', `I-ON ang ${bname}.`, `I-quit at buksan ulit ang ${bname}, tapos "Subukan ulit".`]
+      : win ? ['Windows Settings → Privacy & security → Microphone.', 'I-ON ang "Microphone access" at "Let desktop apps access your microphone".', `I-restart ang ${bname}, tapos "Subukan ulit".`]
+      : ['Payagan ang browser na gumamit ng mic sa settings ng device.', 'I-restart ang browser, tapos "Subukan ulit".'];
+  }
   openSheet(`
     <div class="sheet-head"><h3>Kailangan ng mic</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="card"><p style="font-weight:700">${esc(why)}</p>
-      ${steps.length ? `<span class="field-label" style="display:block;margin-top:14px">Paano i-on</span><ol class="mic-steps">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}</div>
+      ${steps.length ? `<span class="field-label" style="display:block;margin-top:14px">Paano i-on</span><ol class="mic-steps">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
+      <p class="muted" style="margin-top:12px;font-size:12px;word-break:break-word">Detalye (para sa support): ${esc(detail)}</p></div>
     <div class="sheet-actions">
       <button class="btn btn--ghost" onclick="closeSheet()">Isara</button>
       ${micRetry ? `<button class="btn btn--ink" onclick="closeSheet();micRetryNow()">${ic('mic')}Subukan ulit</button>` : ''}
@@ -2073,8 +2085,14 @@ function micStop() {
   MIC.stream = null; MIC.src = null; MIC.an = null;
   if (MIC.auto && M.ducked) duckUp();
   MIC.auto = false;
+  micSession('ambient');
 }
+// iPhone/iPad Safari: an "ambient" (playback-only) audio session isn't allowed to use the mic,
+// so Safari refuses it even when the mic is allowed in Settings. Switch to play-and-record while
+// listening (pads and music still play), and back to ambient when auto-fade is off.
+function micSession(type) { try { if (navigator.audioSession && M.kind !== 'local') navigator.audioSession.type = type; } catch (e) { } }
 async function micGet() {
+  micSession('play-and-record');
   try { return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } }); }
   catch (e) {
     if (e.name === 'OverconstrainedError' || e.name === 'TypeError') return navigator.mediaDevices.getUserMedia({ audio: true });   // older devices
@@ -2115,8 +2133,9 @@ function micStart(quiet) {
     if (quiet) throw e;
     // Only call it "blocked" when it really is; anything else gets a quiet retry on the next tap
     const st = await micState();
-    if (e.name === 'NotAllowedError' && st !== 'granted' || e.name === 'SecurityError' || e.name === 'NotFoundError' || !window.isSecureContext) {
-      BIDA.music.autoDuck = false; saveState(); renderMusic(); micHelp(e, () => setAutoDuck(true));
+    if (!MIC.stream) micSession('ambient');
+    if (e.name === 'NotAllowedError' || e.name === 'SecurityError' || e.name === 'NotFoundError' || !window.isSecureContext) {
+      BIDA.music.autoDuck = false; saveState(); renderMusic(); micHelp(e, () => setAutoDuck(true), st);
     } else { micWaitForTap(); }
     throw e;
   });
