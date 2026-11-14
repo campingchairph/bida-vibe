@@ -29,6 +29,11 @@ service cloud.firestore {
       allow list, write: if false;
     }
 
+    // A singer's selfie: optional, a small camera JPEG only (about 8 KB, never over 16,000 characters)
+    function okPhoto(d) {
+      return !('ph' in d) || (d.ph is string && d.ph.size() <= 16000 && d.ph.matches('^data:image/jpeg;base64,[A-Za-z0-9+/]+=*$'));
+    }
+
     // Videoke rooms: one per host + event, opened from the host's signed-in app.
     // Anyone with the (long, random) link can READ the room to see the queue; only the host can change it.
     function roomFields() { return ['owner', 'title', 'open', 'expires', 'queue', 'now', 'updated']; }
@@ -59,7 +64,8 @@ service cloud.firestore {
         function rm() { return get(/databases/$(database)/documents/vk_rooms/$(room)).data; }
         allow create: if rm().open == true
           && rm().expires > request.time
-          && request.resource.data.keys().hasOnly(['name', 'av', 'c', 't', 'a', 'y', 'at'])
+          && request.resource.data.keys().hasOnly(['name', 'av', 'c', 't', 'a', 'y', 'ph', 'at'])
+          && okPhoto(request.resource.data)
           && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 24
           && request.resource.data.av is string && request.resource.data.av.matches('^[a-z]{2,10}$')
           && request.resource.data.c is int && request.resource.data.c >= 1 && request.resource.data.c <= 99999
@@ -99,8 +105,9 @@ service cloud.firestore {
         function rr() { return get(/databases/$(database)/documents/vk_remotes/$(rid)).data; }
         allow create: if rr().open == true
           && rr().expires > request.time
-          && request.resource.data.keys().hasOnly(['k', 'v', 'n', 's', 'av', 'at'])
-          && request.resource.data.k in ['pad', 'stop', 'music', 'plan', 'vk']
+          && request.resource.data.keys().hasOnly(['k', 'v', 'n', 's', 'av', 'ph', 'at'])
+          && request.resource.data.k in ['pad', 'stop', 'music', 'plan', 'vk', 'score']
+          && okPhoto(request.resource.data)
           && request.resource.data.v is string && request.resource.data.v.size() <= 40
           && request.resource.data.n is int && request.resource.data.n >= -1 && request.resource.data.n <= 999999
           && request.resource.data.s is string && request.resource.data.s.size() <= 24

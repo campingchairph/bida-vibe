@@ -59,4 +59,50 @@
   window.vkAvatar = (id, size) => (window.VK_AVATARS.find(a => a.id === id) || window.VK_AVATARS[0]).svg(size);
   // A stable default avatar for a name (used when the host reserves for someone)
   window.vkAvatarFor = name => { let h = 0; for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return window.VK_AVATARS[h % window.VK_AVATARS.length].id; };
+
+  /* ---- Singer photo: taken with the camera only (no file upload), tiny JPEG kept as a data URL ---- */
+  const PH_MAX = 16000;
+  window.vkPhotoOk = ph => typeof ph === 'string' && ph.length <= PH_MAX && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(ph);
+  // Photo if there is a valid one, otherwise the cartoon avatar
+  window.vkFace = (it, size) => it && window.vkPhotoOk(it.ph)
+    ? `<img class="vk-ph" src="${it.ph}" width="${size}" height="${size}" alt="">`
+    : window.vkAvatar(it && it.av, size);
+
+  // Opens the front camera, lets them take a selfie, and gives back a 160×160 JPEG (about 8 KB)
+  window.vkCamera = function (onPhoto) {
+    const wrap = document.createElement('div');
+    wrap.className = 'cam-wrap';
+    wrap.innerHTML = `<div class="cam" role="dialog" aria-modal="true" aria-label="Kunan ng picture">
+      <div class="cam-view"><video playsinline muted autoplay></video><img alt="" hidden><p class="cam-msg">Binubuksan ang camera…</p></div>
+      <div class="cam-btns"><button type="button" class="btn btn--ghost" data-a="no">Kanselahin</button><button type="button" class="btn btn--chili" data-a="snap" disabled>Kunan</button></div></div>`;
+    document.body.appendChild(wrap);
+    const video = wrap.querySelector('video'), img = wrap.querySelector('img'), msg = wrap.querySelector('.cam-msg'), btns = wrap.querySelector('.cam-btns');
+    let stream = null, shot = '';
+    const stop = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
+    const close = () => { stop(); wrap.remove(); };
+    const live = () => {
+      shot = ''; img.hidden = true; video.hidden = false;
+      btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="no">Kanselahin</button><button type="button" class="btn btn--chili" data-a="snap">Kunan</button>';
+    };
+    wrap.addEventListener('click', e => {
+      const a = e.target.closest('[data-a]'); if (!a) { if (e.target === wrap) close(); return; }
+      if (a.dataset.a === 'no') close();
+      else if (a.dataset.a === 'snap') {
+        const w = video.videoWidth, h = video.videoHeight; if (!w || !h) return;
+        const side = Math.min(w, h), c = document.createElement('canvas'); c.width = c.height = 160;
+        const x = c.getContext('2d'); x.translate(160, 0); x.scale(-1, 1);       // mirror, like the preview
+        x.drawImage(video, (w - side) / 2, (h - side) / 2, side, side, 0, 0, 160, 160);
+        let q = .75; shot = c.toDataURL('image/jpeg', q);
+        while (shot.length > PH_MAX && q > .3) { q -= .1; shot = c.toDataURL('image/jpeg', q); }
+        if (!window.vkPhotoOk(shot)) { msg.hidden = false; msg.textContent = 'Hindi nakuha ang picture. Ulitin.'; return; }
+        img.src = shot; img.hidden = false; video.hidden = true;
+        btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="again">Ulitin</button><button type="button" class="btn btn--chili" data-a="use">Gamitin</button>';
+      } else if (a.dataset.a === 'again') live();
+      else if (a.dataset.a === 'use') { const p = shot; close(); onPhoto(p); }
+    });
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { msg.textContent = 'Walang camera sa browser na ito. Pumili na lang ng avatar.'; return; }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false })
+      .then(s => { if (!wrap.isConnected) { s.getTracks().forEach(t => t.stop()); return; } stream = s; video.srcObject = s; msg.hidden = true; live(); })
+      .catch(e => { msg.textContent = e && e.name === 'NotAllowedError' ? 'Hindi pinayagan ang camera. Payagan sa settings ng browser, o pumili na lang ng avatar.' : 'Hindi mabuksan ang camera. Pumili na lang ng avatar.'; });
+  };
 })();

@@ -1015,7 +1015,8 @@ function renderGames() {
   const list = BIDA_GAMES.filter(gameMatch);
   $('#panel-games').innerHTML = `
     <div class="panel-head"><div><h2>Mga Laro</h2>
-      <p>May animation, gamit at steps bawat laro. I-tap para makita, tapos i-add sa activities.</p></div></div>
+      <p>May animation, gamit at steps bawat laro. I-tap para makita, tapos i-add sa activities.</p></div>
+      <button class="btn btn--chili" onclick="sbSetup()">${ic('trophy')}Scoreboard</button></div>
     <div class="game-filters">${GAME_FILTERS.map(([id, l]) => `<button class="chip ${gameFilter === id ? 'on' : ''}" onclick="setGameFilter('${id}')">${l}</button>`).join('')}</div>
     <div class="game-grid">${list.map(g => `
       <button class="gcard" onclick="openGame('${g.id}')">
@@ -2135,9 +2136,10 @@ function vkState() {
   const v = BIDA.vk && typeof BIDA.vk === 'object' ? BIDA.vk : {};
   vkChecked = BIDA.vk = {
     queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)).slice(0, 12), c: q.c, singer: String(q.singer || '').slice(0, 30),
-      av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', src: q.src === 'guest' ? 'guest' : '' })),
+      av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
     score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30),
+    frame: typeof v.frame === 'string' && vkFrameOk(v.frame) ? v.frame : '',
     room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
       ? { id: v.room.id, owner: v.room.owner.slice(0, 128), exp: +v.room.exp } : null
   };
@@ -2198,7 +2200,7 @@ function renderVideoke() {
       <div class="vk-queue card">
         <h3>Reserved <small class="muted">(${v.queue.length})</small></h3>
         ${now ? `<div class="vk-now">${ic('mic')}<div><b>${esc(now.t)}</b><small>Kumakanta: ${esc(VK.cur.singer || '—')} · ${now.c}</small></div></div>` : ''}
-        ${v.queue.length ? `<ol class="vk-q">${v.queue.map((q, i) => { const s = vkSong(q.c); return `<li><span class="vk-qav">${vkAvatar(q.av || vkAvatarFor(q.singer), 34)}</span>
+        ${v.queue.length ? `<ol class="vk-q">${v.queue.map((q, i) => { const s = vkSong(q.c); return `<li><span class="vk-qav">${vkFace({ av: q.av || vkAvatarFor(q.singer), ph: q.ph }, 34)}</span>
           <div><b>${esc(s ? s.t : 'Code ' + q.c)}</b><small>${i + 1}. ${q.singer ? esc(q.singer) : 'Bisita'} · ${q.c}${q.src === 'guest' ? ' · via link' : ''}</small></div>
           <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkQMove(${i},-1)" ${i ? '' : 'disabled'} aria-label="Taas">${ic('up')}</button>
           <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
@@ -2306,6 +2308,7 @@ function vkScoreToggle(on) { vkState().score = on; saveState(); }
 async function vkStart() {
   const stage = $('#vk-stage');
   stage.hidden = false; document.body.classList.add('in-vk'); document.body.style.overflow = 'hidden';
+  vkApplyFrame();
   if (M.playing) musicPause();                         // party music stops while someone sings
   try { navigator.wakeLock?.request('screen').then(l => VK.lock = l).catch(() => { }); } catch (e) { }
   if (!VK.cur) vkNext(); else vkStageInfo();
@@ -2353,7 +2356,7 @@ function vkStageInfo() {
   $('#vk-now').innerHTML = cur ? `<span class="vk-c">${cur.c}</span><div><b>${esc(cur.t)}</b><small>${esc(cur.a)}</small></div>`
     : '<div><b>Wala pang nakapila</b><small>Mag-reserve sa Videoke tab o sa link</small></div>';
   const box = (it, s, i, now) => `<li class="vk-box ${now ? 'now' : ''}" style="--i:${i}">
-      <span class="vk-av">${vkAvatar(it.av || vkAvatarFor(it.singer), now ? 58 : 44)}</span>
+      <span class="vk-av">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, now ? 58 : 44)}</span>
       <span class="vk-bt"><small>${now ? 'Kumakanta' : 'Next'}</small><b>${esc(it.singer || 'Bisita')}</b><em>${esc(s ? s.t : 'Code ' + it.c)}</em></span></li>`;
   const line = (it, s, n, k) => `<li class="vk-tx" style="--i:${k + 2};--o:${Math.max(.22, .9 - k * .14).toFixed(2)}"><span>${n}</span><b>${esc(it.singer || 'Bisita')}</b> <em>${esc(s ? s.t : 'Code ' + it.c)}</em></li>`;
   const all = (cur ? [[VK.cur, cur]] : []).concat(q.map(it => [it, vkSong(it.c)]));
@@ -2368,7 +2371,7 @@ function vkIntro(it, s, done) {
   el.innerHTML = `<div class="vki-rays"></div><div class="vki-conf">${conf}</div>
     <div class="vki-card">
       <div class="vki-tag">Susunod na kakanta!</div>
-      <div class="vki-av">${vkAvatar(it.av || vkAvatarFor(it.singer), 180)}</div>
+      <div class="vki-av">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, 180)}</div>
       <div class="vki-name">${[...name].map((ch, i) => `<span style="--i:${i}">${ch === ' ' ? '&nbsp;' : esc(ch)}</span>`).join('')}</div>
       <div class="vki-song"><span class="vk-c">${s.c}</span>${esc(s.t)}${s.a ? ` <small>· ${esc(s.a)}</small>` : ''}</div>
       <div class="vki-count" id="vki-count">3</div>
@@ -2521,7 +2524,7 @@ async function vkListen() {
       ch.doc.ref.delete().catch(() => { });
       if (!s) return;                                                      // not from our library: ignored
       const singer = String(d.name || 'Bisita').slice(0, 24), av = VK_AVATARS.some(a => a.id === d.av) ? d.av : vkAvatarFor(singer);
-      vkState().queue.push({ id: ch.doc.id.slice(0, 9), c: s.c, singer, av, src: 'guest' });
+      vkState().queue.push({ id: ch.doc.id.slice(0, 9), c: s.c, singer, av, ph: vkPhotoOk(d.ph) ? d.ph : '', src: 'guest' });
       saveState(); toast(`${singer} nag-reserve: ${s.t}`);
       if (BIDA.tab === 'videoke' && !$('#app').hidden) renderVideoke();
       if (!$('#vk-stage').hidden) { vkStageInfo(); if (!VK.cur) vkNext(); }
@@ -2534,13 +2537,161 @@ function vkPublish() {
   clearTimeout(VKR.pubT);
   VKR.pubT = setTimeout(() => {
     const fs = vkFs(); if (!fs || !vkRoomValid()) return;
-    const item = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), t: s ? s.t : 'Kanta', c: it.c }; };
+    const item = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), ph: vkPhotoOk(it.ph) ? it.ph : '', t: s ? s.t : 'Kanta', c: it.c }; };
     fs.collection('vk_rooms').doc(BIDA.vk.room.id).update({
       queue: vkState().queue.slice(0, 40).map(item), now: VK.cur ? item(VK.cur) : null,
       title: String(BIDA.event.name || eventType().label).slice(0, 90), updated: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(() => { });
   }, 700);
 }
+
+/* ---- TV frame: the event's title + the card theme's colours and art around the video ---- */
+const vkFrameOk = id => id === '' || id === 'card' || CARD_THEMES.some(t => t.id === id);
+function vkFrameTheme() {
+  const id = vkState().frame;
+  if (id === 'card') { ensureCard(); return cardTheme(); }
+  return CARD_THEMES.find(t => t.id === id) || null;
+}
+function vkFrameHTML() {
+  const cur = vkState().frame;
+  const sw = t => `<span class="theme-sw" style="background:${t.bg};color:${t.accent}"><span style="background:${t.accent}"></span></span>`;
+  ensureCard(); const ct = cardTheme();
+  const chip = (id, label, swatch) => `<button class="theme-chip ${cur === id ? 'on' : ''}" data-fr="${id}" onclick="vkSetFrame('${id}')" aria-pressed="${cur === id}">${swatch}${esc(label)}</button>`;
+  return `<div class="card" style="margin-top:16px"><h3>Frame ng TV screen</h3>
+    <p class="muted">Lagyan ng frame at pangalan ng event ang video para bagay sa theme ng party.</p>
+    <div class="theme-chips" style="margin-top:10px">${chip('', 'Walang frame', '<span class="theme-sw" style="background:#000"></span>')}${chip('card', 'Kapareho ng card', ct.id === 'own' ? `<span class="theme-sw own-sw" style="background-image:url('${CARD_BG.url}')"></span>` : sw(ct))}
+      ${CARD_THEMES.map(t => chip(t.id, t.name, sw(t))).join('')}</div></div>`;
+}
+function vkSetFrame(id) {
+  if (!vkFrameOk(id)) return;
+  vkState().frame = id; saveState();
+  $$('[data-fr]').forEach(b => { const on = b.dataset.fr === id; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  if (!$('#vk-stage').hidden) vkApplyFrame();
+}
+function vkApplyFrame() {
+  const st = $('#vk-stage'), th = vkFrameTheme(), cv = $('#vk-frame-bg'), tt = $('#vk-frame-title');
+  st.classList.toggle('framed', !!th);
+  if (!th) { cv.hidden = true; tt.hidden = true; return; }
+  if (th.id === 'own' && !CARD_BG.img) { loadCardBg().then(() => { if (CARD_BG.img) vkApplyFrame(); }); }
+  st.style.setProperty('--fr-bg', th.bg);
+  const title = (BIDA.card && BIDA.card.title) || BIDA.event.name || eventType().label;
+  const date = BIDA.card && BIDA.card.date ? fmtCardDate(BIDA.card.date) : '';
+  tt.className = 'vk-frame-title' + (th.panel ? ' has-panel' : '');
+  tt.style.cssText = th.panel ? `background:${th.panel};color:${th.panelFg}` : `color:${th.fg};--fr-ac:${th.accent}`;
+  tt.innerHTML = `<b>${esc(title)}</b>${date ? `<small>${esc(date)}</small>` : ''}`;
+  tt.hidden = false;
+  // Paint the theme's art (bunting, parol, balloons…) on a canvas behind everything
+  const W = st.clientWidth || innerWidth, H = st.clientHeight || innerHeight, k = W / 1600;
+  cv.width = Math.round(W * devicePixelRatio); cv.height = Math.round(H * devicePixelRatio); cv.hidden = false;
+  const ctx = cv.getContext('2d'); ctx.setTransform(devicePixelRatio * k, 0, 0, devicePixelRatio * k, 0, 0);
+  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, 1600, H / k);
+  try { ctx.save(); th.deco(ctx, 1600, H / k); ctx.restore(); } catch (e) { }
+}
+addEventListener('resize', () => { clearTimeout(VK.frT); VK.frT = setTimeout(() => { if (!$('#vk-stage').hidden && vkFrameTheme()) vkApplyFrame(); }, 200); });
+
+/* ============================================================
+   SCOREBOARD — flash a big scoreboard on the TV for any game.
+   Group vs group, 1 vs 1, or custom (up to 8). Scores are tapped on the TV,
+   with keys 1–8 (Shift = minus), or from the host's phone remote.
+   ============================================================ */
+const SB_COLORS = ['#E4452B', '#0FA3A3', '#F6B21B', '#3E9B4F', '#E2367A', '#6B4FBB', '#C8553D', '#1E1A16'];
+const SB_PRESET = {
+  teams: () => [{ n: 'Team Pula', c: '#E4452B', s: 0 }, { n: 'Team Asul', c: '#0FA3A3', s: 0 }],
+  duel: () => [{ n: 'Player 1', c: '#E2367A', s: 0 }, { n: 'Player 2', c: '#F6B21B', s: 0 }],
+  custom: () => [{ n: 'Grupo 1', c: '#E4452B', s: 0 }, { n: 'Grupo 2', c: '#0FA3A3', s: 0 }, { n: 'Grupo 3', c: '#F6B21B', s: 0 }]
+};
+const SB_MODES = { teams: 'Grupo vs Grupo', duel: '1 vs 1', custom: 'Custom' };
+let sbChecked = null;
+function sbState() {
+  if (BIDA.sb && BIDA.sb === sbChecked) return BIDA.sb;
+  const v = BIDA.sb && typeof BIDA.sb === 'object' ? BIDA.sb : {};
+  const mode = SB_MODES[v.mode] ? v.mode : 'teams';
+  let teams = (Array.isArray(v.teams) ? v.teams : []).slice(0, 8).map((t, i) => ({
+    n: String(t && t.n || `Grupo ${i + 1}`).slice(0, 24), c: SB_COLORS.includes(t && t.c) ? t.c : SB_COLORS[i % SB_COLORS.length],
+    s: Number.isInteger(t && t.s) ? Math.max(-9999, Math.min(99999, t.s)) : 0 }));
+  if (teams.length < 2) teams = SB_PRESET[mode]();
+  sbChecked = BIDA.sb = { mode, title: String(v.title || '').slice(0, 60), teams };
+  return BIDA.sb;
+}
+function sbSetup() {
+  const sb = sbState();
+  openSheet(`<div class="sheet-head"><h3>Scoreboard</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <p class="muted">Pili ng format, ilagay ang mga pangalan, tapos ipakita sa TV.</p>
+    <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Format" style="margin-top:12px">
+      ${Object.entries(SB_MODES).map(([k, l]) => `<button class="${sb.mode === k ? 'on' : ''}" onclick="sbMode('${k}')">${l}</button>`).join('')}</div>
+    <div class="field" style="margin-top:12px"><label for="sb-title">Pangalan ng laro (optional)</label>
+      <input class="input" id="sb-title" maxlength="60" placeholder="hal. Trip to Jerusalem" value="${esc(sb.title)}" oninput="sbTitle(this.value)"></div>
+    <ul class="sb-setup">${sb.teams.map((t, i) => `<li>
+      <button class="sb-dot" style="background:${t.c}" onclick="sbColor(${i})" aria-label="Palitan ang kulay"></button>
+      <input class="input" maxlength="24" value="${esc(t.n)}" aria-label="Pangalan ${i + 1}" oninput="sbName(${i}, this.value)">
+      ${sb.mode === 'custom' && sb.teams.length > 2 ? `<button class="icon-btn icon-btn--plain" onclick="sbDel(${i})" aria-label="Alisin">${ic('trash')}</button>` : ''}</li>`).join('')}</ul>
+    ${sb.mode === 'custom' && sb.teams.length < 8 ? `<button class="btn btn--ghost btn--sm" style="margin-top:8px" onclick="sbAddTeam()">${ic('plus')}Magdagdag</button>` : ''}
+    <div class="qr-btns" style="margin-top:16px"><button class="btn btn--chili" onclick="sbShow()">${ic('play')}Ipakita sa TV</button>
+      <button class="btn btn--ghost" onclick="sbReset()">I-reset ang score</button></div>`);
+}
+function sbMode(m) { if (!SB_MODES[m]) return; const sb = sbState(); if (sb.mode !== m) { sb.mode = m; sb.teams = SB_PRESET[m](); saveState(); } sbSetup(); }
+function sbTitle(v) { sbState().title = String(v).slice(0, 60); saveState(); }
+function sbName(i, v) { const t = sbState().teams[i]; if (t) { t.n = String(v).slice(0, 24); saveState(); } }
+function sbColor(i) { const t = sbState().teams[i]; if (!t) return; t.c = SB_COLORS[(SB_COLORS.indexOf(t.c) + 1) % SB_COLORS.length]; saveState(); sbSetup(); }
+function sbAddTeam() { const sb = sbState(); if (sb.teams.length >= 8) return; const i = sb.teams.length; sb.teams.push({ n: `Grupo ${i + 1}`, c: SB_COLORS[i % SB_COLORS.length], s: 0 }); saveState(); sbSetup(); }
+function sbDel(i) { const sb = sbState(); if (sb.teams.length <= 2) return; sb.teams.splice(i, 1); saveState(); sbSetup(); }
+async function sbReset(fromRemote) {
+  if (!fromRemote && !await askConfirm('Ibalik sa 0 ang lahat ng score?', 'I-reset')) return;
+  sbState().teams.forEach(t => t.s = 0); saveState();
+  if (!$('#sb-stage').hidden) sbRender(); else toast('Na-reset ang score');
+}
+function sbShow() {
+  closeSheet();
+  const el = $('#sb-stage'); el.hidden = false; document.body.classList.add('in-sb'); document.body.style.overflow = 'hidden';
+  sbRender(); rmtPublish();
+}
+function sbHide() {
+  $('#sb-stage').hidden = true; document.body.classList.remove('in-sb');
+  if ($('#vk-stage').hidden && $('#live').hidden) document.body.style.overflow = '';
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+  rmtPublish();
+}
+function sbLead() { const t = sbState().teams, max = Math.max(...t.map(x => x.s)); return t.filter(x => x.s === max).length === 1 && max > 0 ? max : null; }
+function sbRender() {
+  const sb = sbState(), lead = sbLead();
+  $('#sb-stage').innerHTML = `<div class="sb-bar">
+      <button class="btn btn--ghost btn--sm sb-light" onclick="sbHide()">${ic('x')}Exit</button>
+      <b class="sb-title">${esc(sb.title || 'Scoreboard')}</b>
+      <div class="sb-acts"><button class="btn btn--gold btn--sm" onclick="sbWinner()">Panalo!</button>
+        <button class="btn btn--ghost btn--sm sb-light" onclick="sbReset()">Reset</button>
+        <button class="btn btn--ghost btn--sm sb-light" onclick="sbFull()">Full screen</button></div></div>
+    <div class="sb-grid" style="--n:${sb.teams.length}">${sb.teams.map((t, i) => `<div class="sb-tile ${lead !== null && t.s === lead ? 'lead' : ''}" style="--c:${t.c}">
+      <div class="sb-name">${esc(t.n)}</div><div class="sb-score" id="sb-s-${i}">${t.s}</div>
+      <div class="sb-btns"><button onclick="sbAdd(${i},-1)" aria-label="Bawas sa ${esc(t.n)}">−</button><button onclick="sbAdd(${i},1)" aria-label="Dagdag sa ${esc(t.n)}">+</button></div>
+      <span class="sb-key">${i + 1}</span></div>`).join('')}</div>
+    <div class="sb-win" id="sb-win" hidden onclick="this.hidden=true"></div>`;
+}
+function sbAdd(i, d) {
+  const sb = sbState(), t = sb.teams[i]; if (!t) return;
+  t.s = Math.max(-9999, Math.min(99999, t.s + d)); saveState();
+  if ($('#sb-stage').hidden) return;
+  const n = $('#sb-s-' + i); if (n) { n.textContent = t.s; n.classList.remove('pop', 'down'); void n.offsetWidth; n.classList.add(d > 0 ? 'pop' : 'down'); }
+  const lead = sbLead();
+  $$('.sb-tile').forEach((el, k) => el.classList.toggle('lead', lead !== null && sb.teams[k].s === lead));
+}
+function sbWinner() {
+  if ($('#sb-stage').hidden) sbShow();
+  const t = sbState().teams, max = Math.max(...t.map(x => x.s)), top = t.filter(x => x.s === max);
+  const conf = [...Array(40)].map((_, i) => `<i style="--x:${(i * 37) % 100};--d:${(i % 9) * .12}s;--c:${SB_COLORS[i % 6]};--r:${(i * 53) % 360}deg"></i>`).join('');
+  const el = $('#sb-win');
+  el.innerHTML = `<div class="vki-rays"></div><div class="vki-conf">${conf}</div><div class="sb-win-card">
+    <div class="vki-tag">${top.length > 1 ? 'Tabla!' : 'Panalo!'}</div>
+    <div class="sb-win-name">${top.map(x => `<span style="color:${x.c}">${esc(x.n)}</span>`).join(' &amp; ')}</div>
+    <div class="sb-win-score">${max} puntos</div><small>I-tap para isara</small></div>`;
+  el.hidden = false; vkPlayPad(/palakpak|applause|clap|ta-?da/i);
+}
+function sbFull() { const s = $('#sb-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser ang full screen')); }
+addEventListener('keydown', e => {
+  if ($('#sb-stage').hidden || e.target.closest('input, textarea')) return;
+  const k = e.code.match(/^Digit([1-8])$/);
+  if (k) { e.preventDefault(); sbAdd(+k[1] - 1, e.shiftKey ? -1 : 1); }
+  else if (e.key === 'Escape') { const w = $('#sb-win'); if (w && !w.hidden) w.hidden = true; else sbHide(); }
+});
 
 /* ============================================================
    HOST REMOTE — control the TV laptop/tablet from your phone.
@@ -2595,13 +2746,14 @@ async function rmtStop() {
 // What the phone sees. Names and titles only: no account details, no links.
 function rmtState() {
   const nxt = nextIdx();
-  const song = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), t: s ? s.t.slice(0, 80) : 'Code ' + it.c, a: s ? s.a.slice(0, 60) : '', c: it.c }; };
+  const song = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), ph: vkPhotoOk(it.ph) ? it.ph : '', t: s ? s.t.slice(0, 80) : 'Code ' + it.c, a: s ? s.a.slice(0, 60) : '', c: it.c }; };
   return {
     ev: String(BIDA.event.name || eventType().label).slice(0, 90),
     plan: BIDA.program.slice(0, 60).map((p, i) => ({ id: p.id, t: String(p.title || '').slice(0, 80), min: p.min, done: !!p.done, next: i === nxt, note: String(p.note || '').slice(0, 200) })),
     pads: padList().filter(p => canPlaySound(p.id)).slice(0, 40).map(p => ({ id: p.id, n: p.name.slice(0, 24), c: p.c })),
     music: { has: !!M.kind, on: !!M.playing, t: String(M.title || '').slice(0, 90), duck: !!M.ducked, faded: !!M.faded, pro: !!BIDA.premium },
-    vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song) }
+    vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song) },
+    sb: (s => ({ on: !$('#sb-stage').hidden, title: s.title, mode: s.mode, teams: s.teams.map(x => ({ n: x.n, c: x.c, s: x.s })) }))(sbState())
   };
 }
 // Keep the phone's copy fresh (only writes when something actually changed)
@@ -2645,6 +2797,13 @@ function rmtRun(d) {
       else if (v === 'fade' && BIDA.premium) fadeToggle();
       else if (v === 'talk' && BIDA.premium) (M.ducked ? duckUp() : duckDown());
       break;
+    case 'score':
+      if (v === 'add' || v === 'sub') sbAdd(n, v === 'add' ? 1 : -1);
+      else if (v === 'show') sbShow();
+      else if (v === 'hide') { if (!$('#sb-stage').hidden) sbHide(); }
+      else if (v === 'win') sbWinner();
+      else if (v === 'reset') sbReset(true);
+      break;
     case 'plan': if (v === 'done' && BIDA.program.some(p => p.id === n)) { toggleDone(n); if (BIDA.tab === 'plan') renderPlan(); } break;
     case 'vk':
       if (v === 'start') vkStart();
@@ -2654,7 +2813,7 @@ function rmtRun(d) {
         const s = vkSong(n); if (!s) break;
         const singer = String(d.s || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
         const av = VK_AVATARS.some(a => a.id === d.av) ? d.av : vkAvatarFor(singer);
-        vkState().queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av, src: '' });
+        vkState().queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av, ph: vkPhotoOk(d.ph) ? d.ph : '', src: '' });
         saveState(); toast(`Remote: ${singer} · ${s.t}`);
         if (BIDA.tab === 'videoke' && !$('#app').hidden) renderVideoke();
         if (!$('#vk-stage').hidden) { vkStageInfo(); if (!VK.cur) vkNext(); }
@@ -2823,7 +2982,7 @@ function vkPlaylistIds(list) {
     let done = false; const finish = (v, e) => { if (done) return; done = true; try { p.destroy(); } catch (x) { } host.remove(); e ? rej(e) : res(v); };
     const p = new YT.Player('vk-pl', { playerVars: { listType: 'playlist', list, autoplay: 0 }, events: {
       onReady: () => { const t0 = Date.now(); (function poll() { const ids = p.getPlaylist && p.getPlaylist(); if (ids && ids.length) finish(ids); else if (Date.now() - t0 > 12000) finish(null, new Error('Hindi mabasa ang playlist. Private ba o walang laman?')); else setTimeout(poll, 400); })(); },
-      onError: () => finish(null, new Error('Hindi mabasa ang playlist')) } });
+      onError: e => finish(null, new Error(e && (e.data === 101 || e.data === 150) ? 'Naka-block ng may-ari ang pag-play ng videos na \'to sa ibang website (hal. Sing King). Walang paraan para i-play dito. Pumili ng ibang karaoke channel.' : 'Hindi mabasa ang playlist')) } });
     setTimeout(() => finish(null, new Error('Hindi mabasa ang playlist')), 20000);
   }));
 }
@@ -3206,7 +3365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- exports for inline handlers ---------- */
-Object.assign(window, { rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
+Object.assign(window, { vkSetFrame, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
