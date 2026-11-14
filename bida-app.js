@@ -1041,6 +1041,7 @@ function renderGames() {
       <button onclick="timerOpen()"><span class="tr-ic" style="background:var(--turq)">⏱️</span>Timer</button>
       <button onclick="diceSetup()"><span class="tr-ic" style="background:#fff">🎲</span>Dice</button>
       <button onclick="colorSetup()"><span class="tr-ic" style="background:var(--leaf)">🎨</span>Kulay</button>
+      <button onclick="henyoSetup()"><span class="tr-ic" style="background:var(--chili-soft)">🧠</span>Henyo</button>
     </div>
     <div class="game-filters">${GAME_FILTERS.map(([id, l]) => `<button class="chip ${gameFilter === id ? 'on' : ''}" onclick="setGameFilter('${id}')">${l}</button>`).join('')}</div>
     <div class="game-grid">${list.map(g => `
@@ -1070,7 +1071,7 @@ function openGame(id) {
     <ol class="gd-steps" id="gd-steps">${g.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
     ${g.tips?.length ? `<div class="sec-title">${ic('star')}Tips</div><ul class="mat-list">${g.tips.map(t => `<li>• ${esc(t)}</li>`).join('')}</ul>` : ''}
     ${g.credit ? `<p class="muted game-credit">Galing kay <a href="${esc(g.credit.url)}" target="_blank" rel="noopener noreferrer">${esc(g.credit.by)}</a> (@digthegames sa TikTok). Nandun ang original na video.</p>` : ''}
-    <div class="sheet-actions"><button class="btn btn--magenta" onclick="addGameToProgram('${id}')">${ic('plus')}Idagdag sa activities</button></div>`);
+    <div class="sheet-actions">${/henyo|charades/.test(id) ? `<button class="btn btn--chili" onclick="closeSheet();henyoShow()">🧠 Bunot ng salita</button>` : ''}<button class="btn btn--magenta" onclick="addGameToProgram('${id}')">${ic('plus')}Idagdag sa activities</button></div>`);
   watchScenes($('#sheet'));
 }
 function playSteps() {
@@ -2861,8 +2862,8 @@ addEventListener('keydown', e => {
    GAME TOOLS — raffle (wheel or name shuffle), dice, colour randomizer
    (shown big on the TV) and a floating game timer.
    ============================================================ */
-const TOOL_COLORS = [['Pula', '#E4452B'], ['Asul', '#1F6FD1'], ['Dilaw', '#F6B21B'], ['Berde', '#3E9B4F'], ['Pink', '#E2367A'],
-  ['Lila', '#7B4FBF'], ['Kahel', '#F28C28'], ['Turquoise', '#0FA3A3'], ['Puti', '#FFFFFF'], ['Itim', '#1E1A16']];
+const TOOL_COLORS = [['Red', '#E4452B'], ['Blue', '#1F6FD1'], ['Yellow', '#F6B21B'], ['Green', '#3E9B4F'], ['Pink', '#E2367A'],
+  ['Purple', '#7B4FBF'], ['Orange', '#F28C28'], ['Turquoise', '#0FA3A3'], ['White', '#FFFFFF'], ['Black', '#1E1A16']];
 const TL = { kind: '', busy: false, angle: 0 };
 let toolsChecked = null;   // saved data is untrusted: check it once, then keep using the same object
 function toolsState() {
@@ -2874,8 +2875,11 @@ function toolsState() {
     rmode: t.rmode === 'shuffle' ? 'shuffle' : 'wheel', remove: t.remove !== false,
     dice: { n: clamp(parseInt(d.n, 10) || 2, 1, 6), kind: d.kind === 'color' ? 'color' : 'num' },
     colors: (Array.isArray(t.colors) ? t.colors : [0, 1, 2, 3, 4, 5]).filter(i => Number.isInteger(i) && TOOL_COLORS[i]).slice(0, TOOL_COLORS.length),
-    timer: clamp(parseInt(t.timer, 10) || 60, 5, 5999)
+    timer: clamp(parseInt(t.timer, 10) || 60, 3, 5999),
+    hcats: (Array.isArray(t.hcats) ? t.hcats : BIDA_WORD_CATS.map(c => c[0])).filter(k => BIDA_WORDS[k]),
+    hsec: clamp(parseInt(t.hsec, 10) || 120, 30, 600)
   };
+  if (!BIDA.tools.hcats.length) BIDA.tools.hcats = BIDA_WORD_CATS.map(c => c[0]);
   if (BIDA.tools.colors.length < 2) BIDA.tools.colors = [0, 1, 2, 3, 4, 5];
   return (toolsChecked = BIDA.tools);
 }
@@ -2903,7 +2907,7 @@ function tlClose() {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
 }
 function tlFull() { const s = $('#tl-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser ang full screen')); }
-function tlSettings() { if (TL.kind === 'raffle') raffleSetup(); else if (TL.kind === 'dice') diceSetup(); else if (TL.kind === 'color') colorSetup(); }
+function tlSettings() { if (TL.kind === 'raffle') raffleSetup(); else if (TL.kind === 'dice') diceSetup(); else if (TL.kind === 'color') colorSetup(); else if (TL.kind === 'henyo') henyoSetup(); }
 function tlWinner(tag, name, sub, color) {
   const conf = [...Array(40)].map((_, i) => `<i style="--x:${(i * 37) % 100};--d:${(i % 9) * .12}s;--c:${SB_COLORS[i % 6]};--r:${(i * 53) % 360}deg"></i>`).join('');
   const el = $('#tl-win');
@@ -3017,32 +3021,49 @@ function diceSetup() {
     <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();diceShow()">${ic('play')}Ipakita sa TV</button>`);
 }
 function diceSet(k, v) { toolsState().dice[k] = v; saveState(); diceSetup(); if (!$('#tl-stage').hidden && TL.kind === 'dice') diceShow(); }
-function dieHTML(val, kind) {
-  if (kind === 'color') { const [nm, hex] = TOOL_COLORS[val]; return `<div class="die die--color" style="background:${hex};color:${tlDark(hex) ? '#fff' : '#1E1A16'}"><span>${nm}</span></div>`; }
-  return `<div class="die">${[...Array(9)].map((_, i) => `<i class="${DICE_PIPS[val].includes(i) ? 'on' : ''}"></i>`).join('')}</div>`;
+// A real 3D cube: 6 faces placed around the centre; the roll spins it and lands the result on the front.
+// Classic layout: front 1, back 6, right 3, left 4, top 5, bottom 2 (opposite faces add up to 7).
+const DIE_FACES = [['front', 1], ['back', 6], ['right', 3], ['left', 4], ['top', 5], ['bottom', 2]];
+const DIE_TURN = { 1: [0, 0], 6: [0, 180], 3: [0, -90], 4: [0, 90], 5: [-90, 0], 2: [90, 0] };   // rotateX, rotateY that bring each number to the front
+const DIE_SPIN = [];                                                                          // each die's current angles, so it always keeps spinning forward
+const pipsHTML = v => `<div class="pips">${[...Array(9)].map((_, i) => `<i class="${DICE_PIPS[v].includes(i) ? 'on' : ''}"></i>`).join('')}</div>`;
+function die3dHTML(i, kind, faceColors) {
+  return `<div class="die3d-wrap"><div class="die3d" id="die-${i}">${DIE_FACES.map(([pos, v]) => {
+    if (kind !== 'color') return `<div class="df df--${pos}">${pipsHTML(v)}</div>`;
+    const [nm, hex] = TOOL_COLORS[faceColors[v - 1]];
+    return `<div class="df df--${pos} df--color" style="background:${hex};color:${tlDark(hex) ? '#fff' : '#1E1A16'}"><span>${nm}</span></div>`;
+  }).join('')}</div></div>`;
 }
-function diceFace(kind) { return kind === 'color' ? toolsState().colors[tlRand(toolsState().colors.length)] : 1 + tlRand(6); }
+// Colour dice: the six faces cycle through the chosen colours (so every colour shows up)
+function diceColorFaces() { const c = toolsState().colors; return [...Array(6)].map((_, i) => c[i % c.length]); }
 function diceShow() {
   const d = toolsState().dice;
   if ($('#tl-stage').hidden || TL.kind !== 'dice') tlOpen('dice', 'Dice', '');
-  const faces = [...Array(d.n)].map(() => diceFace(d.kind));
-  $('#tl-body').innerHTML = `<div class="dice-row" id="dice-row">${faces.map(f => dieHTML(f, d.kind)).join('')}</div>
+  TL.faces = [...Array(d.n)].map(() => diceColorFaces().sort(() => Math.random() - .5));
+  $('#tl-body').innerHTML = `<div class="dice-row" id="dice-row">${TL.faces.map((f, i) => die3dHTML(i, d.kind, f)).join('')}</div>
     <div class="dice-sum" id="dice-sum">&nbsp;</div>
-    <div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="diceRoll()">I-roll!</button>
-    <span class="tl-note">${d.n} dice · ${d.kind === 'color' ? 'kulay' : 'numero'}</span></div>`;
+    <div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="diceRoll()">Roll!</button>
+    <span class="tl-note">${d.n} dice · ${d.kind === 'color' ? 'colors' : 'numbers'}</span></div>`;
+  DIE_SPIN.length = 0;
+  TL.faces.forEach((_, i) => { DIE_SPIN[i] = [-18 + i * 6, 24 - i * 8]; const el = $('#die-' + i); el.style.transition = 'none'; el.style.transform = `rotateX(${DIE_SPIN[i][0]}deg) rotateY(${DIE_SPIN[i][1]}deg)`; });
 }
 async function diceRoll() {
   const d = toolsState().dice; if (TL.busy) return; TL.busy = true;
   $$('.tl-go').forEach(b => b.disabled = true); $('#dice-sum').innerHTML = '&nbsp;';
-  const row = $('#dice-row'); row.classList.add('rolling');
-  for (let i = 0; i < 12 && TL.busy; i++) {
-    row.innerHTML = [...Array(d.n)].map(() => dieHTML(diceFace(d.kind), d.kind)).join('');
-    if (i % 2 === 0) vkSfx('rattle');
-    await tlWait(70 + i * 8);
-  }
-  const final = [...Array(d.n)].map(() => diceFace(d.kind));
-  row.classList.remove('rolling'); row.innerHTML = final.map(f => dieHTML(f, d.kind)).join(''); vkSfx('go');
-  $('#dice-sum').textContent = d.kind === 'num' ? (d.n > 1 ? `Total: ${final.reduce((a, b) => a + b, 0)}` : `${final[0]}!`) : final.map(i => TOOL_COLORS[i][0]).join(' · ');
+  const vals = TL.faces.map(() => 1 + tlRand(6));          // which face lands in front (fair 1–6)
+  vals.forEach((v, i) => {
+    const el = $('#die-' + i), [tx, ty] = DIE_TURN[v], [cx, cy] = DIE_SPIN[i];
+    // next angle ≡ target (mod 360), at least 2–3 extra full turns, a little different per die
+    const nx = tx + 360 * Math.ceil((cx + 720 + i * 90 - tx) / 360), ny = ty + 360 * Math.ceil((cy + 1080 - i * 90 - ty) / 360);
+    DIE_SPIN[i] = [nx, ny];
+    el.style.transition = `transform ${1.3 + i * .12}s cubic-bezier(.2,.75,.25,1)`;
+    el.style.transform = `rotateX(${nx}deg) rotateY(${ny}deg)`;
+  });
+  for (let k = 0; k < 6; k++) { vkSfx('rattle'); await tlWait(150); }
+  await tlWait(500 + TL.faces.length * 120);
+  vkSfx('go');
+  $('#dice-sum').textContent = d.kind === 'num' ? (d.n > 1 ? `Total: ${vals.reduce((a, b) => a + b, 0)}` : `${vals[0]}!`)
+    : vals.map((v, i) => TOOL_COLORS[TL.faces[i][v - 1]][0]).join(' · ');
   $$('.tl-go').forEach(b => b.disabled = false); TL.busy = false;
 }
 
@@ -3080,9 +3101,57 @@ async function colorGo() {
   $$('.tl-go').forEach(b => b.disabled = false); TL.busy = false;
 }
 
+/* ---- Pinoy Henyo / Charades: random category, then a random word (no repeats until a category runs out) ---- */
+const HY = { used: {}, word: '', cat: '', hidden: false };
+function henyoSetup() {
+  const t = toolsState();
+  openSheet(`<div class="sheet-head"><div><span class="kicker">Pinoy Henyo · Charades</span><h3>Bunot ng salita</h3></div><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <span class="field-label" style="display:block">Mga category <small class="muted">(random kung alin ang lalabas)</small></span>
+    <div class="cl-chips">${BIDA_WORD_CATS.map(([k, l]) => `<button class="${t.hcats.includes(k) ? 'on' : ''}" onclick="henyoCat('${k}')">${l} <small class="muted">${BIDA_WORDS[k].length}</small></button>`).join('')}</div>
+    <span class="field-label" style="display:block;margin-top:14px">Oras bawat round</span>
+    <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">${[[60, '1 min'], [120, '2 min'], [180, '3 min']].map(([s, l]) => `<button class="${t.hsec === s ? 'on' : ''}" onclick="toolsState().hsec=${s};saveState();henyoSetup()">${l}</button>`).join('')}</div>
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();henyoShow()">${ic('play')}Ipakita sa TV</button>`);
+}
+function henyoCat(k) {
+  const t = toolsState(), i = t.hcats.indexOf(k);
+  if (i >= 0) { if (t.hcats.length <= 1) { toast('Kailangan ng kahit isang category'); return; } t.hcats.splice(i, 1); } else t.hcats.push(k);
+  saveState(); henyoSetup();
+}
+function henyoShow() {
+  if ($('#tl-stage').hidden || TL.kind !== 'henyo') tlOpen('henyo', 'Pinoy Henyo · Charades', '');
+  const t = toolsState(), left = t.hcats.reduce((n, k) => n + BIDA_WORDS[k].length - (HY.used[k] || []).length, 0);
+  $('#tl-body').innerHTML = `<div class="hy-card ${HY.hidden ? 'hid' : ''}" id="hy-card">
+      <div class="hy-cat" id="hy-cat">${HY.cat ? esc(BIDA_WORD_CATS.find(c => c[0] === HY.cat)[1]) : 'Category'}</div>
+      <div class="hy-word" id="hy-word">${HY.word ? esc(HY.word) : 'Pindutin ang "Bunot!"'}</div>
+      <div class="hy-cover" onclick="henyoHide()">Nakatago · I-tap para ipakita</div></div>
+    <div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="henyoNext()">Bunot!</button>
+      <button class="btn btn--ghost btn--lg sb-light" onclick="henyoHide()">${HY.hidden ? 'Ipakita' : 'Itago'}</button>
+      <button class="btn btn--ghost btn--lg sb-light" onclick="henyoTimer()">⏱️ ${tmFmt(t.hsec)}</button>
+      <span class="tl-note">${left} salita pa</span></div>`;
+}
+async function henyoNext() {
+  const t = toolsState(); if (TL.busy) return; TL.busy = true;
+  $$('.tl-go').forEach(b => b.disabled = true);
+  const cat = t.hcats[tlRand(t.hcats.length)], list = BIDA_WORDS[cat];
+  HY.used[cat] = HY.used[cat] || [];
+  if (HY.used[cat].length >= list.length) HY.used[cat] = [];                 // used them all: start the category over
+  const free = list.filter(w => !HY.used[cat].includes(w)), word = free[tlRand(free.length)];
+  HY.used[cat].push(word);
+  // the category rolls first, then the word drops in
+  const catEl = $('#hy-cat'), wordEl = $('#hy-word');
+  wordEl.textContent = '…'; let d = 60;
+  while (d < 260) { catEl.textContent = BIDA_WORD_CATS[tlRand(BIDA_WORD_CATS.length)][1]; vkSfx('tick2'); await tlWait(d); d *= 1.15; }
+  HY.cat = cat; HY.word = word; TL.busy = false;
+  henyoShow();
+  const w = $('#hy-word'); w.classList.add('pop'); vkSfx('go');
+}
+function henyoHide() { HY.hidden = !HY.hidden; henyoShow(); }
+function henyoTimer() { const s = toolsState().hsec; timerOpen(); timerPreset(s); timerToggle(); }
+
 /* ---- Floating game timer ---- */
 const TM = { total: 60, left: 60, running: false, endAt: 0, iv: 0, big: false, lastBeep: -1 };
 const tmFmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+// countdown beeps: the last 5 seconds (or every second of a very short timer)
 function timerOpen() {
   const t = toolsState();
   if (!TM.running && $('#gtimer').hidden) { TM.total = t.timer; TM.left = t.timer; }
@@ -3097,7 +3166,8 @@ function timerRender() {
     <button class="gt-time" onclick="timerEdit()" title="I-tap para palitan ang oras">${done ? 'Time!' : tmFmt(left)}</button>
     <div class="gt-btns"><button onclick="timerAdd(-10)" aria-label="Bawas 10 segundo">−10</button>
       <button class="gt-play" onclick="timerToggle()">${TM.running ? 'Pause' : done ? 'Ulit' : 'Start'}</button>
-      <button onclick="timerAdd(10)" aria-label="Dagdag 10 segundo">+10</button><button onclick="timerReset()" aria-label="Reset">↺</button></div>`;
+      <button onclick="timerAdd(10)" aria-label="Dagdag 10 segundo">+10</button><button onclick="timerReset()" aria-label="Reset">↺</button></div>
+    <div class="gt-presets">${[[3, '3s'], [5, '5s'], [10, '10s'], [30, '30s'], [60, '1m'], [120, '2m']].map(([s, l]) => `<button class="${TM.total === s ? 'on' : ''}" onclick="timerPreset(${s})">${l}</button>`).join('')}</div>`;
   timerDrag();
 }
 function timerTick() {
@@ -3116,7 +3186,7 @@ function timerToggle() {
 }
 function timerAdd(sec) {
   if (TM.running) { TM.endAt = Math.max(Date.now() + 1000, TM.endAt + sec * 1000); TM.left = (TM.endAt - Date.now()) / 1000; }
-  else { TM.left = clamp(Math.ceil(TM.left) + sec, 5, 5999); TM.total = TM.left; toolsState().timer = TM.total; saveState(); }
+  else { TM.left = clamp(Math.ceil(TM.left) + sec, 3, 5999); TM.total = TM.left; toolsState().timer = TM.total; saveState(); }
   timerRender();
 }
 function timerReset() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; timerRender(); }
@@ -3124,9 +3194,10 @@ async function timerEdit() {
   const v = await askText('Ilang oras? (hal. 1:30 o 90 para 90 segundo, o 5m)', tmFmt(TM.total), 8); if (v === null) return;
   const s = String(v).trim().toLowerCase();
   let sec = /^\d+:\d{1,2}$/.test(s) ? s.split(':').reduce((m, x) => m * 60 + (+x), 0) : /^\d+(\.\d+)?m$/.test(s) ? Math.round(parseFloat(s) * 60) : parseInt(s, 10);
-  if (!(sec >= 5 && sec <= 5999)) { toast('Ilagay ang oras: 0:05 hanggang 99:59'); return; }
+  if (!(sec >= 3 && sec <= 5999)) { toast('Ilagay ang oras: 0:03 hanggang 99:59'); return; }
   clearInterval(TM.iv); TM.running = false; TM.total = TM.left = sec; toolsState().timer = sec; saveState(); timerRender();
 }
+function timerPreset(sec) { clearInterval(TM.iv); TM.running = false; TM.total = TM.left = sec; toolsState().timer = sec; saveState(); timerRender(); }
 function timerBig() { TM.big = !TM.big; timerRender(); }
 function timerClose() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; $('#gtimer').hidden = true; }
 // Drag the widget by its header (mouse or finger); it remembers where you put it
@@ -3816,7 +3887,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- exports for inline handlers ---------- */
-Object.assign(window, { raffleSetup, raffleNames, raffleMode, raffleShow, raffleGo, diceSetup, diceSet, diceShow, diceRoll, colorSetup, colorToggle, colorShow, colorGo, tlClose, tlFull, tlSettings, tlWinClose, toolsState, timerOpen, timerToggle, timerAdd, timerReset, timerEdit, timerBig, timerClose, cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
+Object.assign(window, { henyoSetup, henyoCat, henyoShow, henyoNext, henyoHide, henyoTimer, timerPreset, raffleSetup, raffleNames, raffleMode, raffleShow, raffleGo, diceSetup, diceSet, diceShow, diceRoll, colorSetup, colorToggle, colorShow, colorGo, tlClose, tlFull, tlSettings, tlWinClose, toolsState, timerOpen, timerToggle, timerAdd, timerReset, timerEdit, timerBig, timerClose, cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,

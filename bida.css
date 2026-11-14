@@ -737,6 +737,33 @@ body.in-sb .mbar, body.in-sb .pl-fab, body.in-sb .pl-panel { display: none !impo
 .cl-mini { display: flex; gap: 8px; }
 .cl-mini span { width: clamp(18px, 2.6vmin, 28px); height: clamp(18px, 2.6vmin, 28px); border-radius: 50%; border: 2px solid #fff; }
 
+/* 3D dice: six faces around the centre of a cube */
+.dice-row { perspective: 1000px; align-items: center; }
+/* a slight tilt so the top and a side always show: it reads as a cube even at rest (the result is the big front face) */
+.die3d-wrap { --s: clamp(84px, 18vmin, 190px); width: var(--s); height: var(--s); margin: calc(var(--s) * .18); transform-style: preserve-3d; transform: rotateX(-22deg) rotateY(28deg); }
+.dice-row .die3d-wrap:nth-child(even) { transform: rotateX(-22deg) rotateY(-26deg); }
+.die3d { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.df { position: absolute; inset: 0; display: grid; place-items: center; background: #FFF6E5; border: 4px solid #1E1A16; border-radius: 16%; backface-visibility: hidden; }
+.df--front { transform: translateZ(calc(var(--s) / 2)); }
+.df--back { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
+.df--right { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); background: #F3E6CC; }
+.df--left { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); background: #F3E6CC; }
+.df--top { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); background: #FFFDF6; }
+.df--bottom { transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); background: #E9D9BC; }
+.df .pips { width: 74%; height: 74%; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 7%; }
+.df .pips i { border-radius: 50%; }
+.df .pips i.on { background: #1E1A16; }
+.df--color span { font: 800 clamp(13px, 2.4vmin, 26px)/1 var(--f2); }
+
+/* Henyo / Charades word card */
+.hy-card { position: relative; width: min(88vw, 1000px); padding: clamp(20px, 4vmin, 44px); background: #FFF6E5; color: var(--ink); border: 6px solid #fff; border-radius: 30px; text-align: center; box-shadow: 10px 10px 0 rgba(0,0,0,.4); }
+.hy-cat { display: inline-block; padding: 8px 24px; border-radius: 99px; background: var(--magenta); color: #fff; border: 3px solid var(--ink); font: 800 clamp(18px, 3.4vmin, 38px)/1.1 var(--f2); }
+.hy-word { margin-top: clamp(14px, 3vmin, 30px); font: 800 clamp(42px, 11vmin, 140px)/1.05 var(--f2); word-break: break-word; min-height: 1.05em; }
+.hy-word.pop { animation: sbPop .4s cubic-bezier(.34,1.56,.64,1); }
+.hy-cover { display: none; position: absolute; left: 18px; right: 18px; bottom: 18px; top: 42%; border-radius: 20px; background: var(--ink); color: #fff; place-items: center; font: 800 clamp(16px, 2.6vmin, 28px)/1.2 var(--f); cursor: pointer; }
+.hy-card.hid .hy-cover { display: grid; }
+.cl-chips small { font-weight: 700; }
+
 /* Floating game timer */
 .gtimer { position: fixed; right: 14px; bottom: calc(var(--mbar-h, 84px) + 14px); z-index: 61; width: 210px; background: #FFF6E5; color: var(--ink); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 5px 5px 0 var(--ink); padding: 6px 8px 8px; touch-action: none; }
 .gtimer[hidden] { display: none; }
@@ -749,6 +776,10 @@ body.in-sb .mbar, body.in-sb .pl-fab, body.in-sb .pl-panel { display: none !impo
 .gt-btns { display: grid; grid-template-columns: 1fr 1.5fr 1fr .8fr; gap: 5px; }
 .gt-btns button { min-height: 34px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; font: 800 13px/1 var(--f); cursor: pointer; color: var(--ink); }
 .gt-btns .gt-play { background: var(--leaf); color: #fff; }
+.gt-presets { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 6px; }
+.gt-presets button { min-height: 26px; padding: 0; border: 1.5px solid var(--ink); border-radius: 8px; background: #fff; font: 800 11.5px/1 var(--f); color: var(--ink); cursor: pointer; }
+.gt-presets button.on { background: var(--gold); }
+.gtimer.big .gt-presets button { min-height: 34px; font-size: 14px; }
 .gtimer.warn { background: #FCE3DE; }
 .gtimer.warn .gt-time { color: var(--chili); }
 .gtimer.done { background: var(--chili); color: #fff; animation: gtFlash .5s steps(2) 6; }
