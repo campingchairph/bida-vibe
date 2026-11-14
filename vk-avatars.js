@@ -67,34 +67,56 @@
   window.vkFace = (it, size) => it && window.vkPhotoOk(it.ph)
     ? `<img class="vk-ph" src="${it.ph}" width="${size}" height="${size}" alt="">`
     : window.vkAvatar(it && it.av, size);
-  // A mouth that opens and closes, laid over a face. The camera guide puts the real mouth at
-  // 50% across / 72% down, and the cartoon avatars have theirs in the same spot.
-  window.vkMouth = () => '<span class="vk-mouth" aria-hidden="true"></span>';
+  /* ---- Mouths: picked on the camera screen, then they open and close on the TV stickman ----
+     Drawn in a 60×36 box. Parts with class "jaw" move; "fix" parts (like a mustache) stay put.
+     The camera guide puts the real mouth at 50% across / 72% down, so the mouth lands on it. */
+  const L = '#1E1A16';
+  window.VK_MOUTHS = [
+    { id: 'lips', name: 'Lips', svg: `<g class="jaw"><path d="M4 18Q16 4 30 10Q44 4 56 18Q44 34 30 32Q16 34 4 18Z" fill="#D7263D" stroke="${L}" stroke-width="2.5"/><path d="M12 18Q30 12 48 18Q30 28 12 18Z" fill="#3A0D12"/></g>` },
+    { id: 'ngiti', name: 'Ngiti', svg: `<g class="jaw"><path d="M4 8H56Q54 34 30 34Q6 34 4 8Z" fill="#3A0D12" stroke="${L}" stroke-width="2.5"/><rect x="10" y="8" width="40" height="7" fill="#fff"/><ellipse cx="30" cy="27" rx="12" ry="5" fill="#E4452B"/></g>` },
+    { id: 'o', name: 'O', svg: `<g class="jaw"><ellipse cx="30" cy="18" rx="15" ry="15" fill="#F4A0B5" stroke="${L}" stroke-width="2.5"/><ellipse cx="30" cy="18" rx="9" ry="10" fill="#3A0D12"/></g>` },
+    { id: 'ngipin', name: 'Ngipin', svg: `<g class="jaw"><path d="M2 10Q30 2 58 10Q52 34 30 34Q8 34 2 10Z" fill="#fff" stroke="${L}" stroke-width="2.5"/><path d="M4 19H56M17 7V33M30 5V34M43 7V33" stroke="${L}" stroke-width="2"/></g>` },
+    { id: 'bigote', name: 'Bigote', svg: `<g class="jaw"><path d="M10 20Q30 15 50 20Q45 34 30 34Q15 34 10 20Z" fill="#3A0D12" stroke="${L}" stroke-width="2.5"/></g><path class="fix" d="M2 14Q14 1 30 10Q46 1 58 14Q48 19 30 14Q12 19 2 14Z" fill="#3B2416" stroke="${L}" stroke-width="2"/>` }
+  ];
+  window.vkMouthOk = id => window.VK_MOUTHS.some(m => m.id === id);
+  const mouthSvg = id => (window.VK_MOUTHS.find(m => m.id === id) || window.VK_MOUTHS[0]).svg;
+  // Talking mouth laid over a face (photo or cartoon)
+  window.vkMouth = id => `<span class="vk-mouth" aria-hidden="true"><svg viewBox="0 0 60 36" overflow="visible">${mouthSvg(id)}</svg></span>`;
 
-  // Opens the front camera, lets them take a selfie, and gives back a 160×160 JPEG (about 8 KB)
+  // Opens the front camera, lets them line up their face with the guide (and the mouth style they
+  // pick), and gives back a 160×160 JPEG (about 8 KB) plus the mouth style: onPhoto(photo, mouth)
   window.vkCamera = function (onPhoto) {
+    let mo = (() => { try { const m = localStorage.getItem('bv_mouth'); return window.vkMouthOk(m) ? m : 'lips'; } catch (e) { return 'lips'; } })();
     const wrap = document.createElement('div');
     wrap.className = 'cam-wrap';
     wrap.innerHTML = `<div class="cam" role="dialog" aria-modal="true" aria-label="Kunan ng picture">
       <div class="cam-view"><video playsinline muted autoplay></video><img alt="" hidden>
         <svg class="cam-guide" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <ellipse cx="50" cy="46" rx="29" ry="37" fill="none" stroke="#fff" stroke-width="1.2" stroke-dasharray="3 2.5"/>
-          <path d="M39 70 Q50 64 61 70 Q50 79 39 70Z" fill="rgba(226,54,122,.35)" stroke="#E2367A" stroke-width="1.4"/>
         </svg>
-        <span class="cam-tip">Ilagay ang mukha sa bilog, at ang bibig sa pink na guhit</span>
+        <span class="cam-mouth" aria-hidden="true"><svg viewBox="0 0 60 36" overflow="visible">${mouthSvg(mo)}</svg></span>
+        <span class="cam-tip">Ilagay ang mukha sa bilog at ang bibig mo sa bibig na nasa screen</span>
         <p class="cam-msg">Binubuksan ang camera…</p></div>
+      <div class="cam-mouths" role="radiogroup" aria-label="Itsura ng bibig">${window.VK_MOUTHS.map(m => `<button type="button" role="radio" data-mo="${m.id}" aria-checked="${m.id === mo}" class="${m.id === mo ? 'on' : ''}"><svg viewBox="0 0 60 36" overflow="visible">${m.svg}</svg><small>${m.name}</small></button>`).join('')}</div>
       <div class="cam-btns"><button type="button" class="btn btn--ghost" data-a="no">Kanselahin</button><button type="button" class="btn btn--chili" data-a="snap" disabled>Kunan</button></div></div>`;
     document.body.appendChild(wrap);
     const video = wrap.querySelector('video'), img = wrap.querySelector('img'), msg = wrap.querySelector('.cam-msg'), btns = wrap.querySelector('.cam-btns');
+    const guide = wrap.querySelector('.cam-guide'), tip = wrap.querySelector('.cam-tip'), mouth = wrap.querySelector('.cam-mouth');
     let stream = null, shot = '';
     const stop = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
     const close = () => { stop(); wrap.remove(); };
-    const guide = wrap.querySelector('.cam-guide'), tip = wrap.querySelector('.cam-tip');
     const live = () => {
-      shot = ''; img.hidden = true; video.hidden = false; guide.style.display = ''; tip.hidden = false;
+      shot = ''; img.hidden = true; video.hidden = false; guide.style.display = ''; tip.hidden = false; mouth.classList.remove('talk');
       btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="no">Kanselahin</button><button type="button" class="btn btn--chili" data-a="snap">Kunan</button>';
     };
     wrap.addEventListener('click', e => {
+      const m = e.target.closest('[data-mo]');
+      if (m) {                      // pick a mouth style
+        mo = m.dataset.mo; try { localStorage.setItem('bv_mouth', mo); } catch (x) { }
+        mouth.querySelector('svg').innerHTML = mouthSvg(mo);
+        wrap.querySelectorAll('[data-mo]').forEach(b => { b.classList.toggle('on', b === m); b.setAttribute('aria-checked', b === m); });
+        return;
+      }
       const a = e.target.closest('[data-a]'); if (!a) { if (e.target === wrap) close(); return; }
       if (a.dataset.a === 'no') close();
       else if (a.dataset.a === 'snap') {
@@ -106,9 +128,10 @@
         while (shot.length > PH_MAX && q > .3) { q -= .1; shot = c.toDataURL('image/jpeg', q); }
         if (!window.vkPhotoOk(shot)) { msg.hidden = false; msg.textContent = 'Hindi nakuha ang picture. Ulitin.'; return; }
         img.src = shot; img.hidden = false; video.hidden = true; guide.style.display = 'none'; tip.hidden = true;
+        mouth.classList.add('talk');             // preview: the picked mouth talking on the photo
         btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="again">Ulitin</button><button type="button" class="btn btn--chili" data-a="use">Gamitin</button>';
       } else if (a.dataset.a === 'again') live();
-      else if (a.dataset.a === 'use') { const p = shot; close(); onPhoto(p); }
+      else if (a.dataset.a === 'use') { const p = shot; close(); onPhoto(p, mo); }
     });
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { msg.textContent = 'Walang camera sa browser na ito. Pumili na lang ng avatar.'; return; }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false })

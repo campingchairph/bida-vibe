@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116b">
+<link rel="stylesheet" href="bida.css?v=20261116f">
 <style>
   body { background: var(--cream); min-height: 100vh; }
   .sg { max-width: 640px; margin: 0 auto; padding: 14px 12px 50px; }
@@ -75,7 +75,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116b"></script>
+<script src="vk-avatars.js?v=20261116f"></script>
 <script>
 /* Bida-Vibe guest page: a family member opens the host's link, sets a name and a selfie/avatar,
    and adds songs. They can't see or change anything else in the host's app — the Firestore rules
@@ -99,6 +99,7 @@
   S.me.name = String(S.me.name || '').slice(0, 24);
   if (!VK_AVATARS.some(a => a.id === S.me.av)) S.me.av = '';
   if (!vkPhotoOk(S.me.ph)) S.me.ph = '';
+  if (!vkMouthOk(S.me.mo)) S.me.mo = '';
   if (!Array.isArray(S.sent)) S.sent = [];               // [{c, at}] songs this phone sent to this room
   const saveMe = () => store.set('bidavibe_guest', S.me);
   const ready = () => S.me.name.trim() && (S.me.av || S.me.ph);
@@ -143,8 +144,8 @@
     $('#sg-val').onchange = e => { S.val = e.target.value; S.page = 0; results(); };
     $('#sg-avs').onclick = e => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.cam) { vkCamera(p => { S.me.ph = p; saveMe(); S.pickOpen = false; meHTML(); pickHTML(); }); return; }
-      S.me.av = b.dataset.av; S.me.ph = ''; saveMe(); S.pickOpen = false; meHTML(); pickHTML();
+      if (b.dataset.cam) { vkCamera((p, m) => { S.me.ph = p; S.me.mo = m; saveMe(); S.pickOpen = false; meHTML(); pickHTML(); }); return; }
+      S.me.av = b.dataset.av; S.me.ph = ''; S.me.mo = ''; saveMe(); S.pickOpen = false; meHTML(); pickHTML();
     };
     $('#sg-res').onclick = e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -214,7 +215,7 @@
     try {
       await db.collection('vk_rooms').doc(room).collection('requests').add({
         name: S.me.name.trim(), av: S.me.av || vkAvatarFor(S.me.name), c: s.c, t: s.t, a: s.a, y: s.y,
-        ...(vkPhotoOk(S.me.ph) ? { ph: S.me.ph } : {}), at: firebase.firestore.FieldValue.serverTimestamp() });
+        ...(vkPhotoOk(S.me.ph) ? { ph: S.me.ph, ...(vkMouthOk(S.me.mo) ? { mo: S.me.mo } : {}) } : {}), at: firebase.firestore.FieldValue.serverTimestamp() });
       S.sent.push({ c: s.c, at: Date.now() }); store.set('bidavibe_guest_sent_' + room, S.sent);
       toast(`Sent na: ${s.t}! Lalabas sa pila in a few seconds.`);
     } catch (e) { S.lastAdd = 0; toast('Hindi na-send. Baka sarado na ang link, try ulit.'); }

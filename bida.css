@@ -687,12 +687,76 @@ body.in-sb .mbar, body.in-sb .pl-fab, body.in-sb .pl-panel { display: none !impo
 .cam-tip { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 6px 10px; border-radius: 10px; background: rgba(30,26,22,.72); color: #fff; font: 700 12.5px/1.3 var(--f); text-align: center; }
 .cam-tip[hidden] { display: none; }
 
-/* Talking mouth over the stickman's face (photo or avatar) */
+/* Mouths: picked on the camera; only the "jaw" part moves (a mustache stays put) */
 .vk-sm-head { overflow: visible; }
-.vk-mouth { position: absolute; left: 50%; top: 72%; width: 26%; height: 15%; transform: translate(-50%, -50%) scaleY(.2); border-radius: 50%;
-  background: #4A1B1B; border: 2px solid var(--ink); box-shadow: inset 0 -3px 0 #E4452B; animation: vkTalk .32s ease-in-out infinite alternate; }
-@keyframes vkTalk { 0% { transform: translate(-50%, -50%) scaleY(.15); } 60% { transform: translate(-50%, -50%) scaleY(.9); } 100% { transform: translate(-50%, -50%) scaleY(.45); } }
-@media (prefers-reduced-motion: reduce) { .vk-mouth { animation-duration: 1s; } }
+.vk-mouth, .cam-mouth { position: absolute; left: 50%; top: 72%; width: 34%; transform: translate(-50%, -50%); pointer-events: none; }
+.vk-mouth svg, .cam-mouth svg { display: block; width: 100%; height: auto; overflow: visible; }
+.vk-mouth .jaw, .cam-mouth.talk .jaw { transform-box: fill-box; transform-origin: 50% 25%; animation: vkJaw .32s ease-in-out infinite alternate; }
+@keyframes vkJaw { 0% { transform: scaleY(.25); } 60% { transform: scaleY(1); } 100% { transform: scaleY(.55); } }
+.cam-mouth { width: 30%; opacity: .9; }
+.cam-mouths { display: flex; gap: 6px; margin-top: 10px; justify-content: center; flex-wrap: wrap; }
+.cam-mouths button { width: 62px; padding: 6px 4px 4px; border: 2px solid transparent; border-radius: 12px; background: #fff; cursor: pointer; display: grid; justify-items: center; gap: 3px; }
+.cam-mouths button.on { border-color: var(--ink); background: var(--gold); }
+.cam-mouths svg { width: 40px; height: 24px; overflow: visible; }
+.cam-mouths small { font: 800 10.5px/1 var(--f); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .vk-mouth .jaw, .cam-mouth.talk .jaw { animation-duration: 1s; } }
+/* Game tools row (Games tab) */
+.tools-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 4px 0 14px; }
+.tools-row button { display: grid; justify-items: center; gap: 6px; padding: 10px 4px 8px; border: 2.5px solid var(--ink); border-radius: 16px; background: #fff; color: var(--ink); font: 800 13px/1.1 var(--f); cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+.tools-row button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.tr-ic { width: 40px; height: 40px; border-radius: 12px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 22px; color: var(--ink); }
+.tr-ic .ic { width: 22px; height: 22px; }
+@media (max-width: 420px) { .tools-row { gap: 5px; } .tools-row button { font-size: 11.5px; padding: 8px 2px 6px; } .tr-ic { width: 34px; height: 34px; font-size: 19px; } }
+
+/* Big TV view for raffle / dice / colours */
+.tl-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(12px, 3vmin, 30px); padding: clamp(12px, 3vmin, 30px); min-height: 0; overflow: hidden; }
+.tl-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.tl-go { font-size: clamp(18px, 3vmin, 30px) !important; min-height: clamp(52px, 8vmin, 80px); padding: 0 clamp(22px, 4vmin, 44px) !important; }
+.tl-note { font: 700 clamp(13px, 1.8vmin, 18px)/1 var(--f); color: rgba(255,255,255,.75); }
+.tl-empty { font: 700 clamp(16px, 2.6vmin, 26px)/1.4 var(--f); text-align: center; max-width: 640px; color: #fff; }
+.rf-wheel-wrap { position: relative; width: min(64vmin, 92vw); aspect-ratio: 1; }
+.rf-wheel-wrap canvas { width: 100%; height: 100%; display: block; }
+.rf-pointer { position: absolute; left: 50%; top: -3%; width: 0; height: 0; transform: translateX(-50%); border-left: clamp(14px, 2.6vmin, 26px) solid transparent; border-right: clamp(14px, 2.6vmin, 26px) solid transparent; border-top: clamp(26px, 4.6vmin, 46px) solid #FFF6E5; filter: drop-shadow(0 3px 0 #1E1A16); }
+.rf-shuffle { min-width: min(80vw, 900px); padding: clamp(18px, 4vmin, 40px) 24px; text-align: center; background: #FFF6E5; color: var(--ink); border: 5px solid #fff; border-radius: 26px; font: 800 clamp(40px, 10vmin, 120px)/1.05 var(--f2); word-break: break-word; box-shadow: 10px 10px 0 rgba(0,0,0,.4); }
+.rf-shuffle.pop { animation: sbPop .18s ease-out; }
+.dice-row { display: flex; gap: clamp(12px, 3vmin, 34px); flex-wrap: wrap; justify-content: center; }
+.die { width: clamp(80px, 18vmin, 190px); aspect-ratio: 1; background: #FFF6E5; border: 5px solid #fff; border-radius: 22%; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 12%; gap: 4%; box-shadow: 8px 8px 0 rgba(0,0,0,.4); }
+.die i { border-radius: 50%; }
+.die i.on { background: var(--ink); }
+.die--color { display: grid; place-items: center; padding: 6%; font: 800 clamp(14px, 2.6vmin, 28px)/1 var(--f2); }
+.dice-row.rolling .die { animation: dieShake .14s linear infinite alternate; }
+@keyframes dieShake { from { transform: rotate(-12deg) translateY(-6px); } to { transform: rotate(12deg) translateY(4px); } }
+.dice-sum { font: 800 clamp(26px, 6vmin, 64px)/1.1 var(--f2); color: var(--gold); text-align: center; min-height: 1.1em; }
+.cl-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.cl-chips button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 2px solid var(--ink); border-radius: 99px; background: #fff; font: 800 13px/1 var(--f); cursor: pointer; opacity: .5; }
+.cl-chips button.on { opacity: 1; background: var(--gold); }
+.cl-chips span { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--ink); }
+.cl-big { width: min(80vw, 900px); height: min(48vh, 520px); border-radius: 30px; border: 6px solid #fff; background: #2C2C2A; color: #fff; display: grid; place-items: center; box-shadow: 10px 10px 0 rgba(0,0,0,.4); }
+.cl-big span { font: 800 clamp(48px, 12vmin, 150px)/1 var(--f2); text-shadow: 3px 3px 0 rgba(0,0,0,.25); }
+.cl-big.pop { animation: sbPop .4s cubic-bezier(.34,1.56,.64,1); }
+.cl-mini { display: flex; gap: 8px; }
+.cl-mini span { width: clamp(18px, 2.6vmin, 28px); height: clamp(18px, 2.6vmin, 28px); border-radius: 50%; border: 2px solid #fff; }
+
+/* Floating game timer */
+.gtimer { position: fixed; right: 14px; bottom: calc(var(--mbar-h, 84px) + 14px); z-index: 61; width: 210px; background: #FFF6E5; color: var(--ink); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 5px 5px 0 var(--ink); padding: 6px 8px 8px; touch-action: none; }
+.gtimer[hidden] { display: none; }
+.gt-head { display: flex; align-items: center; gap: 6px; cursor: grab; user-select: none; }
+.gt-head b { flex: 1; font: 800 13px/1 var(--f); }
+.gt-grip { font-size: 14px; color: var(--ink-3); letter-spacing: -2px; }
+.gt-head button { width: 26px; height: 26px; border: 0; background: none; cursor: pointer; display: grid; place-items: center; font: 800 16px/1 var(--f); color: var(--ink); padding: 0; }
+.gt-head .ic { width: 15px; height: 15px; }
+.gt-time { display: block; width: 100%; border: 0; background: none; cursor: pointer; text-align: center; font: 800 46px/1.05 var(--f2); color: var(--ink); font-variant-numeric: tabular-nums; padding: 2px 0 4px; }
+.gt-btns { display: grid; grid-template-columns: 1fr 1.5fr 1fr .8fr; gap: 5px; }
+.gt-btns button { min-height: 34px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; font: 800 13px/1 var(--f); cursor: pointer; color: var(--ink); }
+.gt-btns .gt-play { background: var(--leaf); color: #fff; }
+.gtimer.warn { background: #FCE3DE; }
+.gtimer.warn .gt-time { color: var(--chili); }
+.gtimer.done { background: var(--chili); color: #fff; animation: gtFlash .5s steps(2) 6; }
+.gtimer.done .gt-time, .gtimer.done .gt-head b, .gtimer.done .gt-head button { color: #fff; }
+@keyframes gtFlash { 50% { background: var(--gold); } }
+.gtimer.big { width: min(440px, 92vw); }
+.gtimer.big .gt-time { font-size: clamp(70px, 14vmin, 140px); }
+body.in-vk .gtimer, body.in-sb .gtimer { bottom: 14px; }
 
 /* Guest link card + Brave tip */
 .vk-q .vk-qav { flex: none; display: grid; }

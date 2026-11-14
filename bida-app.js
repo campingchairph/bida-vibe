@@ -1034,8 +1034,14 @@ function renderGames() {
   const list = BIDA_GAMES.filter(gameMatch);
   $('#panel-games').innerHTML = `
     <div class="panel-head"><div><h2>Mga Laro</h2>
-      <p>May animation, gamit at steps bawat laro. I-tap para makita, tapos i-add sa activities.</p></div>
-      <button class="btn btn--chili" onclick="sbSetup()">${ic('trophy')}Scoreboard</button></div>
+      <p>May animation, gamit at steps bawat laro. I-tap para makita, tapos i-add sa activities.</p></div></div>
+    <div class="tools-row" role="group" aria-label="Game tools">
+      <button onclick="sbSetup()"><span class="tr-ic" style="background:var(--gold)">${ic('trophy')}</span>Scoreboard</button>
+      <button onclick="raffleSetup()"><span class="tr-ic" style="background:var(--magenta)">🎟️</span>Raffle</button>
+      <button onclick="timerOpen()"><span class="tr-ic" style="background:var(--turq)">⏱️</span>Timer</button>
+      <button onclick="diceSetup()"><span class="tr-ic" style="background:#fff">🎲</span>Dice</button>
+      <button onclick="colorSetup()"><span class="tr-ic" style="background:var(--leaf)">🎨</span>Kulay</button>
+    </div>
     <div class="game-filters">${GAME_FILTERS.map(([id, l]) => `<button class="chip ${gameFilter === id ? 'on' : ''}" onclick="setGameFilter('${id}')">${l}</button>`).join('')}</div>
     <div class="game-grid">${list.map(g => `
       <button class="gcard" onclick="openGame('${g.id}')">
@@ -2244,7 +2250,7 @@ function vkState() {
   const v = BIDA.vk && typeof BIDA.vk === 'object' ? BIDA.vk : {};
   vkChecked = BIDA.vk = {
     queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)).slice(0, 12), c: q.c, singer: String(q.singer || '').slice(0, 30),
-      av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', src: q.src === 'guest' ? 'guest' : '' })),
+      av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', mo: vkMouthOk(q.mo) ? q.mo : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
     score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30), lastAv: /^[a-z]{2,10}$/.test(v.lastAv) ? v.lastAv : '',
     room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
@@ -2380,11 +2386,11 @@ function vkArtistList(q) {
 }
 function vkSetArtistIdx(i) { const a = VK.artistList[i]; if (a) vkSetArtist(a.k); }
 // Host reserves for someone: their name, plus an avatar or a photo (camera with the mouth guide)
-const VKP = { c: 0, av: '', ph: '' };
+const VKP = { c: 0, av: '', ph: '', mo: '' };
 function vkReserve(c) {
   const s = vkSong(c); if (!s) return;
   const v = vkState();
-  Object.assign(VKP, { c, av: '', ph: '' });      // nothing picked = the singer's own default avatar
+  Object.assign(VKP, { c, av: '', ph: '', mo: '' });      // nothing picked = the singer's own default avatar
   openSheet(`<div class="sheet-head"><div><span class="kicker">I-reserve</span><h3>${esc(s.t)}</h3></div><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="field"><label for="rv-name">Sino ang kakanta?</label>
       <input class="input" id="rv-name" maxlength="24" value="${esc(v.lastSinger || '')}" placeholder="hal. Tita Baby" autocomplete="off" onkeydown="if(event.key==='Enter')vkReserveGo()"></div>
@@ -2397,12 +2403,12 @@ function vkPickHTML() {
   return `<button type="button" class="rv-cam ${VKP.ph ? 'on' : ''}" onclick="vkPickCam()" aria-label="Kunan ng picture">${VKP.ph ? vkFace({ ph: VKP.ph }, 44) : '<span>📷</span>'}</button>`
     + VK_AVATARS.map(a => `<button type="button" class="${!VKP.ph && VKP.av === a.id ? 'on' : ''}" onclick="vkPickAv('${a.id}')" aria-label="${esc(a.name)}">${a.svg(44)}</button>`).join('');
 }
-function vkPickAv(id) { VKP.av = id; VKP.ph = ''; const b = $('#rv-avs'); if (b) b.innerHTML = vkPickHTML(); }
-function vkPickCam() { vkCamera(p => { VKP.ph = p; const b = $('#rv-avs'); if (b) b.innerHTML = vkPickHTML(); }); }
+function vkPickAv(id) { VKP.av = id; VKP.ph = ''; VKP.mo = ''; const b = $('#rv-avs'); if (b) b.innerHTML = vkPickHTML(); }
+function vkPickCam() { vkCamera((p, m) => { VKP.ph = p; VKP.mo = m; const b = $('#rv-avs'); if (b) b.innerHTML = vkPickHTML(); }); }
 function vkReserveGo() {
   const s = vkSong(VKP.c); if (!s) return;
   const v = vkState(), singer = (($('#rv-name') || {}).value || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
-  v.queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av: VKP.av || (singer === v.lastSinger && v.lastAv) || vkAvatarFor(singer), ph: vkPhotoOk(VKP.ph) ? VKP.ph : '', src: '' });
+  v.queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av: VKP.av || (singer === v.lastSinger && v.lastAv) || vkAvatarFor(singer), ph: vkPhotoOk(VKP.ph) ? VKP.ph : '', mo: vkMouthOk(VKP.mo) ? VKP.mo : '', src: '' });
   v.lastSinger = singer; v.lastAv = v.queue[v.queue.length - 1].av;
   closeSheet(); saveState(); toast(`Na-reserve: ${s.t} — ${singer}`);
   if (BIDA.tab === 'videoke') renderVideoke();
@@ -2633,7 +2639,7 @@ async function vkListen() {
       ch.doc.ref.delete().catch(() => { });
       if (!s) return;                                                      // not from our library: ignored
       const singer = String(d.name || 'Bisita').slice(0, 24), av = VK_AVATARS.some(a => a.id === d.av) ? d.av : vkAvatarFor(singer);
-      vkState().queue.push({ id: ch.doc.id.slice(0, 9), c: s.c, singer, av, ph: vkPhotoOk(d.ph) ? d.ph : '', src: 'guest' });
+      vkState().queue.push({ id: ch.doc.id.slice(0, 9), c: s.c, singer, av, ph: vkPhotoOk(d.ph) ? d.ph : '', mo: vkMouthOk(d.mo) ? d.mo : '', src: 'guest' });
       saveState(); toast(`${singer} nag-reserve: ${s.t}`);
       if (BIDA.tab === 'videoke' && !$('#app').hidden) renderVideoke();
       if (!$('#vk-stage').hidden) { vkStageInfo(); if (!VK.cur) vkNext(); }
@@ -2646,7 +2652,7 @@ function vkPublish() {
   clearTimeout(VKR.pubT);
   VKR.pubT = setTimeout(() => {
     const fs = vkFs(); if (!fs || !vkRoomValid()) return;
-    const item = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), ph: vkPhotoOk(it.ph) ? it.ph : '', t: s ? s.t : 'Kanta', c: it.c }; };
+    const item = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), ph: vkPhotoOk(it.ph) ? it.ph : '', mo: vkMouthOk(it.mo) ? it.mo : '', t: s ? s.t : 'Kanta', c: it.c }; };
     fs.collection('vk_rooms').doc(BIDA.vk.room.id).update({
       queue: vkState().queue.slice(0, 40).map(item), now: VK.cur ? item(VK.cur) : null,
       title: String(BIDA.event.name || eventType().label).slice(0, 90), updated: firebase.firestore.FieldValue.serverTimestamp()
@@ -2691,7 +2697,7 @@ addEventListener('resize', () => { clearTimeout(VK.frT); VK.frT = setTimeout(vkD
 function vkSinger() {
   const el = $('#vk-singer'), it = VK.cur;
   if (!it || !vkSong(it.c)) { el.hidden = true; el.dataset.k = ''; return; }
-  const k = it.id + '|' + (it.ph ? 'p' : it.av);
+  const k = it.id + '|' + (it.ph ? 'p' + it.mo : it.av);
   if (el.dataset.k === k && !el.hidden) return;         // same singer: keep the animation running
   el.dataset.k = k;
   el.innerHTML = `<div class="vk-sm-wrap">
@@ -2702,7 +2708,7 @@ function vkSinger() {
         </g>`).join('')}
         <g transform="rotate(-24 92 82)"><rect x="86" y="68" width="12" height="24" rx="5" fill="#1E1A16" stroke="#FFF6E5" stroke-width="2"/><circle cx="92" cy="68" r="8.5" fill="#5F5E5A" stroke="#1E1A16" stroke-width="3"/></g>
       </svg>
-      <div class="vk-sm-head">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, 80)}${vkMouth()}</div>
+      <div class="vk-sm-head">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, 80)}${vkMouth(it.ph ? it.mo : 'o')}</div>
     </div>
     <div class="vk-notes" aria-hidden="true"><i>♪</i><i>♫</i><i>♪</i><i>♬</i><i>♫</i></div>`;
   el.hidden = false;
@@ -2732,6 +2738,14 @@ function vkSfx(kind) {
       for (let i = 0; i < 22; i++) vkNoise(t + .75 + i * .045, .05, .05 + i * .006);                    // snare roll
     } else if (kind === 'tick') {
       vkTone(659.25, t, .16, 'square', .1); vkTone(1318.5, t, .1, 'triangle', .12);
+    } else if (kind === 'tick2') {                                  // soft click (wheel, shuffle)
+      vkTone(1200, t, .05, 'square', .05);
+    } else if (kind === 'rattle') {                                 // dice shaking
+      for (let i = 0; i < 4; i++) vkNoise(t + i * .03, .04, .12);
+    } else if (kind === 'roll') {                                   // drum roll while the raffle spins
+      for (let i = 0; i < 60; i++) vkNoise(t + i * .07, .06, .04 + (i / 60) * .08);
+    } else if (kind === 'buzz') {                                   // time's up
+      vkTone(110, t, .9, 'sawtooth', .18); vkTone(165, t, .9, 'square', .08); vkTone(110, t + 1, .9, 'sawtooth', .18);
     } else if (kind === 'go') {
       [523.25, 659.25, 783.99, 1046.5].forEach(f => vkTone(f, t, 1, 'sawtooth', .05));                  // big chord
       vkTone(2093, t + .05, .5, 'triangle', .1); vkNoise(t, .25, .25);
@@ -2844,6 +2858,289 @@ addEventListener('keydown', e => {
 });
 
 /* ============================================================
+   GAME TOOLS — raffle (wheel or name shuffle), dice, colour randomizer
+   (shown big on the TV) and a floating game timer.
+   ============================================================ */
+const TOOL_COLORS = [['Pula', '#E4452B'], ['Asul', '#1F6FD1'], ['Dilaw', '#F6B21B'], ['Berde', '#3E9B4F'], ['Pink', '#E2367A'],
+  ['Lila', '#7B4FBF'], ['Kahel', '#F28C28'], ['Turquoise', '#0FA3A3'], ['Puti', '#FFFFFF'], ['Itim', '#1E1A16']];
+const TL = { kind: '', busy: false, angle: 0 };
+let toolsChecked = null;   // saved data is untrusted: check it once, then keep using the same object
+function toolsState() {
+  if (BIDA.tools && BIDA.tools === toolsChecked) return BIDA.tools;
+  const t = BIDA.tools && typeof BIDA.tools === 'object' ? BIDA.tools : {};
+  const d = t.dice && typeof t.dice === 'object' ? t.dice : {};
+  BIDA.tools = {
+    names: (Array.isArray(t.names) ? t.names : []).map(n => String(n).replace(/\s+/g, ' ').trim().slice(0, 30)).filter(Boolean).slice(0, 300),
+    rmode: t.rmode === 'shuffle' ? 'shuffle' : 'wheel', remove: t.remove !== false,
+    dice: { n: clamp(parseInt(d.n, 10) || 2, 1, 6), kind: d.kind === 'color' ? 'color' : 'num' },
+    colors: (Array.isArray(t.colors) ? t.colors : [0, 1, 2, 3, 4, 5]).filter(i => Number.isInteger(i) && TOOL_COLORS[i]).slice(0, TOOL_COLORS.length),
+    timer: clamp(parseInt(t.timer, 10) || 60, 5, 5999)
+  };
+  if (BIDA.tools.colors.length < 2) BIDA.tools.colors = [0, 1, 2, 3, 4, 5];
+  return (toolsChecked = BIDA.tools);
+}
+const tlRand = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;    // fair draw, no repeats bias
+const tlDark = hex => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 299 + ((n >> 8 & 255) * 587) + (n & 255) * 114) / 1000 < 150; };
+const tlWait = ms => new Promise(r => setTimeout(r, ms));
+
+// The big TV view shared by raffle, dice and colours
+function tlOpen(kind, title, body) {
+  TL.kind = kind;
+  const el = $('#tl-stage');
+  el.innerHTML = `<div class="sb-bar">
+      <button class="btn btn--ghost btn--sm sb-light" onclick="tlClose()">${ic('x')}Exit</button>
+      <b class="sb-title">${esc(title)}</b>
+      <div class="sb-acts"><button class="btn btn--ghost btn--sm sb-light" onclick="tlSettings()">Settings</button>
+        <button class="btn btn--ghost btn--sm sb-light" onclick="tlFull()">Full screen</button></div></div>
+    <div class="tl-body" id="tl-body">${body}</div>
+    <div class="sb-win" id="tl-win" hidden onclick="tlWinClose()"></div>`;
+  el.hidden = false; document.body.classList.add('in-sb'); document.body.style.overflow = 'hidden';
+}
+function tlClose() {
+  TL.busy = false; $('#tl-stage').hidden = true;
+  if ($('#sb-stage').hidden) document.body.classList.remove('in-sb');
+  if ($('#vk-stage').hidden && $('#sb-stage').hidden && $('#live').hidden) document.body.style.overflow = '';
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+}
+function tlFull() { const s = $('#tl-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser ang full screen')); }
+function tlSettings() { if (TL.kind === 'raffle') raffleSetup(); else if (TL.kind === 'dice') diceSetup(); else if (TL.kind === 'color') colorSetup(); }
+function tlWinner(tag, name, sub, color) {
+  const conf = [...Array(40)].map((_, i) => `<i style="--x:${(i * 37) % 100};--d:${(i % 9) * .12}s;--c:${SB_COLORS[i % 6]};--r:${(i * 53) % 360}deg"></i>`).join('');
+  const el = $('#tl-win');
+  el.innerHTML = `<div class="vki-rays"></div><div class="vki-conf">${conf}</div><div class="sb-win-card">
+    <div class="vki-tag">${esc(tag)}</div><div class="sb-win-name" style="${color ? `color:${color}` : 'color:var(--chili)'}">${esc(name)}</div>
+    ${sub ? `<div class="sb-win-score">${esc(sub)}</div>` : ''}<small>I-tap para isara</small></div>`;
+  el.hidden = false; vkSfx('go'); vkPlayPad(/palakpak|applause|clap|ta-?da/i);
+}
+function tlWinClose() { $('#tl-win').hidden = true; if (TL.kind === 'raffle') raffleShow(); }
+
+/* ---- Raffle ---- */
+function raffleSetup() {
+  const t = toolsState();
+  openSheet(`<div class="sheet-head"><h3>Raffle</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <div class="field"><label for="rf-names">Mga kasali <small class="muted" id="rf-count">(${t.names.length})</small></label>
+      <textarea class="input" id="rf-names" rows="7" placeholder="Isang pangalan bawat linya&#10;hal.&#10;Tita Baby&#10;Kuya Jun&#10;Lolo Ben" oninput="raffleNames(this.value)">${esc(t.names.join('\n'))}</textarea></div>
+    <span class="field-label" style="display:block;margin-top:12px">Paano bubunutin</span>
+    <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">
+      <button class="${t.rmode === 'wheel' ? 'on' : ''}" onclick="raffleMode('wheel')">Roleta</button>
+      <button class="${t.rmode === 'shuffle' ? 'on' : ''}" onclick="raffleMode('shuffle')">Pangalan na umiikot</button></div>
+    <label class="toggle" style="margin-top:12px"><input type="checkbox" ${t.remove ? 'checked' : ''} onchange="toolsState().remove=this.checked;saveState()">Alisin sa listahan ang nanalo</label>
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();raffleShow()">${ic('play')}Ipakita sa TV</button>`);
+}
+function raffleNames(v) {
+  const t = toolsState(); t.names = v.split(/\n|,/).map(s => s.replace(/\s+/g, ' ').trim().slice(0, 30)).filter(Boolean).slice(0, 300); saveState();
+  const c = $('#rf-count'); if (c) c.textContent = `(${t.names.length})`;
+  if (!$('#tl-stage').hidden && TL.kind === 'raffle' && !TL.busy) raffleShow();
+}
+function raffleMode(m) { toolsState().rmode = m; saveState(); raffleSetup(); if (!$('#tl-stage').hidden && TL.kind === 'raffle') raffleShow(); }
+function raffleShow() {
+  const t = toolsState(), n = t.names.length;
+  const empty = n < 2 ? `<p class="tl-empty">Kailangan ng 2 o higit pang pangalan. Pindutin ang <b>Settings</b> para maglagay.</p>` : '';
+  const body = t.rmode === 'wheel'
+    ? `<div class="rf-wheel-wrap"><canvas id="rf-wheel" width="900" height="900"></canvas><div class="rf-pointer"></div></div>`
+    : `<div class="rf-shuffle" id="rf-name">${n ? esc(t.names[0]) : '—'}</div>`;
+  if ($('#tl-stage').hidden || TL.kind !== 'raffle') tlOpen('raffle', 'Raffle', '');
+  $('#tl-body').innerHTML = `${empty || body}<div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="raffleGo()" ${n < 2 ? 'disabled' : ''}>${t.rmode === 'wheel' ? 'I-spin!' : 'Bunot na!'}</button>
+    <span class="tl-note">${n} kasali</span></div>`;
+  if (t.rmode === 'wheel' && n >= 2) raffleDraw(TL.angle);
+}
+function raffleDraw(rot) {
+  const cv = $('#rf-wheel'); if (!cv) return;
+  const names = toolsState().names, n = names.length, x = cv.getContext('2d'), R = 440, c = 450, seg = Math.PI * 2 / n;
+  const cols = ['#E2367A', '#F6B21B', '#0FA3A3', '#E4452B', '#3E9B4F', '#7B4FBF'];
+  x.clearRect(0, 0, 900, 900);
+  for (let i = 0; i < n; i++) {
+    const a0 = rot + i * seg - Math.PI / 2;
+    x.beginPath(); x.moveTo(c, c); x.arc(c, c, R, a0, a0 + seg); x.closePath();
+    let ci = i % cols.length; if (i === n - 1 && ci === 0 && n > 1) ci = 2;      // last slice never matches the first
+    x.fillStyle = cols[ci]; x.fill();
+    x.lineWidth = 3; x.strokeStyle = '#1E1A16'; x.stroke();
+    x.save(); x.translate(c, c); x.rotate(a0 + seg / 2); x.textAlign = 'right'; x.textBaseline = 'middle';
+    const fs = Math.max(14, Math.min(46, seg * R * .55)); x.font = `800 ${fs}px "Bricolage Grotesque", sans-serif`;
+    x.fillStyle = '#fff'; x.strokeStyle = 'rgba(30,26,22,.85)'; x.lineWidth = fs / 6;
+    const label = names[i].length > 18 ? names[i].slice(0, 17) + '…' : names[i];
+    x.strokeText(label, R - 22, 0); x.fillText(label, R - 22, 0); x.restore();
+  }
+  x.beginPath(); x.arc(c, c, 52, 0, 7); x.fillStyle = '#FFF6E5'; x.fill(); x.lineWidth = 8; x.strokeStyle = '#1E1A16'; x.stroke();
+  x.beginPath(); x.arc(c, c, R, 0, 7); x.lineWidth = 10; x.stroke();
+}
+async function raffleGo() {
+  const t = toolsState(), names = t.names.slice(), n = names.length;
+  if (TL.busy || n < 2) return; TL.busy = true;
+  $$('.tl-go').forEach(b => b.disabled = true);
+  const win = tlRand(n);
+  vkSfx('roll');
+  if (t.rmode === 'wheel') {
+    const TAU = Math.PI * 2, seg = TAU / n, start = TL.angle % TAU;
+    // The slice under the top pointer is the one where angle + (i + .5)·seg ≡ 0, so aim there
+    // (with a little wobble inside the slice) after at least 7 full turns
+    const target = -(win + .5) * seg + (Math.random() - .5) * seg * .6;
+    const end = target + TAU * Math.ceil((start + TAU * 7 - target) / TAU);
+    const total = end - start, dur = 5200, t0 = performance.now(); let lastSeg = -1;
+    await new Promise(done => {
+      const step = () => {
+        if (!TL.busy) return done();
+        const k = Math.min(1, (performance.now() - t0) / dur), e = 1 - Math.pow(1 - k, 4);
+        TL.angle = start + total * e; raffleDraw(TL.angle);
+        const segNow = Math.floor((((-TL.angle) % TAU) + TAU) % TAU / seg);
+        if (segNow !== lastSeg) { lastSeg = segNow; vkSfx('tick2'); }
+        k < 1 ? setTimeout(step, 16) : done();          // a timer, so it also runs if the screen is in the background
+      };
+      setTimeout(step, 16);
+    });
+  } else {
+    const el = $('#rf-name'); let delay = 50;
+    while (delay < 420 && TL.busy) {
+      el.textContent = names[tlRand(n)]; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); vkSfx('tick2');
+      await tlWait(delay); delay *= 1.12;
+    }
+    el.textContent = names[win];
+  }
+  if (!TL.busy) return;
+  TL.busy = false;
+  tlWinner('Panalo!', names[win], n > 2 && t.remove ? `${n - 1} pang natitira sa raffle` : '');
+  if (t.remove) { t.names.splice(t.names.indexOf(names[win]), 1); saveState(); }
+}
+
+/* ---- Dice ---- */
+const DICE_PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+function diceSetup() {
+  const d = toolsState().dice;
+  openSheet(`<div class="sheet-head"><h3>Dice</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <span class="field-label" style="display:block">Klase ng dice</span>
+    <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">
+      <button class="${d.kind === 'num' ? 'on' : ''}" onclick="diceSet('kind','num')">May numero (1–6)</button>
+      <button class="${d.kind === 'color' ? 'on' : ''}" onclick="diceSet('kind','color')">May kulay</button></div>
+    <span class="field-label" style="display:block;margin-top:14px">Ilang dice</span>
+    <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">${[1, 2, 3, 4, 5, 6].map(k => `<button class="${d.n === k ? 'on' : ''}" onclick="diceSet('n',${k})">${k}</button>`).join('')}</div>
+    ${d.kind === 'color' ? '<p class="muted" style="margin-top:10px">Ang mga kulay ay galing sa Color randomizer settings.</p>' : ''}
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();diceShow()">${ic('play')}Ipakita sa TV</button>`);
+}
+function diceSet(k, v) { toolsState().dice[k] = v; saveState(); diceSetup(); if (!$('#tl-stage').hidden && TL.kind === 'dice') diceShow(); }
+function dieHTML(val, kind) {
+  if (kind === 'color') { const [nm, hex] = TOOL_COLORS[val]; return `<div class="die die--color" style="background:${hex};color:${tlDark(hex) ? '#fff' : '#1E1A16'}"><span>${nm}</span></div>`; }
+  return `<div class="die">${[...Array(9)].map((_, i) => `<i class="${DICE_PIPS[val].includes(i) ? 'on' : ''}"></i>`).join('')}</div>`;
+}
+function diceFace(kind) { return kind === 'color' ? toolsState().colors[tlRand(toolsState().colors.length)] : 1 + tlRand(6); }
+function diceShow() {
+  const d = toolsState().dice;
+  if ($('#tl-stage').hidden || TL.kind !== 'dice') tlOpen('dice', 'Dice', '');
+  const faces = [...Array(d.n)].map(() => diceFace(d.kind));
+  $('#tl-body').innerHTML = `<div class="dice-row" id="dice-row">${faces.map(f => dieHTML(f, d.kind)).join('')}</div>
+    <div class="dice-sum" id="dice-sum">&nbsp;</div>
+    <div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="diceRoll()">I-roll!</button>
+    <span class="tl-note">${d.n} dice · ${d.kind === 'color' ? 'kulay' : 'numero'}</span></div>`;
+}
+async function diceRoll() {
+  const d = toolsState().dice; if (TL.busy) return; TL.busy = true;
+  $$('.tl-go').forEach(b => b.disabled = true); $('#dice-sum').innerHTML = '&nbsp;';
+  const row = $('#dice-row'); row.classList.add('rolling');
+  for (let i = 0; i < 12 && TL.busy; i++) {
+    row.innerHTML = [...Array(d.n)].map(() => dieHTML(diceFace(d.kind), d.kind)).join('');
+    if (i % 2 === 0) vkSfx('rattle');
+    await tlWait(70 + i * 8);
+  }
+  const final = [...Array(d.n)].map(() => diceFace(d.kind));
+  row.classList.remove('rolling'); row.innerHTML = final.map(f => dieHTML(f, d.kind)).join(''); vkSfx('go');
+  $('#dice-sum').textContent = d.kind === 'num' ? (d.n > 1 ? `Total: ${final.reduce((a, b) => a + b, 0)}` : `${final[0]}!`) : final.map(i => TOOL_COLORS[i][0]).join(' · ');
+  $$('.tl-go').forEach(b => b.disabled = false); TL.busy = false;
+}
+
+/* ---- Colour randomizer ---- */
+function colorSetup() {
+  const on = toolsState().colors;
+  openSheet(`<div class="sheet-head"><h3>Color randomizer</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <span class="field-label" style="display:block">Mga kulay na kasali <small class="muted">(pili ng 2 o higit pa)</small></span>
+    <div class="cl-chips">${TOOL_COLORS.map(([nm, hex], i) => `<button class="${on.includes(i) ? 'on' : ''}" onclick="colorToggle(${i})"><span style="background:${hex}"></span>${nm}</button>`).join('')}</div>
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();colorShow()">${ic('play')}Ipakita sa TV</button>`);
+}
+function colorToggle(i) {
+  const t = toolsState(), k = t.colors.indexOf(i);
+  if (k >= 0) { if (t.colors.length <= 2) { toast('Kailangan ng 2 o higit pang kulay'); return; } t.colors.splice(k, 1); } else t.colors.push(i);
+  t.colors.sort((a, b) => a - b); saveState(); colorSetup();
+  if (!$('#tl-stage').hidden && TL.kind === 'color') colorShow();
+}
+function colorShow() {
+  const t = toolsState();
+  if ($('#tl-stage').hidden || TL.kind !== 'color') tlOpen('color', 'Color randomizer', '');
+  $('#tl-body').innerHTML = `<div class="cl-big" id="cl-big"><span>?</span></div>
+    <div class="cl-mini">${t.colors.map(i => `<span style="background:${TOOL_COLORS[i][1]}" title="${TOOL_COLORS[i][0]}"></span>`).join('')}</div>
+    <div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="colorGo()">I-random!</button><span class="tl-note">${t.colors.length} kulay</span></div>`;
+}
+async function colorGo() {
+  const t = toolsState(); if (TL.busy) return; TL.busy = true;
+  $$('.tl-go').forEach(b => b.disabled = true);
+  const big = $('#cl-big'), paint = i => { const [nm, hex] = TOOL_COLORS[i]; big.style.background = hex; big.style.color = tlDark(hex) ? '#fff' : '#1E1A16'; big.innerHTML = `<span>${nm}</span>`; };
+  let delay = 60, last = -1;
+  while (delay < 380 && TL.busy) {
+    let i; do { i = t.colors[tlRand(t.colors.length)]; } while (i === last && t.colors.length > 1);
+    last = i; paint(i); vkSfx('tick2'); await tlWait(delay); delay *= 1.13;
+  }
+  const win = t.colors[tlRand(t.colors.length)]; paint(win); big.classList.remove('pop'); void big.offsetWidth; big.classList.add('pop'); vkSfx('go');
+  $$('.tl-go').forEach(b => b.disabled = false); TL.busy = false;
+}
+
+/* ---- Floating game timer ---- */
+const TM = { total: 60, left: 60, running: false, endAt: 0, iv: 0, big: false, lastBeep: -1 };
+const tmFmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function timerOpen() {
+  const t = toolsState();
+  if (!TM.running && $('#gtimer').hidden) { TM.total = t.timer; TM.left = t.timer; }
+  $('#gtimer').hidden = false; timerRender();
+}
+function timerRender() {
+  const el = $('#gtimer'); if (el.hidden) return;
+  const left = Math.ceil(TM.left), done = left <= 0;
+  el.className = 'gtimer' + (TM.big ? ' big' : '') + (done ? ' done' : left <= 10 && TM.running ? ' warn' : '');
+  el.innerHTML = `<div class="gt-head"><span class="gt-grip" title="I-drag">⋮⋮</span><b>Timer</b>
+      <button onclick="timerBig()" aria-label="${TM.big ? 'Paliitin' : 'Palakihin'}">${TM.big ? '−' : '⤢'}</button><button onclick="timerClose()" aria-label="Isara">${ic('x')}</button></div>
+    <button class="gt-time" onclick="timerEdit()" title="I-tap para palitan ang oras">${done ? 'Time!' : tmFmt(left)}</button>
+    <div class="gt-btns"><button onclick="timerAdd(-10)" aria-label="Bawas 10 segundo">−10</button>
+      <button class="gt-play" onclick="timerToggle()">${TM.running ? 'Pause' : done ? 'Ulit' : 'Start'}</button>
+      <button onclick="timerAdd(10)" aria-label="Dagdag 10 segundo">+10</button><button onclick="timerReset()" aria-label="Reset">↺</button></div>`;
+  timerDrag();
+}
+function timerTick() {
+  TM.left = Math.max(0, (TM.endAt - Date.now()) / 1000);
+  const s = Math.ceil(TM.left);
+  if (s <= 5 && s > 0 && s !== TM.lastBeep) { TM.lastBeep = s; vkSfx('tick'); }
+  if (TM.left <= 0) { clearInterval(TM.iv); TM.running = false; vkSfx('buzz'); timerRender(); return; }
+  const el = $('#gtimer'), warn = s <= 10;
+  if (el.classList.contains('warn') !== warn) timerRender();                 // turns red for the last 10 seconds
+  else { const tEl = el.querySelector('.gt-time'); if (tEl) tEl.textContent = tmFmt(s); }
+}
+function timerToggle() {
+  if (TM.running) { TM.running = false; clearInterval(TM.iv); TM.left = Math.max(0, (TM.endAt - Date.now()) / 1000); }
+  else { if (TM.left <= 0) TM.left = TM.total; TM.running = true; TM.endAt = Date.now() + TM.left * 1000; TM.lastBeep = -1; clearInterval(TM.iv); TM.iv = setInterval(timerTick, 200); ac(); }
+  timerRender();
+}
+function timerAdd(sec) {
+  if (TM.running) { TM.endAt = Math.max(Date.now() + 1000, TM.endAt + sec * 1000); TM.left = (TM.endAt - Date.now()) / 1000; }
+  else { TM.left = clamp(Math.ceil(TM.left) + sec, 5, 5999); TM.total = TM.left; toolsState().timer = TM.total; saveState(); }
+  timerRender();
+}
+function timerReset() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; timerRender(); }
+async function timerEdit() {
+  const v = await askText('Ilang oras? (hal. 1:30 o 90 para 90 segundo, o 5m)', tmFmt(TM.total), 8); if (v === null) return;
+  const s = String(v).trim().toLowerCase();
+  let sec = /^\d+:\d{1,2}$/.test(s) ? s.split(':').reduce((m, x) => m * 60 + (+x), 0) : /^\d+(\.\d+)?m$/.test(s) ? Math.round(parseFloat(s) * 60) : parseInt(s, 10);
+  if (!(sec >= 5 && sec <= 5999)) { toast('Ilagay ang oras: 0:05 hanggang 99:59'); return; }
+  clearInterval(TM.iv); TM.running = false; TM.total = TM.left = sec; toolsState().timer = sec; saveState(); timerRender();
+}
+function timerBig() { TM.big = !TM.big; timerRender(); }
+function timerClose() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; $('#gtimer').hidden = true; }
+// Drag the widget by its header (mouse or finger); it remembers where you put it
+function timerDrag() {
+  const el = $('#gtimer'), head = el.querySelector('.gt-head'); if (!head || head.dataset.d) return; head.dataset.d = 1;
+  head.onpointerdown = e => {
+    if (e.target.closest('button')) return;
+    const r = el.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top; head.setPointerCapture(e.pointerId);
+    head.onpointermove = m => { el.style.left = clamp(m.clientX - dx, 4, innerWidth - r.width - 4) + 'px'; el.style.top = clamp(m.clientY - dy, 4, innerHeight - r.height - 4) + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto'; };
+    head.onpointerup = () => { head.onpointermove = null; };
+  };
+}
+
+/* ============================================================
    HOST REMOTE — control the TV laptop/tablet from your phone.
    The app on the TV keeps a Firestore doc vk_remotes/{24 random chars} up to date
    (plan, sound pads, videoke queue, music). remote.html?k=<id> shows it and sends
@@ -2896,7 +3193,7 @@ async function rmtStop() {
 // What the phone sees. Names and titles only: no account details, no links.
 function rmtState() {
   const nxt = nextIdx();
-  const song = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), ph: vkPhotoOk(it.ph) ? it.ph : '', t: s ? s.t.slice(0, 80) : 'Code ' + it.c, a: s ? s.a.slice(0, 60) : '', c: it.c }; };
+  const song = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), ph: vkPhotoOk(it.ph) ? it.ph : '', mo: vkMouthOk(it.mo) ? it.mo : '', t: s ? s.t.slice(0, 80) : 'Code ' + it.c, a: s ? s.a.slice(0, 60) : '', c: it.c }; };
   return {
     ev: String(BIDA.event.name || eventType().label).slice(0, 90),
     plan: BIDA.program.slice(0, 60).map((p, i) => ({ id: p.id, t: String(p.title || '').slice(0, 80), min: p.min, done: !!p.done, next: i === nxt, note: String(p.note || '').slice(0, 200) })),
@@ -2963,7 +3260,7 @@ function rmtRun(d) {
         const s = vkSong(n); if (!s) break;
         const singer = String(d.s || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
         const av = VK_AVATARS.some(a => a.id === d.av) ? d.av : vkAvatarFor(singer);
-        vkState().queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av, ph: vkPhotoOk(d.ph) ? d.ph : '', src: '' });
+        vkState().queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av, ph: vkPhotoOk(d.ph) ? d.ph : '', mo: vkMouthOk(d.mo) ? d.mo : '', src: '' });
         saveState(); toast(`Remote: ${singer} · ${s.t}`);
         if (BIDA.tab === 'videoke' && !$('#app').hidden) renderVideoke();
         if (!$('#vk-stage').hidden) { vkStageInfo(); if (!VK.cur) vkNext(); }
@@ -3519,7 +3816,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- exports for inline handlers ---------- */
-Object.assign(window, { cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
+Object.assign(window, { raffleSetup, raffleNames, raffleMode, raffleShow, raffleGo, diceSetup, diceSet, diceShow, diceRoll, colorSetup, colorToggle, colorShow, colorGo, tlClose, tlFull, tlSettings, tlWinClose, toolsState, timerOpen, timerToggle, timerAdd, timerReset, timerEdit, timerBig, timerClose, cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,

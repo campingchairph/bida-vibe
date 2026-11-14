@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116b">
+<link rel="stylesheet" href="bida.css?v=20261116f">
 <style>
   body { background: var(--cream); min-height: 100vh; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
   .rm { max-width: 640px; margin: 0 auto; padding: 14px 14px 30px; }
@@ -100,7 +100,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116b"></script>
+<script src="vk-avatars.js?v=20261116f"></script>
 <script>
 /* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
    Reads the snapshot the TV app keeps in vk_remotes/{id} and sends small commands back.
@@ -120,6 +120,7 @@
   const key = new URLSearchParams(location.search).get('k') || '';
   const S = { st: null, open: false, tab: store.get('bv_rm_tab', 'plan'), lib: [], q: '', who: store.get('bv_rm_who', { name: '', av: '', ph: '' }), sending: 0 };
   if (!vkPhotoOk(S.who.ph)) S.who.ph = '';
+  if (!vkMouthOk(S.who.mo)) S.who.mo = '';
 
   function closed(msg) {
     $('#rm-tabs').hidden = true;
@@ -131,9 +132,9 @@
   try { firebase.initializeApp(FIREBASE); db = firebase.firestore(); } catch (e) { closed('Hindi ma-load ang remote'); return; }
 
   // Send one command to the TV. Small cooldown so double taps don't fire twice.
-  async function send(k, v = '', n = -1, s = '', av = '', ph = '') {
+  async function send(k, v = '', n = -1, s = '', av = '', ph = '', mo = '') {
     const now = Date.now(); if (now - S.sending < 250) return; S.sending = now;
-    try { await db.collection('vk_remotes').doc(key).collection('cmds').add({ k, v, n, s, av, ...(vkPhotoOk(ph) ? { ph } : {}), at: firebase.firestore.FieldValue.serverTimestamp() }); }
+    try { await db.collection('vk_remotes').doc(key).collection('cmds').add({ k, v, n, s, av, ...(vkPhotoOk(ph) ? { ph, ...(vkMouthOk(mo) ? { mo } : {}) } : {}), at: firebase.firestore.FieldValue.serverTimestamp() }); }
     catch (e) { toast('Hindi na-send. Baka sarado na ang remote.'); }
   }
   window.RM = {
@@ -147,12 +148,12 @@
     score(v, n = -1) { if (v === 'reset' && !confirm('Ibalik sa 0 ang lahat ng score?')) return; S.sending = 0; send('score', v, n); if (navigator.vibrate) navigator.vibrate(10); },
     find(q) { S.q = q; songs(); },
     name(v) { S.who.name = v.replace(/\s+/g, ' ').slice(0, 24); store.set('bv_rm_who', S.who); },
-    av(id) { S.who.av = id; S.who.ph = ''; store.set('bv_rm_who', S.who); render(); },
-    cam() { vkCamera(p => { S.who.ph = p; store.set('bv_rm_who', S.who); render(); }); },
+    av(id) { S.who.av = id; S.who.ph = ''; S.who.mo = ''; store.set('bv_rm_who', S.who); render(); },
+    cam() { vkCamera((p, m) => { S.who.ph = p; S.who.mo = m; store.set('bv_rm_who', S.who); render(); }); },
     add(c) {
       const s = S.lib.find(x => x.c === c); if (!s) return;
       const name = (S.who.name || '').trim() || 'Bisita';
-      send('vk', 'reserve', c, name, S.who.av || '', S.who.ph || ''); toast(`Na-reserve: ${s.t} · ${name}`);
+      send('vk', 'reserve', c, name, S.who.av || '', S.who.ph || '', S.who.mo || ''); toast(`Na-reserve: ${s.t} · ${name}`);
     }
   };
 
