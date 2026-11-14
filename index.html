@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261115j">
+<link rel="stylesheet" href="bida.css?v=20261115m">
 </head>
 <body>
 
@@ -183,7 +183,6 @@
 
 <!-- ============ VIDEOKE SCREEN (cast or connect to the TV) ============ -->
 <section id="vk-stage" class="vk-stage" hidden aria-label="Videoke screen">
-  <canvas class="vk-frame-bg" id="vk-frame-bg" hidden aria-hidden="true"></canvas>
   <div class="vk-bar">
     <button class="btn btn--ghost btn--sm vk-exit" onclick="vkClose()"><svg class="ic"><use href="#i-x"/></svg>Exit</button>
     <div class="vk-nowbar" id="vk-now"></div>
@@ -192,8 +191,11 @@
       <button class="btn btn--ghost btn--sm vk-fs" onclick="vkFullscreen()">Full screen</button>
     </div>
   </div>
-  <div class="vk-frame-title" id="vk-frame-title" hidden></div>
   <div class="vk-player" id="vk-player"></div>
+  <svg class="vk-flags vk-flags--top" id="vk-flags-top" aria-hidden="true"></svg>
+  <svg class="vk-flags vk-flags--bot" id="vk-flags-bot" aria-hidden="true"></svg>
+  <div class="vk-title" id="vk-title" hidden></div>
+  <div class="vk-singer" id="vk-singer" hidden></div>
   <ol class="vk-side" id="vk-side" aria-label="Pila ng kakanta"></ol>
   <div class="vk-qr" id="vk-qr" hidden aria-label="QR code para kumanta"></div>
   <div class="vk-intro" id="vk-intro" hidden aria-live="polite"></div>
@@ -225,8 +227,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" integrity="sha384-lI+CxEx/bCvWP1b0OK13j5HTrTZP7yf1xle8TVOFq2smz6KC1RChTarRV/RHP5PP" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261115j"></script>
-<script src="bida-content.js?v=20261115j"></script>
-<script src="bida-app.js?v=20261115j"></script>
+<script src="vk-avatars.js?v=20261115m"></script>
+<script src="bida-content.js?v=20261115m"></script>
+<script src="bida-app.js?v=20261115m"></script>
 </body>
 </html>

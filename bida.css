@@ -573,28 +573,52 @@ body.in-live .pl-panel { bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)
 .cam-btns { display: flex; gap: 10px; margin-top: 12px; }
 .cam-btns .btn { flex: 1; justify-content: center; }
 
-/* TV frame: theme art behind, event title on top, video in a bordered box */
-.vk-frame-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-.vk-bar { position: relative; z-index: 3; }
-.vk-frame-title { grid-row: 2; grid-column: 1; z-index: 1; justify-self: center; margin: 10px 16px 10px; padding: 6px 28px 8px; text-align: center; border-radius: 22px; max-width: calc(100% - 32px); }
-.vk-frame-title[hidden] { display: none; }
-.vk-frame-title b { display: block; font: 800 clamp(22px, 4.2vmin, 46px)/1.1 var(--f2); text-shadow: 3px 3px 0 var(--fr-ac, rgba(0,0,0,.35)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vk-frame-title small { display: block; margin-top: 2px; font: 800 clamp(12px, 1.8vmin, 17px)/1.2 var(--f); opacity: .85; }
-.vk-frame-title.has-panel { border: 4px solid var(--ink); box-shadow: 5px 5px 0 rgba(0,0,0,.45); }
-.vk-frame-title.has-panel b { text-shadow: none; }
-.vk-stage.framed { grid-template-rows: auto 1fr; background: var(--fr-bg, #000); }
-.vk-stage.framed .vk-player, .vk-stage.framed .vk-side, .vk-stage.framed .vk-qr { grid-row: 2; }
-.vk-stage.framed .vk-player { z-index: 1; justify-self: center; align-self: center; overflow: hidden; border-top: 5px solid var(--ink); border-bottom: 5px solid var(--ink); background: #000; box-shadow: 0 8px 0 rgba(0,0,0,.35); }
-.vk-stage.framed .vk-player iframe, .vk-stage.framed .vk-player > div { top: calc(-1 * var(--crop, 0px)); bottom: auto; height: calc(100% + 2 * var(--crop, 0px)); }
-/* The title owns the top band; the buttons sit small and faint in its corners */
-.vk-stage.framed .vk-bar { grid-row: 1; grid-column: 1; align-self: stretch; align-items: flex-start; background: transparent; border-bottom: 0; min-height: clamp(76px, 11vmin, 124px); opacity: .45; transition: opacity .2s; }
-.vk-stage.framed .vk-bar:hover, .vk-stage.framed .vk-bar:focus-within { opacity: 1; }
-.vk-stage.framed .vk-nowbar { visibility: hidden; }
-.vk-stage.framed .vk-frame-title { grid-row: 1; align-self: center; z-index: 4; margin: 12px 16px 14px; padding: 10px 40px 14px; pointer-events: none; max-width: calc(100% - 360px); border-radius: 28px; border-width: 5px; box-shadow: 8px 8px 0 rgba(0,0,0,.45); }
-.vk-stage.framed .vk-frame-title b { font-size: clamp(44px, 11vmin, 128px); line-height: 1.05; }
-.vk-stage.framed .vk-frame-title small { font-size: clamp(16px, 3.2vmin, 38px); margin-top: 4px; }
-@media (max-width: 700px) { .vk-stage.framed .vk-frame-title { max-width: calc(100% - 32px); grid-row: 1; align-self: end; margin-top: 52px; } }
-.vk-stage.framed .vk-exit, .vk-stage.framed .vk-fs { background: rgba(30,26,22,.55); }
+/* TV look: video fills the screen; flags, title, queue, QR and the singer sit on top of it */
+.vk-stage { display: block; }
+.vk-stage .vk-player { position: absolute; inset: 0; z-index: 1; }
+.vk-stage .vk-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 6; background: transparent; border: 0; padding: 8px 12px;
+  justify-content: space-between; align-items: flex-start; opacity: .4; transition: opacity .2s; pointer-events: none; }
+.vk-stage .vk-bar > * { pointer-events: auto; }
+.vk-stage .vk-bar:hover, .vk-stage .vk-bar:focus-within { opacity: 1; }
+.vk-stage .vk-nowbar { visibility: hidden; flex: 1; }
+.vk-stage .vk-exit, .vk-stage .vk-fs, .vk-stage .vk-btns .btn--ink { background: rgba(30,26,22,.7); color: #fff; border-color: #fff; }
+.vk-flags { position: absolute; left: 0; z-index: 3; display: block; pointer-events: none; }
+.vk-flags--top { top: 0; }
+.vk-flags--bot { bottom: 0; transform: translateY(50%); }      /* only the top half shows: lyrics stay clear */
+.vk-title { position: absolute; top: clamp(4px, 1.2vh, 14px); left: 50%; transform: translateX(-50%); z-index: 5; max-width: calc(100% - 320px);
+  background: #FFF6E5; color: var(--ink); border: 4px solid var(--ink); border-radius: 18px; padding: 4px 24px 6px; text-align: center;
+  box-shadow: 5px 5px 0 rgba(0,0,0,.45); pointer-events: none; }
+.vk-title[hidden] { display: none; }
+.vk-title b { display: block; font: 800 clamp(22px, 5.4vmin, 60px)/1.08 var(--f2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vk-title small { display: block; margin-top: 2px; font: 800 clamp(11px, 1.7vmin, 18px)/1.2 var(--f); color: var(--ink-3); }
+@media (max-width: 700px) { .vk-title { max-width: calc(100% - 140px); padding: 3px 12px 4px; } }
+/* Queue (left) and QR (right) start at the same line, just under the top flags */
+.vk-stage .vk-side { position: absolute; top: calc(var(--flags-h, 80px) + 4px); left: 0; z-index: 4; max-height: calc(78% - var(--flags-h, 80px)); }
+.vk-stage .vk-qr { position: absolute; top: calc(var(--flags-h, 80px) + 18px); right: 16px; margin: 0; z-index: 4; }
+.vk-intro, .vk-score { z-index: 8; }
+
+/* Singing stickman, bottom-left: the singer's photo or avatar is the head */
+.vk-singer { position: absolute; left: clamp(8px, 2vw, 40px); bottom: clamp(6px, 2.2vh, 26px); z-index: 4; width: clamp(90px, 15vmin, 200px); pointer-events: none; }
+.vk-singer[hidden] { display: none; }
+.vk-sm-wrap { position: relative; transform-origin: 50% 100%; animation: vkSway 1.1s ease-in-out infinite alternate; }
+.vk-sm { display: block; width: 100%; height: auto; overflow: visible; }
+.vk-sm-head { position: absolute; left: 25%; top: -4%; width: 50%; aspect-ratio: 1; animation: vkHead .55s ease-in-out infinite alternate; }
+.vk-sm-head > svg, .vk-sm-head > img { display: block; width: 100% !important; height: 100% !important; border-radius: 50%; }
+.vk-sm-wave { transform-box: view-box; transform-origin: 60px 94px; animation: vkWave .55s ease-in-out infinite alternate; }
+.vk-sm-l1 { transform-box: view-box; transform-origin: 60px 138px; animation: vkStep 1.1s ease-in-out infinite alternate; }
+.vk-notes { position: absolute; left: 68%; top: 6%; width: 70%; height: 70%; }
+.vk-notes i { position: absolute; left: 0; bottom: 30%; font: 800 clamp(18px, 3.2vmin, 36px)/1 var(--f2); font-style: normal; color: var(--gold);
+  text-shadow: 2px 2px 0 var(--ink); opacity: 0; animation: vkNote 2.5s linear infinite; }
+.vk-notes i:nth-child(2) { animation-delay: .5s; color: var(--magenta); }
+.vk-notes i:nth-child(3) { animation-delay: 1s; color: var(--turq); }
+.vk-notes i:nth-child(4) { animation-delay: 1.5s; color: #FFF6E5; }
+.vk-notes i:nth-child(5) { animation-delay: 2s; color: var(--chili); }
+@keyframes vkSway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+@keyframes vkHead { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-3px) rotate(6deg); } }
+@keyframes vkWave { from { transform: rotate(-16deg); } to { transform: rotate(14deg); } }
+@keyframes vkStep { from { transform: rotate(-6deg); } to { transform: rotate(8deg); } }
+@keyframes vkNote { 0% { opacity: 0; transform: translate(0, 0) rotate(-12deg) scale(.6); } 12% { opacity: 1; } 100% { opacity: 0; transform: translate(46px, -130px) rotate(16deg) scale(1.25); } }
+@media (prefers-reduced-motion: reduce) { .vk-sm-wrap, .vk-sm-head, .vk-sm-wave, .vk-sm-l1 { animation: none; } .vk-notes i { animation-duration: 6s; } }
 
 /* Card shown full screen on the TV */
 .card-tv { position: fixed; inset: 0; z-index: 62; background: #000; display: grid; place-items: center; }

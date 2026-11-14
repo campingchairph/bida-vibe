@@ -1179,7 +1179,7 @@ function padNameFromFile(f) {
 async function loadFolderPads() {
   let files = [];
   try { const r = await fetch('sounds/free/list.json', { cache: 'no-cache' }); if (r.ok) files = (await r.json()).map(String); } catch (e) { }
-  if (!files.length && IS_LOCAL) { try { files = [...(await (await fetch('sounds/free/', { cache: 'no-cache' })).text()).matchAll(/href="([^"?#/]+)"/g)].map(m => m[1]); } catch (e) { } }
+  if (!files.length && IS_LOCAL) { try { files = [...(await (await fetch('sounds/free/', { cache: 'no-cache' })).text()).matchAll(/href="([^"?#/]+)"/g)].map(m => { try { return decodeURIComponent(m[1]); } catch (x) { return m[1]; } }); } catch (e) { } }   // folder listings give encoded names
   if (!files.length) {
     const gh = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split('/')[1], KEY = 'bidavibe_freepads';
     if (gh && repo) {
@@ -2158,7 +2158,6 @@ function vkState() {
       av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
     score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30),
-    frame: typeof v.frame === 'string' && vkFrameOk(v.frame) && v.frame !== '' ? v.frame : 'card',   // default: follow the invitation card
     room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
       ? { id: v.room.id, owner: v.room.owner.slice(0, 128), exp: +v.room.exp } : null
   };
@@ -2227,7 +2226,6 @@ function renderVideoke() {
       </div>
     </div>
     ${vkRoomHTML()}
-    ${vkFrameHTML()}
     ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
       <div class="vk-search">
@@ -2328,7 +2326,7 @@ function vkScoreToggle(on) { vkState().score = on; saveState(); }
 async function vkStart() {
   const stage = $('#vk-stage');
   stage.hidden = false; document.body.classList.add('in-vk'); document.body.style.overflow = 'hidden';
-  vkApplyFrame();
+  vkDressStage();
   if (M.playing) musicPause();                         // party music stops while someone sings
   try { navigator.wakeLock?.request('screen').then(l => VK.lock = l).catch(() => { }); } catch (e) { }
   if (!VK.cur) vkNext(); else vkStageInfo();
@@ -2381,7 +2379,7 @@ function vkStageInfo() {
   const line = (it, s, n, k) => `<li class="vk-tx" style="--i:${k + 2};--o:${Math.max(.22, .9 - k * .14).toFixed(2)}"><span>${n}</span><b>${esc(it.singer || 'Bisita')}</b> <em>${esc(s ? s.t : 'Code ' + it.c)}</em></li>`;
   const all = (cur ? [[VK.cur, cur]] : []).concat(q.map(it => [it, vkSong(it.c)]));
   const items = all.slice(0, 8).map(([it, s], i) => i === 0 ? box(it, s, 0, !!cur) : i === 1 ? box(it, s, 1, false) : line(it, s, cur ? i : i + 1, i - 2));
-  rmtPublish();
+  rmtPublish(); vkSinger();
   $('#vk-side').innerHTML = items.join('') + (all.length > 8 ? `<li class="vk-tx" style="--o:.22">+${all.length - 8} pa</li>` : '');
 }
 /* "Susunod na kakanta" — a big, fun intro before each song, then the video starts */
@@ -2397,17 +2395,17 @@ function vkIntro(it, s, done) {
       <div class="vki-count" id="vki-count">3</div>
     </div>`;
   el.hidden = false; el.classList.remove('out');
-  vkPlayPad(/drum/i);
+  vkSfx('intro');
   const cnt = $('#vki-count'); let n = 3;
   const step = () => {
     n--;
-    if (n > 0) { cnt.textContent = n; cnt.classList.remove('pop'); void cnt.offsetWidth; cnt.classList.add('pop'); VK.introT = setTimeout(step, 900); }
+    if (n > 0) { cnt.textContent = n; cnt.classList.remove('pop'); void cnt.offsetWidth; cnt.classList.add('pop'); vkSfx('tick'); VK.introT = setTimeout(step, 900); }
     else {
-      cnt.textContent = 'Kanta na!'; cnt.classList.add('go'); vkPlayPad(/palakpak|applause|clap|ta-?da/i);
+      cnt.textContent = 'Kanta na!'; cnt.classList.add('go'); vkSfx('go');
       VK.introT = setTimeout(() => { el.classList.add('out'); VK.introT = setTimeout(() => { el.hidden = true; done(); }, 450); }, 900);
     }
   };
-  VK.introT = setTimeout(() => { cnt.classList.add('pop'); VK.introT = setTimeout(step, 900); }, 1700);
+  VK.introT = setTimeout(() => { cnt.classList.add('pop'); vkSfx('tick'); VK.introT = setTimeout(step, 900); }, 1700);
 }
 function vkPlayPad(re) { const p = PADS.find(x => re.test(x.name) && canPlaySound(x.id)); if (p) playSound(p.id); }
 function vkSongEnded() {
@@ -2565,73 +2563,90 @@ function vkPublish() {
   }, 700);
 }
 
-/* ---- TV frame: the event's title + the card theme's colours and art around the video ---- */
-// 'card' (default) = same theme as the invitation card · 'none' = plain video · or a theme id
-const vkFrameOk = id => id === 'none' || id === 'card' || CARD_THEMES.some(t => t.id === id);
-function vkFrameTheme() {
-  const id = vkState().frame;
-  if (id === 'none') return null;
-  if (id === 'card') { ensureCard(); return cardTheme(); }
-  return CARD_THEMES.find(t => t.id === id) || null;
+/* ---- TV look: the video fills the screen; papel picado hangs over the top edge and peeks up
+   from the bottom edge (half sunk, so the lyrics stay clear); the event title sits in a box over
+   the top flags; a little stickman with the singer's face sings in the bottom-left corner ---- */
+const VK_FLAG_COLS = ['#E2367A', '#F6B21B', '#0FA3A3', '#E4452B', '#3E9B4F'];
+function vkFlagRow(svg, flagH, sag) {
+  const W = Math.max(320, svg.parentElement.clientWidth || innerWidth), H = Math.ceil(flagH + sag + 8);
+  const fw = flagH * .78, gap = fw * .24, n = Math.ceil(W / (fw + gap)) + 1;
+  let s = `<path d="M-10 4 Q${W / 2} ${4 + sag * 2} ${W + 10} 4" fill="none" stroke="#1E1A16" stroke-width="3"/>`;
+  for (let i = 0; i < n; i++) {
+    const x = i * (fw + gap) + gap / 2, y = 3 + Math.sin(((x + fw / 2) / W) * Math.PI) * sag;
+    s += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${i % 2 ? 2 : -2} ${(fw / 2).toFixed(1)} 0)"><path d="${flagPath(fw, flagH, i)}" fill="${VK_FLAG_COLS[i % 5]}" fill-rule="evenodd" stroke="#1E1A16" stroke-width="2.5" stroke-linejoin="round"/></g>`;
+  }
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H); svg.innerHTML = s;
+  return H;
 }
-function vkFrameHTML() {
-  const cur = vkState().frame;
-  const sw = t => `<span class="theme-sw" style="background:${t.bg};color:${t.accent}"><span style="background:${t.accent}"></span></span>`;
-  ensureCard(); const ct = cardTheme();
-  const chip = (id, label, swatch) => `<button class="theme-chip ${cur === id ? 'on' : ''}" data-fr="${id}" onclick="vkSetFrame('${id}')" aria-pressed="${cur === id}">${swatch}${esc(label)}</button>`;
-  return `<div class="card" style="margin-top:16px"><h3>Frame ng TV screen</h3>
-    <p class="muted">Lagyan ng frame at pangalan ng event ang video para bagay sa theme ng party.</p>
-    <div class="theme-chips" style="margin-top:10px">${chip('none', 'Walang frame', '<span class="theme-sw" style="background:#000"></span>')}${chip('card', 'Kapareho ng card (default)', ct.id === 'own' ? `<span class="theme-sw own-sw" style="background-image:url('${CARD_BG.url}')"></span>` : sw(ct))}
-      ${CARD_THEMES.map(t => chip(t.id, t.name, sw(t))).join('')}</div></div>`;
-}
-function vkSetFrame(id) {
-  if (!vkFrameOk(id)) return;
-  vkState().frame = id; saveState();
-  $$('[data-fr]').forEach(b => { const on = b.dataset.fr === id; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
-  if (!$('#vk-stage').hidden) vkApplyFrame();
-}
-function vkApplyFrame() {
-  const st = $('#vk-stage'), th = vkFrameTheme(), cv = $('#vk-frame-bg'), tt = $('#vk-frame-title');
-  st.classList.toggle('framed', !!th);
-  if (!th) { cv.hidden = true; tt.hidden = true; vkFitVideo(); return; }
-  if (th.id === 'own' && !CARD_BG.img) { loadCardBg().then(() => { if (CARD_BG.img) vkApplyFrame(); }); }
-  st.style.setProperty('--fr-bg', th.bg);
+function vkDressStage() {
+  const st = $('#vk-stage'); if (st.hidden) return;
+  const fh = Math.round(Math.max(54, Math.min(120, st.clientHeight * .1)));
+  const topH = vkFlagRow($('#vk-flags-top'), fh, fh * .16);
+  vkFlagRow($('#vk-flags-bot'), Math.round(fh * .85), fh * .1);          // CSS sinks this row halfway below the screen
+  st.style.setProperty('--flags-h', topH + 'px');
+  // Event title in a box over the top flags (long names shrink to stay on one line)
+  const tt = $('#vk-title');
   const title = (BIDA.card && BIDA.card.title) || BIDA.event.name || eventType().label;
-  const date = BIDA.card && BIDA.card.date ? fmtCardDate(BIDA.card.date) : '';
-  // The title always sits in a solid box (the theme's panel colour, or cream) so it reads on any art
-  tt.className = 'vk-frame-title has-panel';
-  tt.style.cssText = `background:${th.panel || '#FFF6E5'};color:${th.panel ? th.panelFg : '#1E1A16'};--fr-ac:${th.accent}`;
-  tt.innerHTML = `<b>${esc(title)}</b>${date ? `<small>${esc(date)}</small>` : ''}`;
+  const d = (BIDA.card && BIDA.card.date) || BIDA.event.date;
+  tt.innerHTML = `<b>${esc(title)}</b>${d ? `<small>${esc(fmtCardDate(d))}</small>` : ''}`;
   tt.hidden = false;
-  // Long names shrink to fit on one line instead of being cut off
   const b = tt.querySelector('b'); b.style.fontSize = '';
   let fsz = parseFloat(getComputedStyle(b).fontSize);
-  while (b.scrollWidth > b.clientWidth + 1 && fsz > 28) { fsz -= 4; b.style.fontSize = fsz + 'px'; }
-  // Paint the theme's art (bunting, parol, balloons…) on a canvas behind everything
-  const W = st.clientWidth || innerWidth, H = st.clientHeight || innerHeight, k = W / 1600;
-  cv.width = Math.round(W * devicePixelRatio); cv.height = Math.round(H * devicePixelRatio); cv.hidden = false;
-  const ctx = cv.getContext('2d'); ctx.setTransform(devicePixelRatio * k, 0, 0, devicePixelRatio * k, 0, 0);
-  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, 1600, H / k);
-  try { ctx.save(); th.deco(ctx, 1600, H / k); ctx.restore(); } catch (e) { }
-  setTimeout(vkFitVideo, 30);          // after the title has its size (a timer, so it also runs on a background screen)
+  while (b.scrollWidth > b.clientWidth + 1 && fsz > 18) { fsz -= 2; b.style.fontSize = fsz + 'px'; }
 }
-// Framed: the video spans the full width at 16:9; the frame only shows above (title bar) and below.
-// On a 16:9 TV there isn't quite room for that, so a thin, equal sliver is trimmed off the video's
-// top and bottom edges (max 10% in total, 5% per edge, so the lyrics stay on screen). Only on very short
-// windows does the video get narrower instead.
-const VK_MAX_CROP = .10;
-function vkFitVideo() {
-  const st = $('#vk-stage'), pl = $('#vk-player');
-  if (!st.classList.contains('framed')) { pl.style.width = pl.style.height = ''; pl.style.removeProperty('--crop'); return; }
-  const tt = $('#vk-frame-title'), tcs = getComputedStyle(tt);
-  const top = Math.max($('.vk-bar').offsetHeight, tt.offsetHeight + parseFloat(tcs.marginTop) + parseFloat(tcs.marginBottom));
-  const availH = st.clientHeight - top - 12, availW = st.clientWidth;
-  let w = availW, full = w * 9 / 16, h = Math.min(full, availH);
-  if ((full - h) / full > VK_MAX_CROP) { full = h / (1 - VK_MAX_CROP); w = full * 16 / 9; }   // too short: narrow it a bit
-  pl.style.width = Math.floor(w) + 'px'; pl.style.height = Math.floor(h) + 'px';
-  pl.style.setProperty('--crop', Math.max(0, Math.floor((full - h) / 2)) + 'px');
+addEventListener('resize', () => { clearTimeout(VK.frT); VK.frT = setTimeout(vkDressStage, 200); });
+
+// Stickman singer: the singer's photo or avatar is the head; notes float out of the mic
+function vkSinger() {
+  const el = $('#vk-singer'), it = VK.cur;
+  if (!it || !vkSong(it.c)) { el.hidden = true; el.dataset.k = ''; return; }
+  const k = it.id + '|' + (it.ph ? 'p' : it.av);
+  if (el.dataset.k === k && !el.hidden) return;         // same singer: keep the animation running
+  el.dataset.k = k;
+  el.innerHTML = `<div class="vk-sm-wrap">
+      <svg class="vk-sm" viewBox="0 0 120 200" aria-hidden="true">
+        ${['#FFF6E5" stroke-width="15', '#1E1A16" stroke-width="7'].map(st => `<g fill="none" stroke="${st}" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M60 74V138"/><path class="vk-sm-l1" d="M60 138L44 190"/><path class="vk-sm-l2" d="M60 138L76 190"/>
+          <path d="M60 94L86 100L80 70"/><path class="vk-sm-wave" d="M60 94L32 84L22 56"/>
+        </g>`).join('')}
+        <g transform="rotate(18 80 60)"><rect x="73" y="50" width="14" height="26" rx="6" fill="#1E1A16"/><circle cx="80" cy="50" r="9" fill="#5F5E5A" stroke="#1E1A16" stroke-width="3"/></g>
+      </svg>
+      <div class="vk-sm-head">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, 80)}</div>
+    </div>
+    <div class="vk-notes" aria-hidden="true"><i>♪</i><i>♫</i><i>♪</i><i>♬</i><i>♫</i></div>`;
+  el.hidden = false;
 }
-addEventListener('resize', () => { clearTimeout(VK.frT); VK.frT = setTimeout(() => { if (!$('#vk-stage').hidden && vkFrameTheme()) vkApplyFrame(); }, 200); });
+
+// Little sound effects for the singer intro (made in the browser, so they always work)
+function vkTone(freq, t0, dur, type = 'triangle', vol = .2) {
+  const x = ac(), o = x.createOscillator(), g = x.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + .012); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
+  o.connect(g).connect(SFX_BUS); o.start(t0); o.stop(t0 + dur + .05);
+}
+function vkNoise(t0, dur, vol) {
+  const x = ac(), len = Math.ceil(x.sampleRate * dur), buf = x.createBuffer(1, len, x.sampleRate), ch = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+  const src = x.createBufferSource(), f = x.createBiquadFilter(), g = x.createGain();
+  src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = .8;
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
+  src.connect(f).connect(g).connect(SFX_BUS); src.start(t0);
+}
+function vkSfx(kind) {
+  try {
+    const t = ac().currentTime + .03;
+    if (kind === 'intro') {
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => vkTone(f, t + i * .1, .32, 'triangle', .22));   // ta-da run up
+      vkTone(1046.5, t + .42, .7, 'square', .06); vkTone(1567.98, t + .42, .7, 'triangle', .12);
+      for (let i = 0; i < 22; i++) vkNoise(t + .75 + i * .045, .05, .05 + i * .006);                    // snare roll
+    } else if (kind === 'tick') {
+      vkTone(659.25, t, .16, 'square', .1); vkTone(1318.5, t, .1, 'triangle', .12);
+    } else if (kind === 'go') {
+      [523.25, 659.25, 783.99, 1046.5].forEach(f => vkTone(f, t, 1, 'sawtooth', .05));                  // big chord
+      vkTone(2093, t + .05, .5, 'triangle', .1); vkNoise(t, .25, .25);
+    }
+  } catch (e) { }
+}
 
 /* ============================================================
    SCOREBOARD — flash a big scoreboard on the TV for any game.
@@ -3413,7 +3428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- exports for inline handlers ---------- */
-Object.assign(window, { cardShowTV, cardHideTV, cardTVFull, vkSetFrame, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
+Object.assign(window, { cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
