@@ -1,15 +1,15 @@
 # Premium setup — PayMongo (GCash · Maya · Card)
 
-**Price:** ₱50 for 30 days, tied to the buyer's Google account. There's no auto-charge: paying again adds another 30 days (from the end date if still active). Users **must sign in with Google** to subscribe. It works on every device they sign in on, and offline at the venue until the end date.
+**Price:** ₱150 one-time, tied to the buyer's Google account. Pay once and Premium stays unlocked for good: no monthly fee, no auto-charge, no expiry. Users **must sign in with Google** to pay. It works on every device they sign in on, and offline at the venue. Someone who already paid can't be charged again (the Worker refuses a second checkout).
 
 ```
-Buyer signs in with Google → taps "Bayaran · ₱50"
+Buyer signs in with Google → taps "Bayaran · ₱150"
   → app asks the Worker for a checkout
   → Worker creates a PayMongo Checkout Session (price + secret key stay on the Worker)
   → buyer pays with GCash / Maya / card on PayMongo's page
   → PayMongo sends "checkout_session.payment.paid" to the Worker's /webhook
-  → Worker checks the signature + amount, adds 30 days to that Google account (once per payment)
-  → buyer lands back on the app (?paid=1), app polls /status and unlocks until the end date
+  → Worker checks the signature + amount (at least ₱150), unlocks that Google account for good (once per payment)
+  → buyer lands back on the app (?paid=1), app polls /status and unlocks
 ```
 
 All three services have free tiers that cover this. PayMongo charges a per-transaction fee on each sale; check their pricing page.
@@ -37,8 +37,9 @@ To change the admin: hash the new Gmail (lowercase) with SHA-256 and replace the
    | `FIREBASE_PROJECT_ID` | `bidavibe` |
    | `APP_URL` | `https://campingchairph.github.io/bida-vibe/` (keep the trailing `/`) |
    | `ALLOWED_ORIGINS` | `https://campingchairph.github.io,http://localhost:8102` |
-   | `PRICE_CENTAVOS` | `5000` (₱50.00) |
-   | `PASS_DAYS` | `30` |
+   | `PRICE_CENTAVOS` | `15000` (₱150.00) |
+
+   If you had added `PASS_DAYS` before, you can delete it: it isn't used anymore.
 
    And as *Secret*: `PAYMONGO_SECRET_KEY` = your `sk_test_…` key.
 
@@ -55,7 +56,7 @@ The response contains `"secret_key": "whsk_…"`. Add it to the Worker as a *Sec
 In `bida-app.js`, set `BIDA_CONFIG.workerUrl: 'https://bida-pay.YOU.workers.dev'` and push.
 
 ## 6. Test, then go live
-1. On the live site: sign in with a **non-admin** Google account → Sounds → I-unlock lahat → **Bayaran · ₱50** → on PayMongo's test checkout pick GCash and authorize → you're sent back and Premium shows "Hanggang <date 30 days from now>".
+1. On the live site: sign in with a **non-admin** Google account → Account → **I-unlock ang Premium · ₱150 one-time** → **Bayaran · ₱150** → on PayMongo's test checkout pick GCash and authorize → you're sent back and Premium shows "Bayad na. Sa'yo na 'to for good."
 2. When PayMongo activates your account:
    - Swap `PAYMONGO_SECRET_KEY` to `sk_live_…`.
    - Run the webhook command again with the live key.
@@ -64,7 +65,7 @@ In `bida-app.js`, set `BIDA_CONFIG.workerUrl: 'https://bida-pay.YOU.workers.dev'
    The Worker picks the live or test signature automatically based on the key.
 
 ## Notes
-- **Who's paid:** Cloudflare → KV → `bida-premium`. Each `pro:<uid>` entry has `until` (end date in ms), last payment, amount, method and email. To refund/revoke, delete it or set `until` to 0.
+- **Who's paid:** Cloudflare → KV → `bida-premium`. Each `pro:<uid>` entry has `lifetime: true`, `until` (9999-12-31 for one-time buyers), the payment date, amount, method and email. To refund/revoke, delete the entry or set `until` to 0.
 - **Free without an account:** activities, all games, Live mode, the first 4 sound pads, 2 uploads and 2 recordings.
 - **Test code:** `BIDATEST` only works on `localhost`.
 - Security details and console settings: [SECURITY.md](SECURITY.md).

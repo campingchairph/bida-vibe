@@ -4,8 +4,8 @@
    Checkout Sessions, verifies PayMongo webhooks, and stores who
    has an active Premium pass in Cloudflare KV.
 
-   Premium = a 30-day pass (₱50). Paying again adds 30 days.
-   No auto-charge.
+   Premium = a one-time payment (₱150). Paid once, unlocked for good on that
+   Google account. No subscription, no auto-charge.
 
    Bindings (Worker → Settings):
      KV namespace   PREMIUM                  (Variables → KV Namespace Bindings)
@@ -14,8 +14,7 @@
      Variable       FIREBASE_PROJECT_ID      bidavibe
      Variable       APP_URL                  https://campingchairph.github.io/bida-vibe/
      Variable       ALLOWED_ORIGINS          comma list, e.g. https://campingchairph.github.io,http://localhost:8102
-     Variable       PRICE_CENTAVOS           5000  (₱50.00)
-     Variable       PASS_DAYS                30
+     Variable       PRICE_CENTAVOS           15000  (₱150.00)
 
    Admin test accounts live in Firestore: collection "admins", document ID = the
    Google email in lowercase. The Worker asks Firestore *as the signed-in user*;
@@ -35,6 +34,8 @@
    ============================================================ */
 
 const DAY = 86400000;
+const PRICE_DEFAULT = '15000';                 // ₱150.00, one-time
+const LIFETIME_UNTIL = 253402300799000;        // 9999-12-31: "for good". Kept as a date so older 30-day passes still work.
 // Admin test account fingerprint (SHA-256 of the lowercase Google email). Override with ADMIN_EMAIL_HASHES.
 const DEFAULT_ADMIN_HASHES = '291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd';
 
@@ -63,7 +64,7 @@ async function handleStatus(req, env, cors) {
   if (await isAdmin(user, env)) return json({ premium: true, admin: true, until: null }, 200, cors);
   const rec = await env.PREMIUM.get('pro:' + user.uid, 'json');
   const until = rec?.until || 0;
-  return json({ premium: until > Date.now(), admin: false, until: until || null }, 200, cors);
+  return json({ premium: until > Date.now(), admin: false, until: until || null, lifetime: until >= LIFETIME_UNTIL }, 200, cors);
 }
 
 // Admin = verified Google email with a document at admins/{email} in Firestore.
@@ -87,16 +88,18 @@ async function isAdmin(user, env) {
 async function handleCheckout(req, env, cors) {
   const user = await requireUser(req, env);
   if (await isAdmin(user, env)) return json({ already: true, admin: true }, 200, cors);
+  // Already paid the one-time price: never charge twice
+  const have = await env.PREMIUM.get('pro:' + user.uid, 'json');
+  if ((have?.until || 0) >= LIFETIME_UNTIL) return json({ already: true }, 200, cors);
 
-  const amount = parseInt(env.PRICE_CENTAVOS || '5000', 10);
-  const days = parseInt(env.PASS_DAYS || '30', 10);
+  const amount = parseInt(env.PRICE_CENTAVOS || PRICE_DEFAULT, 10);
   const appUrl = env.APP_URL;
   const body = {
     data: {
       attributes: {
-        line_items: [{ name: `Bida-Vibe Premium — ${days} araw`, amount, currency: 'PHP', quantity: 1 }],
+        line_items: [{ name: 'Bida-Vibe Premium (one-time)', amount, currency: 'PHP', quantity: 1 }],
         payment_method_types: ['gcash', 'paymaya', 'card'],
-        description: `Lahat ng sound pads, music bar, Talk at Fade sa loob ng ${days} araw. Walang auto-charge.`,
+        description: 'Isang bayad lang: lahat ng sound pads, music, Talk at Fade, for good. Walang monthly, walang auto-charge.',
         reference_number: user.uid.slice(0, 20) + '-' + Date.now().toString(36),
         send_email_receipt: true,
         show_description: true,
@@ -148,17 +151,14 @@ async function handleWebhook(req, env) {
   if (!uid) return new Response('no uid', { status: 200 });
 
   const paid = (attrs.payments || [])[0]?.attributes || {};
-  const expectedAmount = parseInt(env.PRICE_CENTAVOS || '5000', 10);
+  const expectedAmount = parseInt(env.PRICE_CENTAVOS || PRICE_DEFAULT, 10);
   const amount = paid.amount ?? attrs.line_items?.[0]?.amount ?? 0;
   if (amount < expectedAmount) return new Response('amount mismatch', { status: 200 });
 
-  // Extend from today, or from the current end date if the pass is still active
-  const days = parseInt(env.PASS_DAYS || '30', 10);
+  // One-time payment: unlocked for good
   const prev = await env.PREMIUM.get('pro:' + uid, 'json');
-  const start = Math.max(Date.now(), prev?.until || 0);
-  const until = start + days * DAY;
   await env.PREMIUM.put('pro:' + uid, JSON.stringify({
-    until, lastPaidAt: new Date().toISOString(), sessionId: session.id, amount,
+    until: LIFETIME_UNTIL, lifetime: true, lastPaidAt: new Date().toISOString(), sessionId: session.id, amount,
     method: attrs.payment_method_used || paid.source?.type || '', email: attrs.metadata?.email || '',
     payments: (prev?.payments || 0) + 1
   }));

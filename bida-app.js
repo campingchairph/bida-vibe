@@ -8,8 +8,7 @@
 
 /* ---------- Config (edit before launch) ---------- */
 const BIDA_CONFIG = {
-  price: '₱50',
-  passDays: 30,       // Premium is a pass: ₱50 for 30 days, no auto-charge. Paying again adds 30 days.
+  price: '₱150',      // Premium is a one-time payment: pay once, unlocked for good on that Google account (display only; the Worker sets the real price)
   // Payments (see PAYMENTS.md): URL of the deployed Cloudflare Worker, e.g. 'https://bida-pay.yourname.workers.dev'
   workerUrl: '',
   // Firebase web config (Project settings → Your apps → Web app). Used for Google sign-in (buyers + admin).
@@ -3034,8 +3033,8 @@ async function vkAdminDelete(c) {
 
 /* ============================================================
    ACCOUNT · PREMIUM PASS · ADMIN
-   - Everyone must sign in with Google to subscribe.
-   - Premium = ₱50 pass for 30 days (no auto-charge); paying again adds 30 days.
+   - Everyone must sign in with Google to pay.
+   - Premium = ₱150 one-time payment; unlocked for good on that Google account (no auto-charge).
    - Admin test accounts = Google-verified email with a document at
      Firestore admins/{email}. firestore.rules only lets a user read their
      own document; the Worker re-checks it server-side.
@@ -3149,7 +3148,7 @@ async function startCheckout() {
   const b = $('#pay-btn'); if (b) { b.disabled = true; b.querySelector('span').textContent = 'Binubuksan ang PayMongo…'; }
   try {
     const j = await workerFetch('/checkout', { method: 'POST', body: '{}' });
-    if (j.already) { await refreshPremium(); closeSheet(); toast('Admin account — lahat naka-unlock'); return; }
+    if (j.already) { await refreshPremium(); closeSheet(); toast(j.admin ? 'Admin account — lahat naka-unlock' : 'Bayad ka na. Naka-unlock na ang Premium.'); return; }
     saveState();
     location.href = j.url;
   } catch (e) {
@@ -3166,14 +3165,18 @@ async function handlePaidReturn() {
   const before = BIDA.premiumUntil;
   for (let i = 0; i < 30 && !AUTH.ready; i++) await new Promise(r => setTimeout(r, 300));
   for (let i = 0; i < 15; i++) {
-    if (AUTH.user) { await refreshPremium(); if (BIDA.premiumUntil > before) { toast(`Premium hanggang ${fmtDay(BIDA.premiumUntil)}. Party na!`); return; } }
+    if (AUTH.user) { await refreshPremium(); if (BIDA.premiumUntil > before) { toast(isLifetime() ? 'Unlocked na ang Premium, for good. Party na!' : `Premium hanggang ${fmtDay(BIDA.premiumUntil)}. Party na!`); return; } }
     await new Promise(r => setTimeout(r, 2000));
   }
   toast('Natanggap na ang bayad pero hindi pa nag-a-unlock. I-refresh ang page mamaya.');
 }
 
+// One-time Premium is stored as an end date far in the future (year 9999); older 30-day passes keep their real date
+const LIFETIME_MS = 4e12;   // anything past ~2096 counts as "for good"
+const isLifetime = () => BIDA.premiumUntil > LIFETIME_MS;
 function passLine() {
   if (isAdmin()) return '<span class="badge-pro">Admin</span> Test account — lahat naka-unlock';
+  if (passActive() && isLifetime()) return '<span class="badge-pro">Premium</span> Bayad na. Sa\'yo na \'to for good.';
   if (passActive()) return `<span class="badge-pro">Premium</span> Hanggang <b>${esc(fmtDay(BIDA.premiumUntil))}</b>`;
   if (BIDA.premiumUntil) return `Natapos ang Premium noong ${esc(fmtDay(BIDA.premiumUntil))}`;
   return '';
@@ -3181,25 +3184,25 @@ function passLine() {
 let PRO_FEATURE = '';
 function openPremium(feature) {
   PRO_FEATURE = feature || PRO_FEATURE;
-  const u = AUTH.user, admin = isAdmin(), days = BIDA_CONFIG.passDays;
+  const u = AUTH.user, admin = isAdmin();
   let action;
-  if (admin) action = `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`;
-  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google para mag-subscribe</button>
-      <p class="muted" style="margin-top:10px;text-align:center">Mag-sign in para naka-save ang Premium mo. Gagana sa phone, tablet o computer.</p>`;
+  if (admin || (u && passActive() && isLifetime())) action = `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`;
+  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google para ma-unlock</button>
+      <p class="muted" style="margin-top:10px;text-align:center">Naka-save ang Premium sa Google account mo, kaya gagana sa phone, tablet o computer.</p>`;
   else action = `${passActive() ? `<div class="note" style="background:var(--leaf-soft);margin-bottom:12px">${passLine()}</div>` : ''}
-      <button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>${passActive() ? `Dagdag ${days} araw` : 'Bayaran'} · ${esc(BIDA_CONFIG.price)}</span>${ic('arrow')}</button>
+      <button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>${passActive() ? 'Gawing for good' : 'Bayaran'} · ${esc(BIDA_CONFIG.price)}</span>${ic('arrow')}</button>
       <p class="muted" style="margin-top:10px;text-align:center">GCash · Maya · Card — secure checkout sa PayMongo</p>`;
   openSheet(`
     <div class="sheet-head"><h3>Bida-Vibe Premium</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="pro-hero">
       ${PRO_FEATURE ? `<span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE)}</span>` : ''}
-      <h4>Para sa handaan mo ngayong buwan.</h4>
+      <h4>Isang bayad lang, para sa lahat ng handaan mo.</h4>
       <ul class="pro-list">
-        <li>${ic('star')}Lahat ng 20 sound pads + walang limit na sariling upload at recording</li>
+        <li>${ic('star')}Lahat ng sound pads + walang limit na sariling upload</li>
         <li>${ic('star')}Walang limit na YouTube links, Spotify at sariling music files</li>
         <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
       </ul>
-      <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">/ ${days} araw · walang auto-charge</small></p>
+      <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">one-time · walang monthly, walang auto-charge</small></p>
     </div>
     <div style="margin-top:18px">${action}</div>
     ${u ? `<p class="muted" style="margin-top:14px;text-align:center">Naka-sign in: ${esc(u.email || '')} · <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="signOut()">Sign out</button></p>` : ''}
@@ -3217,7 +3220,7 @@ function openAccount() {
       ${!authReady() ? '<p class="note">Hindi pa bukas ang Google sign-in — malapit na!</p>'
         : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
           : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>`}
-      ${!isAdmin() ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">${passActive() ? `Dagdag ${BIDA_CONFIG.passDays} araw` : 'Mag-subscribe'} · ${esc(BIDA_CONFIG.price)} / ${BIDA_CONFIG.passDays} araw</button>` : ''}
+      ${!isAdmin() && !(passActive() && isLifetime()) ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">I-unlock ang Premium · ${esc(BIDA_CONFIG.price)} one-time</button>` : ''}
     </div>`);
 }
 function googleG() {
@@ -3346,7 +3349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadState();
   // A test unlock from localhost must never carry over to the live site
   if (!IS_LOCAL) BIDA.devPro = false;
-  applyEntitlement(); saveState();   // a 30-day pass locks again on its end date, even offline
+  applyEntitlement(); saveState();   // an old 30-day pass still locks on its end date, even offline
   M.current = BIDA.music.master;
   bindTalk($('#talk-bar'));
   $('#mb-talk').innerHTML = talkControls('bar');

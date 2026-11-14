@@ -10,7 +10,7 @@ Bida-Vibe is a static site (GitHub Pages). Anything that runs in the browser can
 | Area | How |
 |---|---|
 | Admin test accounts | A SHA-256 fingerprint of the admin's Google email is in the code, never the email itself. Admin is given only after a Google sign-in whose email Google has **verified** hashes to that fingerprint, so knowing or guessing the email isn't enough: you need the actual Google account. The Worker repeats the same check server-side. Optional extra admins via Firestore `admins/{email}`: the rules let a verified user read **only their own** doc. |
-| Premium (₱50 / 30 days) | Decided by the Worker only. Price and days are set server-side (`PRICE_CENTAVOS`, `PASS_DAYS`); the browser never sends an amount. |
+| Premium (₱150 one-time) | Decided by the Worker only. The price is set server-side (`PRICE_CENTAVOS`); the browser never sends an amount. Payments below the price don't unlock, and an account that already paid can't open a second checkout. |
 | Payments | PayMongo hosted checkout. The PayMongo secret key lives only in the Worker as a Cloudflare secret. |
 | Payment confirmations | Webhook HMAC signature checked (constant-time compare). The amount must be at least the price. Each checkout session can add days only once, so retries and replays don't stack. |
 | Sign-in tokens | The Worker verifies Firebase ID tokens itself: RS256 signature against Google's keys, expiry, audience and issuer = project `bidavibe`. |
@@ -51,5 +51,5 @@ Not applicable here: SQL injection, CSRF, session cookies, password hashing, ser
 
 ## When something changes
 - **Rules change**: edit `firestore.rules`, paste it into the Console, Publish, and re-run the Playground checks above.
-- **Price or pass length change**: Worker variables `PRICE_CENTAVOS` / `PASS_DAYS` **and** `price` / `passDays` in `BIDA_CONFIG` (display only).
+- **Price change**: Worker variable `PRICE_CENTAVOS` **and** `price` in `BIDA_CONFIG` (display only).
 - **Firebase scripts upgraded**: recompute the SRI hashes in `index.html`.
