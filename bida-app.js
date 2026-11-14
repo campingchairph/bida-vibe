@@ -27,7 +27,7 @@ const BIDA_CONFIG = {
   adminHashes: ['291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd'],
   // Free tier limits
   freeUploads: 2,     // uploaded sound pads a free user can add
-  freeYtLinks: 5,     // saved YouTube links a free user can play; more needs Premium
+  freeYtLinks: 2,     // saved YouTube links a free user can play; more needs Premium
   // Test unlock — only works on localhost, never on the live site.
   devUnlockCode: 'BIDATEST',
   // Spotify: create an app at developer.spotify.com, add this page's URL as a Redirect URI, paste the Client ID.
@@ -2055,39 +2055,119 @@ function barInfoClick() {
   toggleBar();
 }
 
-/* ---- Auto-duck via microphone ---- */
-const MIC = { stream: null, an: null, raf: 0, above: 0, below: 0, auto: false };
+/* ---- Auto-duck via microphone ----
+   Made to keep working on its own once it's on:
+   - the setting is remembered; after a reload it re-arms by itself (no prompt if the mic is already
+     allowed; otherwise on the first tap anywhere, which browsers require)
+   - the level check runs on a timer, so it keeps listening when the tab is in the background
+   - if the mic drops (call, Bluetooth switch, phone sleeping) it reconnects by itself
+   - the "Kailangan ng mic" help only appears when the browser has really blocked the mic */
+const MIC = { stream: null, an: null, src: null, iv: 0, above: 0, below: 0, auto: false, starting: null, waitTap: false, permWatch: false };
+async function micState() {
+  try { return (await navigator.permissions.query({ name: 'microphone' })).state; } catch (e) { return 'unknown'; }
+}
+function micStop() {
+  clearInterval(MIC.iv); MIC.iv = 0;
+  try { MIC.src?.disconnect(); } catch (e) { }
+  MIC.stream?.getTracks().forEach(t => { t.onended = null; t.stop(); });
+  MIC.stream = null; MIC.src = null; MIC.an = null;
+  if (MIC.auto && M.ducked) duckUp();
+  MIC.auto = false;
+}
+async function micGet() {
+  try { return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } }); }
+  catch (e) {
+    if (e.name === 'OverconstrainedError' || e.name === 'TypeError') return navigator.mediaDevices.getUserMedia({ audio: true });   // older devices
+    if (e.name === 'NotReadableError' || e.name === 'AbortError') {                                                                 // mic briefly busy: try once more
+      await new Promise(r => setTimeout(r, 700));
+      return navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    throw e;
+  }
+}
+// Open the mic and start listening. quiet = don't show help on failure (used when re-arming by itself)
+function micStart(quiet) {
+  if (MIC.starting) return MIC.starting;
+  MIC.starting = (async () => {
+    micStop();
+    if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('no mic api'), { name: 'NotFoundError' });
+    const stream = await micGet();
+    if (!BIDA.music.autoDuck) { stream.getTracks().forEach(t => t.stop()); return; }   // switched off while we waited
+    MIC.stream = stream;
+    const x = ac(); MIC.src = x.createMediaStreamSource(stream); MIC.an = x.createAnalyser(); MIC.an.fftSize = 1024; MIC.src.connect(MIC.an);
+    // Mic dropped (call, Bluetooth change, sleep): reconnect by itself
+    stream.getTracks().forEach(t => t.onended = () => { if (BIDA.music.autoDuck) setTimeout(() => micStart(true).catch(() => micWaitForTap()), 800); });
+    const buf = new Float32Array(MIC.an.fftSize); let last = performance.now();
+    MIC.iv = setInterval(() => {            // a timer, not animation frames: keeps working in a background tab
+      if (!MIC.an) return;
+      if (x.state === 'suspended') x.resume();
+      MIC.an.getFloatTimeDomainData(buf);
+      let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+      const lvl = clamp(Math.sqrt(s / buf.length) * 8, 0, 1), now = performance.now();
+      const thr = .9 - BIDA.music.sens * .8, dt = now - last; last = now;
+      if (!document.hidden) $$('.vu i').forEach(v => v.style.width = Math.round(lvl * 100) + '%');
+      if (lvl > thr) { MIC.above += dt; MIC.below = 0; if (MIC.above > 120 && !M.ducked) { duckDown(); MIC.auto = true; } }
+      else { MIC.below += dt; MIC.above = 0; if (MIC.below > 1200 && M.ducked && MIC.auto) { duckUp(); MIC.auto = false; } }
+    }, 50);
+    micWatchPermission();
+  })().finally(() => { MIC.starting = null; });
+  return MIC.starting.catch(async e => {
+    if (quiet) throw e;
+    // Only call it "blocked" when it really is; anything else gets a quiet retry on the next tap
+    const st = await micState();
+    if (e.name === 'NotAllowedError' && st !== 'granted' || e.name === 'SecurityError' || e.name === 'NotFoundError' || !window.isSecureContext) {
+      BIDA.music.autoDuck = false; saveState(); renderMusic(); micHelp(e, () => setAutoDuck(true));
+    } else { micWaitForTap(); }
+    throw e;
+  });
+}
+// Browsers only open the mic after a tap: wait for the next one anywhere on the page, then re-arm
+function micWaitForTap() {
+  if (MIC.waitTap || !BIDA.music.autoDuck) return;
+  MIC.waitTap = true;
+  const go = () => {
+    removeEventListener('pointerdown', go, true); removeEventListener('keydown', go, true); MIC.waitTap = false;
+    if (BIDA.music.autoDuck && !MIC.stream) micStart(true).then(() => { if (BIDA.tab === 'music') renderMusic(); }).catch(() => { });
+  };
+  addEventListener('pointerdown', go, true); addEventListener('keydown', go, true);
+}
+// If the person allows the mic in the browser settings later, start right away
+async function micWatchPermission() {
+  if (MIC.permWatch) return; MIC.permWatch = true;
+  try {
+    const p = await navigator.permissions.query({ name: 'microphone' });
+    p.onchange = () => { if (p.state === 'granted' && BIDA.music.autoDuck && !MIC.stream) micStart(true).catch(() => { }); };
+  } catch (e) { }
+}
 async function setAutoDuck(on) {
   if (on && needPro('Auto-fade')) { renderMusic(); return; }
   BIDA.music.autoDuck = on; saveState();
-  if (!on) { cancelAnimationFrame(MIC.raf); MIC.stream?.getTracks().forEach(t => t.stop()); MIC.stream = null; renderMusic(); return; }
-  try {
-    MIC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
-    const x = ac(), src = x.createMediaStreamSource(MIC.stream); MIC.an = x.createAnalyser(); MIC.an.fftSize = 1024; src.connect(MIC.an);
-    const buf = new Float32Array(MIC.an.fftSize); let last = performance.now();
-    const loop = now => {
-      MIC.an.getFloatTimeDomainData(buf);
-      let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
-      const lvl = clamp(Math.sqrt(s / buf.length) * 8, 0, 1);
-      const thr = .9 - BIDA.music.sens * .8, dt = now - last; last = now;
-      $$('.vu i').forEach(v => v.style.width = Math.round(lvl * 100) + '%');
-      if (lvl > thr) { MIC.above += dt; MIC.below = 0; if (MIC.above > 120 && !M.ducked) { duckDown(); MIC.auto = true; } }
-      else { MIC.below += dt; MIC.above = 0; if (MIC.below > 1200 && M.ducked && MIC.auto) { duckUp(); MIC.auto = false; } }
-      MIC.raf = requestAnimationFrame(loop);
-    };
-    MIC.raf = requestAnimationFrame(loop);
-    renderMusic(); toast('Auto-fade ON — hihina ang music pag nagsalita ka');
-  } catch (e) { BIDA.music.autoDuck = false; saveState(); renderMusic(); micHelp(e, () => setAutoDuck(true)); }
+  if (!on) { micStop(); renderMusic(); return; }
+  try { await micStart(false); renderMusic(); toast('Auto-fade ON — hihina ang music pag nagsalita ka'); }
+  catch (e) { renderMusic(); }
 }
+// After a reload: turn it back on by itself (no prompt if the mic is already allowed)
+async function micResume() {
+  if (!BIDA.music.autoDuck || !BIDA.premium || MIC.stream || MIC.starting) return;   // Premium check may still be loading: called again once it's known
+  if (await micState() === 'granted') micStart(true).catch(() => micWaitForTap());
+  else micWaitForTap();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && BIDA.music.autoDuck && BIDA.premium) {
+    const live = MIC.stream && MIC.stream.getAudioTracks().some(t => t.readyState === 'live');
+    if (!live) micStart(true).catch(() => micWaitForTap());
+  }
+});
 
 /* ---- Music tab: setup only ---- */
 function renderMusic() {
   const m = BIDA.music;
+  if (!['youtube', 'spotify', 'local'].includes(m.src)) m.src = 'youtube';   // the old "link only" option is gone
   $('#panel-music').innerHTML = `
     <div class="panel-head"><div><h2>Music setup</h2>
       <p>Dito ka pipili ng music. Yung play, next, fade at Talk, nasa music bar sa baba kahit anong tab ka.</p></div></div>
     <div class="src-tabs" role="tablist">
-      ${[['youtube', 'YouTube', BIDA.premium ? 'Walang limit' : `${BIDA_CONFIG.freeYtLinks} libre`], ['spotify', 'Spotify', 'Premium'], ['local', 'Sariling files', 'Premium'], ['link', 'Iba pa', 'Link lang']].map(([id, l, s]) =>
+      ${[['youtube', 'YouTube', BIDA.premium ? 'Walang limit' : `${BIDA_CONFIG.freeYtLinks} libre`], ['spotify', 'Spotify', 'Premium'], ['local', 'Sariling files', 'Premium']].map(([id, l, s]) =>
         `<button class="src-tab ${m.src === id ? 'on' : ''}" role="tab" aria-selected="${m.src === id}" onclick="setMusicSrc('${id}')">${l}<small>${s}</small></button>`).join('')}
     </div>
     <div class="card stack">
@@ -2112,12 +2192,6 @@ function renderMusic() {
         <input type="file" id="local-files" accept="audio/*" multiple hidden onchange="loadLocal(this.files);this.value=''">
         <p class="muted" style="margin-top:8px">Mp3 o m4a galing sa device mo. Hindi 'to ina-upload kahit saan.</p>
       </div>
-      <div ${m.src === 'link' ? '' : 'hidden'}>
-        <div class="field"><label for="ext-url">Apple Music, Deezer, SoundCloud…</label>
-          <input class="input" id="ext-url" placeholder="I-paste ang link" value="${esc(m.link)}" onchange="BIDA.music.link=this.value;saveState()"></div>
-        <button class="btn btn--ink btn--block" style="margin-top:12px" onclick="openExt()">Buksan sa app ${ic('arrow')}</button>
-        <p class="note" style="margin-top:12px">Walang fade dito kasi hindi pinapa-control ng mga app na 'to ang volume sa ibang website.</p>
-      </div>
     </div>
     <div class="card stack">
       <h3>Talk</h3>
@@ -2129,10 +2203,6 @@ function renderMusic() {
     </div>`;
 }
 function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
-function openExt() {
-  const u = ($('#ext-url').value || '').trim(); if (!/^https?:\/\//.test(u)) { toast('I-paste muna ang link'); return; }
-  BIDA.music.link = u; saveState(); window.open(u, '_blank', 'noopener');
-}
 
 /* ============================================================
    VIDEOKE — Pinoy-style: every song has a number code.
@@ -3183,7 +3253,7 @@ async function refreshPremium() {
   return BIDA.premium;
 }
 function rerenderPremiumViews() {
-  rmtPublish();
+  rmtPublish(); micResume();
   purgePremiumCache();   // premium audio leaves this device when the pass ends or another account signs in
   if (!isAdmin()) { GH.token = null; GH.state = ''; GH.files = []; }   // the GitHub token never outlives the admin's sign-in
   setTimeout(preloadPads, 0);                                          // newly unlocked pads get ready to play instantly
@@ -3423,7 +3493,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
   updateBar();
-  if (BIDA.music.autoDuck) { BIDA.music.autoDuck = false; saveState(); } // mic needs a fresh user gesture
+  micResume();          // auto-fade turns itself back on (asks only if the browser needs a tap)
   await probing;
 });
 
@@ -3437,7 +3507,7 @@ Object.assign(window, { cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbT
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
-  toggleBar, barInfoClick, setTalkSpeed, setAutoReturn, setAutoDuck, setMusicSrc, openExt,
+  toggleBar, barInfoClick, setTalkSpeed, setAutoReturn, setAutoDuck, setMusicSrc,
   openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
   openSheet, closeSheet, saveState
 });
