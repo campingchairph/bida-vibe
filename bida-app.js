@@ -2598,10 +2598,15 @@ function vkApplyFrame() {
   st.style.setProperty('--fr-bg', th.bg);
   const title = (BIDA.card && BIDA.card.title) || BIDA.event.name || eventType().label;
   const date = BIDA.card && BIDA.card.date ? fmtCardDate(BIDA.card.date) : '';
-  tt.className = 'vk-frame-title' + (th.panel ? ' has-panel' : '');
-  tt.style.cssText = th.panel ? `background:${th.panel};color:${th.panelFg}` : `color:${th.fg};--fr-ac:${th.accent}`;
+  // The title always sits in a solid box (the theme's panel colour, or cream) so it reads on any art
+  tt.className = 'vk-frame-title has-panel';
+  tt.style.cssText = `background:${th.panel || '#FFF6E5'};color:${th.panel ? th.panelFg : '#1E1A16'};--fr-ac:${th.accent}`;
   tt.innerHTML = `<b>${esc(title)}</b>${date ? `<small>${esc(date)}</small>` : ''}`;
   tt.hidden = false;
+  // Long names shrink to fit on one line instead of being cut off
+  const b = tt.querySelector('b'); b.style.fontSize = '';
+  let fsz = parseFloat(getComputedStyle(b).fontSize);
+  while (b.scrollWidth > b.clientWidth + 1 && fsz > 28) { fsz -= 4; b.style.fontSize = fsz + 'px'; }
   // Paint the theme's art (bunting, parol, balloons…) on a canvas behind everything
   const W = st.clientWidth || innerWidth, H = st.clientHeight || innerHeight, k = W / 1600;
   cv.width = Math.round(W * devicePixelRatio); cv.height = Math.round(H * devicePixelRatio); cv.hidden = false;
@@ -2618,7 +2623,8 @@ const VK_MAX_CROP = .10;
 function vkFitVideo() {
   const st = $('#vk-stage'), pl = $('#vk-player');
   if (!st.classList.contains('framed')) { pl.style.width = pl.style.height = ''; pl.style.removeProperty('--crop'); return; }
-  const top = Math.max($('.vk-bar').offsetHeight, $('#vk-frame-title').offsetHeight);
+  const tt = $('#vk-frame-title'), tcs = getComputedStyle(tt);
+  const top = Math.max($('.vk-bar').offsetHeight, tt.offsetHeight + parseFloat(tcs.marginTop) + parseFloat(tcs.marginBottom));
   const availH = st.clientHeight - top - 12, availW = st.clientWidth;
   let w = availW, full = w * 9 / 16, h = Math.min(full, availH);
   if ((full - h) / full > VK_MAX_CROP) { full = h / (1 - VK_MAX_CROP); w = full * 16 / 9; }   // too short: narrow it a bit
