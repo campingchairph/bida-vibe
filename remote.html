@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E1A16">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<!-- Anti-clickjacking: if another site loads this page inside a frame, show nothing -->
+<style id="antiframe">html{display:none}</style>
+<script>if (window.top === window.self) { document.getElementById('antiframe').remove(); } else { try { window.top.location = window.self.location; } catch (e) {} }</script>
+<title>Bida-Vibe Remote</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 8h56l-6 24-22 24L10 32z' fill='%23E2367A' stroke='%231E1A16' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='24' r='7' fill='%23FFF6E5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="bida.css?v=20261114d">
+<style>
+  body { background: var(--cream); min-height: 100vh; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .rm { max-width: 640px; margin: 0 auto; padding: 14px 14px 30px; }
+  .rm-head { display: flex; align-items: center; gap: 10px; background: var(--ink); color: var(--cream); border-radius: 18px; padding: 12px 14px; }
+  .rm-head small { display: block; font: 800 11px/1 var(--f); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+  .rm-head b { display: block; font: 800 20px/1.15 var(--f2); margin-top: 3px; }
+  .rm-head > div { flex: 1; min-width: 0; }
+  .rm-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--leaf); flex: none; box-shadow: 0 0 0 3px rgba(62,155,79,.3); }
+  .rm-dot.off { background: #999; box-shadow: none; }
+  .rm-sec { margin-top: 14px; }
+  .rm-sec h3 { font: 800 18px/1.2 var(--f2); margin: 0 0 8px; }
+  .rm-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-top: 3px solid var(--ink); padding-bottom: env(safe-area-inset-bottom); }
+  .rm-tabs button { min-height: 62px; border: 0; background: none; font: 800 13px/1.1 var(--f); color: var(--ink-3); display: grid; place-items: center; gap: 2px; cursor: pointer; }
+  .rm-tabs button.on { color: var(--ink); background: var(--gold); }
+  .rm-tabs .ic { width: 22px; height: 22px; }
+  .rm-plan { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .rm-plan li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; background: #fff; border: 2px solid var(--ink); border-radius: 14px; }
+  .rm-plan li.next { background: var(--gold); box-shadow: 3px 3px 0 var(--ink); }
+  .rm-plan li.done { opacity: .5; }
+  .rm-plan li.done b { text-decoration: line-through; }
+  .rm-plan b { display: block; font: 800 16px/1.25 var(--f); }
+  .rm-plan small { display: block; font: 700 12.5px/1.3 var(--f); color: var(--ink-3); margin-top: 2px; }
+  .rm-plan li.next small { color: var(--ink); }
+  .rm-chk { flex: none; width: 32px; height: 32px; border-radius: 9px; border: 2.5px solid var(--ink); background: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
+  .rm-chk.on { background: var(--leaf); color: #fff; }
+  .rm-chk .ic { width: 18px; height: 18px; }
+  .rm-pads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .rm-pad { min-height: 84px; border: 3px solid var(--ink); border-radius: 18px; font: 800 15px/1.15 var(--f); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); cursor: pointer; padding: 8px; word-break: break-word; }
+  .rm-pad:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  .rm-big { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 10px; align-items: stretch; }
+  .rm-big .btn { min-height: 64px; font-size: 16px; justify-content: center; }
+  .rm-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .rm-row .btn { flex: 1 1 140px; min-height: 52px; justify-content: center; }
+  .rm-now { display: flex; gap: 12px; align-items: center; padding: 12px; background: var(--gold); border: 3px solid var(--ink); border-radius: 16px; box-shadow: 4px 4px 0 var(--ink); }
+  .rm-now b { display: block; font: 800 18px/1.2 var(--f2); }
+  .rm-now small { display: block; font: 700 13px/1.3 var(--f); }
+  .rm-q { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+  .rm-q li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: #fff; border: 2px solid var(--ink); border-radius: 12px; }
+  .rm-q li > div { flex: 1; min-width: 0; }
+  .rm-q b { display: block; font: 800 14.5px/1.2 var(--f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rm-q small { display: block; font: 700 12px/1.2 var(--f); color: var(--ink-3); }
+  .rm-x { flex: none; width: 34px; height: 34px; border: 0; background: none; color: var(--ink-3); cursor: pointer; display: grid; place-items: center; }
+  .rm-x .ic { width: 16px; height: 16px; }
+  .rm-who { display: flex; gap: 8px; align-items: center; }
+  .rm-who .input { flex: 1; }
+  .rm-avs { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 4px; }
+  .rm-avs button { flex: none; border: 2.5px solid transparent; border-radius: 50%; background: none; padding: 1px; cursor: pointer; }
+  .rm-avs button.on { border-color: var(--ink); background: var(--gold); }
+  .rm-songs { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+  .rm-songs li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #fff; border: 2px solid var(--ink); border-radius: 12px; }
+  .rm-songs li > div { flex: 1; min-width: 0; }
+  .rm-songs b { display: block; font: 800 14px/1.2 var(--f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rm-songs small { display: block; font: 700 12px/1.2 var(--f); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rm-add { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--ink); background: var(--gold); display: grid; place-items: center; cursor: pointer; padding: 0; }
+  .rm-add .ic { width: 16px; height: 16px; }
+  .rm-closed { text-align: center; padding: 40px 10px; }
+  .rm-closed h2 { font: 800 24px/1.2 var(--f2); }
+  .rm-hint { font: 700 12.5px/1.4 var(--f); color: var(--ink-3); margin-top: 8px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6L8 10zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="17" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+</svg>
+<main class="rm" id="rm"><p class="muted" style="padding:40px 0;text-align:center">Kumokonekta sa TV…</p></main>
+<nav class="rm-tabs" id="rm-tabs" hidden></nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
+<script src="vk-avatars.js?v=20261114d"></script>
+<script>
+/* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
+   Reads the snapshot the TV app keeps in vk_remotes/{id} and sends small commands back.
+   The TV app checks every command before running it. */
+(function () {
+  'use strict';
+  const FIREBASE = { apiKey: 'AIzaSyCkgq_rS5ZlTO40PsoKhvG0ZwwefhjNeWE', authDomain: 'bidavibe.firebaseapp.com', projectId: 'bidavibe',
+    storageBucket: 'bidavibe.firebasestorage.app', messagingSenderId: '596965053196', appId: '1:596965053196:web:cb32617798b800f4276f29' };
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ic = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); };
+  const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+  const PAD_BG = { magenta: '#F7B6CF', gold: '#FCD983', turq: '#9EDCDC', chili: '#F4A796', leaf: '#A9D8B1', paper: '#FFFFFF' };
+
+  const key = new URLSearchParams(location.search).get('k') || '';
+  const S = { st: null, open: false, tab: store.get('bv_rm_tab', 'plan'), lib: [], q: '', who: store.get('bv_rm_who', { name: '', av: '' }), sending: 0 };
+
+  function closed(msg) {
+    $('#rm-tabs').hidden = true;
+    $('#rm').innerHTML = `<div class="card rm-closed">${vkAvatar('dj', 90)}<h2>${esc(msg)}</h2><p class="muted" style="margin-top:8px">Gumawa ng bagong remote link sa app na naka-connect sa TV.</p></div>`;
+  }
+  if (!/^[A-Za-z0-9]{24}$/.test(key)) { closed('Mali ang remote link'); return; }
+
+  let db;
+  try { firebase.initializeApp(FIREBASE); db = firebase.firestore(); } catch (e) { closed('Hindi ma-load ang remote'); return; }
+
+  // Send one command to the TV. Small cooldown so double taps don't fire twice.
+  async function send(k, v = '', n = -1, s = '', av = '') {
+    const now = Date.now(); if (now - S.sending < 250) return; S.sending = now;
+    try { await db.collection('vk_remotes').doc(key).collection('cmds').add({ k, v, n, s, av, at: firebase.firestore.FieldValue.serverTimestamp() }); }
+    catch (e) { toast('Hindi na-send. Baka sarado na ang remote.'); }
+  }
+  window.RM = {
+    tab(t) { S.tab = t; store.set('bv_rm_tab', t); render(); },
+    pad(id) { send('pad', id); if (navigator.vibrate) navigator.vibrate(15); },
+    stop() { send('stop'); },
+    music(v) { send('music', v); },
+    done(id) { send('plan', 'done', id); },
+    vk(v) { send('vk', v); },
+    del(i) { send('vk', 'del', i); },
+    find(q) { S.q = q; songs(); },
+    name(v) { S.who.name = v.replace(/\s+/g, ' ').slice(0, 24); store.set('bv_rm_who', S.who); },
+    av(id) { S.who.av = id; store.set('bv_rm_who', S.who); document.querySelectorAll('.rm-avs button').forEach(b => b.classList.toggle('on', b.dataset.av === id)); },
+    add(c) {
+      const s = S.lib.find(x => x.c === c); if (!s) return;
+      const name = (S.who.name || '').trim() || 'Bisita';
+      send('vk', 'reserve', c, name, S.who.av || ''); toast(`Na-reserve: ${s.t} · ${name}`);
+    }
+  };
+
+  const TABS = [['plan', 'Plan', 'list'], ['sounds', 'Sounds', 'sound'], ['videoke', 'Videoke', 'mic'], ['music', 'Music', 'music']];
+  function render() {
+    const st = S.st; if (!st) return;
+    $('#rm-tabs').hidden = false;
+    $('#rm-tabs').innerHTML = TABS.map(([id, label, i]) => `<button class="${S.tab === id ? 'on' : ''}" onclick="RM.tab('${id}')">${ic(i)}${label}</button>`).join('');
+    const head = `<div class="rm-head"><span class="rm-dot"></span><div><small>Remote · naka-connect sa TV</small><b>${esc(st.ev || 'Event')}</b></div></div>`;
+    $('#rm').innerHTML = head + (S.tab === 'plan' ? planHTML(st) : S.tab === 'sounds' ? soundsHTML(st) : S.tab === 'videoke' ? vkHTML(st) : musicHTML(st));
+    if (S.tab === 'videoke') songs();
+  }
+  function planHTML(st) {
+    const list = st.plan || [];
+    if (!list.length) return '<div class="rm-sec"><p class="muted">Wala pang activities.</p></div>';
+    return `<div class="rm-sec"><h3>Activities</h3><ol class="rm-plan">${list.map(p => `<li class="${p.next ? 'next' : ''} ${p.done ? 'done' : ''}">
+      <button class="rm-chk ${p.done ? 'on' : ''}" onclick="RM.done(${Number(p.id)})" aria-label="${p.done ? 'Hindi pa tapos' : 'Tapos na'}">${p.done ? ic('check') : ''}</button>
+      <div><b>${esc(p.t)}</b><small>${p.next ? 'Susunod · ' : ''}${Number(p.min) || 0} min${p.note ? ' · ' + esc(p.note) : ''}</small></div></li>`).join('')}</ol></div>`;
+  }
+  function soundsHTML(st) {
+    const pads = st.pads || [];
+    return `<div class="rm-sec"><h3>Sound pads</h3>${pads.length ? `<div class="rm-pads">${pads.map(p => `<button class="rm-pad" style="background:${PAD_BG[p.c] || '#fff'}" data-id="${esc(p.id)}" onclick="RM.pad(this.dataset.id)">${esc(p.n)}</button>`).join('')}</div>
+      <div class="rm-row" style="margin-top:12px"><button class="btn btn--ghost" onclick="RM.stop()">${ic('x')}Stop sound</button></div>
+      <p class="rm-hint">Walang tunog? Mag-tap muna kahit isang beses sa device na naka-connect sa TV.</p>` : '<p class="muted">Wala pang sound pads sa app.</p>'}</div>`;
+  }
+  function musicHTML(st) {
+    const m = st.music || {};
+    if (!m.has) return '<div class="rm-sec"><h3>Music</h3><p class="muted">Wala pang music na naka-set sa app. Pumili muna sa Music tab ng TV device.</p></div>';
+    return `<div class="rm-sec"><h3>Music</h3><p style="font-weight:800;margin-bottom:10px">${m.on ? 'Tumutugtog: ' : 'Naka-pause: '}${esc(m.t || 'Music')}</p>
+      <div class="rm-big"><button class="btn btn--ghost" onclick="RM.music('prev')">Prev</button>
+        <button class="btn ${m.on ? 'btn--ink' : 'btn--chili'}" onclick="RM.music('toggle')">${m.on ? 'Pause' : 'Play'}</button>
+        <button class="btn btn--ghost" onclick="RM.music('next')">Next</button></div>
+      ${m.pro ? `<div class="rm-row" style="margin-top:12px">
+        <button class="btn ${m.duck ? 'btn--magenta' : 'btn--ghost'}" onclick="RM.music('talk')">${ic('mic')}${m.duck ? 'Ibalik ang music' : 'Talk (hinaan)'}</button>
+        <button class="btn ${m.faded ? 'btn--magenta' : 'btn--ghost'}" onclick="RM.music('fade')">${m.faded ? 'Fade in' : 'Fade out'}</button></div>` : ''}</div>`;
+  }
+  function vkHTML(st) {
+    const v = st.vk || {}, q = v.q || [];
+    return `<div class="rm-sec"><h3>Videoke</h3>
+      ${v.now ? `<div class="rm-now">${vkAvatar(v.now.av, 52)}<div><small>Kumakanta</small><b>${esc(v.now.n)}</b><small>${esc(v.now.t)}</small></div></div>` : ''}
+      <div class="rm-row" style="margin-top:10px">${v.stage
+        ? `<button class="btn btn--ink" onclick="RM.vk('skip')">Skip</button><button class="btn btn--ghost" onclick="RM.vk('close')">Isara ang screen</button>`
+        : `<button class="btn btn--chili" onclick="RM.vk('start')" ${q.length || v.now ? '' : 'disabled'}>Buksan ang videoke screen</button>`}</div>
+      <h3 style="margin-top:16px">Pila (${q.length})</h3>
+      ${q.length ? `<ol class="rm-q">${q.map((it, i) => `<li>${vkAvatar(it.av, 34)}<div><b>${esc(it.t)}</b><small>${i + 1}. ${esc(it.n)}${it.a ? ' · ' + esc(it.a) : ''}</small></div>
+        <button class="rm-x" onclick="RM.del(${i})" aria-label="Alisin">${ic('x')}</button></li>`).join('')}</ol>` : '<p class="muted">Wala pang nakapila.</p>'}
+    </div>
+    <div class="rm-sec card"><h3>Mag-reserve</h3>
+      <div class="rm-who"><input class="input" placeholder="Sino ang kakanta?" maxlength="24" value="${esc(S.who.name)}" oninput="RM.name(this.value)" autocomplete="off"></div>
+      <div class="rm-avs">${VK_AVATARS.map(a => `<button class="${S.who.av === a.id ? 'on' : ''}" data-av="${a.id}" onclick="RM.av('${a.id}')" aria-label="${esc(a.name)}">${a.svg(40)}</button>`).join('')}</div>
+      <input class="input" style="margin-top:6px" placeholder="Hanapin: kanta, artist o code" value="${esc(S.q)}" oninput="RM.find(this.value)" autocomplete="off">
+      <ul class="rm-songs" id="rm-songs"></ul></div>`;
+  }
+  function songs() {
+    const box = $('#rm-songs'); if (!box) return;
+    if (!S.lib.length) { box.innerHTML = '<li class="muted" style="border:0;background:none">Kinukuha ang library…</li>'; return; }
+    const q = norm(S.q), res = (q ? S.lib.filter(s => String(s.c).startsWith(q) || norm(s.t).includes(q) || norm(s.a).includes(q)) : S.lib).slice(0, 40);
+    box.innerHTML = res.length ? res.map(s => `<li><span class="vk-c">${s.c}</span><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div><button class="rm-add" onclick="RM.add(${s.c})" aria-label="Reserve">${ic('plus')}</button></li>`).join('')
+      : '<li class="muted" style="border:0;background:none">Walang lumabas.</li>';
+  }
+
+  fetch('karaoke/library.json?t=' + Math.floor(Date.now() / 6e5), { cache: 'no-cache' }).then(r => r.ok ? r.json() : { songs: [] })
+    .then(j => { S.lib = (j.songs || []).filter(s => s && s.c >= 1 && /^[\w-]{11}$/.test(s.y)).map(s => ({ c: +s.c, t: String(s.t || 'Kanta').slice(0, 80), a: String(s.a || '').slice(0, 60) }))
+      .sort((a, b) => norm(a.t).localeCompare(norm(b.t))); songs(); }).catch(() => { });
+
+  db.collection('vk_remotes').doc(key).onSnapshot(d => {
+    if (!d.exists) { closed('Walang ganitong remote'); return; }
+    const data = d.data();
+    if (!data.open || !(data.expires && data.expires.toMillis() > Date.now())) { closed('Sarado na ang remote'); return; }
+    S.st = data.state || {};
+    // don't wipe what the host is typing in the Videoke search box
+    const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
+    if (typing && S.tab === 'videoke') { const top = $('#rm .rm-sec'); if (top) { top.outerHTML = vkHTML(S.st).split('<div class="rm-sec card">')[0]; } return; }
+    render();
+  }, () => closed('Hindi mabuksan ang remote. Baka sarado na.'));
+})();
+</script>
+</body>
+</html>

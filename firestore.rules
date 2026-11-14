@@ -72,6 +72,45 @@ service cloud.firestore {
       }
     }
 
+    // Host remote: the TV app (signed-in host) keeps a snapshot here; the host's phone opens
+    // remote.html with the long random id. Only the owner can change the doc.
+    match /vk_remotes/{rid} {
+      allow get: if rid.matches('^[A-Za-z0-9]{24}$');
+      allow list: if false;
+      allow create: if request.auth != null
+        && rid.matches('^[A-Za-z0-9]{24}$')
+        && request.resource.data.keys().hasOnly(['owner', 'open', 'expires', 'state', 'updated'])
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.open is bool
+        && request.resource.data.expires is timestamp
+        && request.resource.data.expires < request.time + duration.value(2, 'd')
+        && request.resource.data.state is map;
+      allow update: if request.auth != null
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == resource.data.owner
+        && request.resource.data.keys().hasOnly(['owner', 'open', 'expires', 'state', 'updated'])
+        && request.resource.data.expires == resource.data.expires
+        && request.resource.data.state is map;
+      allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
+
+      // A command from the phone (play a pad, skip a song…). It can only be ADDED, only while the
+      // remote is open, and only in this small shape. The TV reads it, checks it, runs it, deletes it.
+      match /cmds/{cmd} {
+        function rr() { return get(/databases/$(database)/documents/vk_remotes/$(rid)).data; }
+        allow create: if rr().open == true
+          && rr().expires > request.time
+          && request.resource.data.keys().hasOnly(['k', 'v', 'n', 's', 'av', 'at'])
+          && request.resource.data.k in ['pad', 'stop', 'music', 'plan', 'vk']
+          && request.resource.data.v is string && request.resource.data.v.size() <= 40
+          && request.resource.data.n is int && request.resource.data.n >= -1 && request.resource.data.n <= 999999
+          && request.resource.data.s is string && request.resource.data.s.size() <= 24
+          && request.resource.data.av is string && request.resource.data.av.size() <= 10
+          && request.resource.data.at == request.time;
+        allow read, delete: if request.auth != null && rr().owner == request.auth.uid;
+        allow update: if false;
+      }
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

@@ -64,11 +64,13 @@ function defaultState() {
     gameChecks: {},
     liveIdx: 0,
     card: null,       // invitation card: { theme, size, intro, title, sub, date, time, venue, msg, rsvp }
-    vk: null          // videoke: { queue, mine, score, lastSinger }
+    vk: null,         // videoke: { queue, mine, score, lastSinger, room }
+    remote: null      // host remote link: { id, owner, exp }
   };
 }
 function saveState() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(BIDA)); } catch (e) { /* storage full or blocked */ }
+  try { rmtPublish(); } catch (e) { }   // keep the host's phone remote in sync
 }
 function loadState() {
   try {
@@ -108,6 +110,8 @@ function loadState() {
   if (!BIDA_EVENTS.some(e => e.id === BIDA.event.type)) BIDA.event.type = 'reunion';
   if (!/^\d{2}:\d{2}$/.test(BIDA.event.start)) BIDA.event.start = '15:00';
   if (!BIDA.program.length) buildProgram(BIDA.event.type);
+  const r = BIDA.remote;
+  BIDA.remote = r && /^[A-Za-z0-9]{24}$/.test(r.id) && typeof r.owner === 'string' && r.exp > Date.now() ? { id: r.id, owner: r.owner.slice(0, 128), exp: +r.exp } : null;
 }
 
 /* ---------- In-app dialogs (never native confirm/prompt: they freeze the page and can pause music) ---------- */
@@ -430,17 +434,81 @@ const CARD_THEMES = [
     deco(ctx, W, H) { picadoRow(ctx, W, 8, 170, ['#F6B21B', '#0FA3A3', '#FFF6E5', '#3E9B4F', '#E4452B']);
       confetti(ctx, W, H, ['#F6B21B', '#0FA3A3', '#FFF6E5'], 70, 13, [0, 0, W, H * .9]); } }
 ];
-function cardTheme() { return CARD_THEMES.find(t => t.id === BIDA.card.theme) || CARD_THEMES[0]; }
+/* The host's own photo as the card background. Kept only on this device (IndexedDB), never uploaded. */
+const CARD_BG = { img: null, url: '', loaded: false };
+const OWN_THEME = { id: 'own', name: 'Sarili mong background', area: [.1, .92], bg: '#1E1A16', fg: '#FFF6E5', accent: '#F6B21B', panel: '#FFF6E5', panelFg: '#1E1A16',
+  deco(ctx, W, H) {
+    const im = CARD_BG.img; if (!im) return;
+    const k = Math.max(W / im.width, H / im.height), w = im.width * k, h = im.height * k;   // fill the card, crop the edges
+    ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
+  } };
+const CARD_UI = { more: false };
+function cardTheme() {
+  if (BIDA.card.theme === 'own' && CARD_BG.img) return { ...OWN_THEME, panel: BIDA.card.ownPanel === '0' ? null : OWN_THEME.panel };
+  return CARD_THEMES.find(t => t.id === BIDA.card.theme) || CARD_THEMES[0];
+}
+async function loadCardBg() {
+  if (CARD_BG.loaded) return;
+  CARD_BG.loaded = true;
+  try {
+    const rec = await idb('images', 'readonly', s => s.get('cardbg'));
+    if (rec && rec.blob instanceof Blob) await setCardBgBlob(rec.blob);
+  } catch (e) { }
+}
+function setCardBgBlob(blob) {
+  return new Promise(res => {
+    if (CARD_BG.url) URL.revokeObjectURL(CARD_BG.url);
+    const url = URL.createObjectURL(blob), im = new Image();
+    im.onload = () => { CARD_BG.img = im; CARD_BG.url = url; res(true); };
+    im.onerror = () => { URL.revokeObjectURL(url); res(false); };
+    im.src = url;
+  });
+}
+// Shrink big phone photos (max 1920px) so the card stays fast; saved as JPEG on this device only
+async function cardUploadBg(input) {
+  const file = input.files && input.files[0]; input.value = '';
+  if (!file) return;
+  if (!/^image\/(jpeg|png|webp|gif|heic|heif)$/i.test(file.type)) { toast('Picture lang pwede (JPG, PNG o WebP)'); return; }
+  if (file.size > 25e6) { toast('Masyadong malaki ang picture (max 25 MB)'); return; }
+  let bmp; try { bmp = await createImageBitmap(file); } catch (e) { toast('Hindi mabuksan ang picture na yan. Subukan ang JPG o PNG.'); return; }
+  const k = Math.min(1, 1920 / Math.max(bmp.width, bmp.height)), cv = document.createElement('canvas');
+  cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height); bmp.close?.();
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', .86));
+  if (!blob) { toast('Hindi ma-save ang picture'); return; }
+  await idb('images', 'readwrite', s => s.put({ id: 'cardbg', blob }));
+  await setCardBgBlob(blob); CARD_BG.loaded = true;
+  ensureCard(); BIDA.card.theme = 'own'; saveState(); renderCard(); toast('Naka-set na ang background mo!');
+}
+async function cardRemoveBg() {
+  if (!await askConfirm('Alisin ang sarili mong background?', 'Alisin')) return;
+  await idb('images', 'readwrite', s => s.delete('cardbg'));
+  if (CARD_BG.url) URL.revokeObjectURL(CARD_BG.url);
+  Object.assign(CARD_BG, { img: null, url: '' });
+  if (BIDA.card.theme === 'own') BIDA.card.theme = cardDefaults().theme;
+  saveState(); renderCard();
+}
+function cardOwnHTML() {
+  const on = BIDA.card.theme === 'own' && CARD_BG.img;
+  return `<span class="field-label">Sariling background</span>
+    ${CARD_BG.img ? `<div class="own-bg">
+        <button class="theme-chip ${on ? 'on' : ''}" onclick="setCard('theme','own')" aria-pressed="${!!on}"><span class="theme-sw own-sw" style="background-image:url('${CARD_BG.url}')"></span>Picture mo</button>
+        <label class="btn btn--ghost btn--sm">${ic('upload')}Palitan<input type="file" accept="image/*" hidden onchange="cardUploadBg(this)"></label>
+        <button class="btn btn--ghost btn--sm" onclick="cardRemoveBg()">${ic('trash')}Alisin</button></div>
+      ${on ? `<label class="toggle" style="margin-top:10px"><input type="checkbox" ${BIDA.card.ownPanel === '0' ? '' : 'checked'} onchange="setCard('ownPanel', this.checked ? '1' : '0')">Lagyan ng box ang text para mabasa</label>` : ''}`
+    : `<label class="btn btn--ghost btn--sm own-up">${ic('upload')}Mag-upload ng picture<input type="file" accept="image/*" hidden onchange="cardUploadBg(this)"></label>
+       <p class="muted" style="margin-top:6px">Sa device mo lang naka-save ang picture. Hindi namin ina-upload.</p>`}`;
+}
 function cardDefaults() {
   const e = BIDA.event, et = eventType();
   const theme = (CARD_THEMES.find(t => t.for.includes(e.type)) || CARD_THEMES[2]).id;
-  return { theme, size: 'post', intro: 'Inaanyayahan ka sa', title: e.name || et.label, sub: '', date: e.date || '', time: e.start || '', venue: '', msg: 'Kain, laro at kwentuhan — kumpleto ang saya kapag nandiyan ka!', rsvp: '' };
+  return { theme, size: 'post', ownPanel: '1', intro: 'Inaanyayahan ka sa', title: e.name || et.label, sub: '', date: e.date || '', time: e.start || '', venue: '', msg: 'Kain, laro at kwentuhan — kumpleto ang saya kapag nandiyan ka!', rsvp: '' };
 }
 function ensureCard() {
   const d = cardDefaults(), c = BIDA.card && typeof BIDA.card === 'object' ? BIDA.card : {};
   const out = {};
   for (const k of Object.keys(d)) out[k] = typeof c[k] === 'string' ? c[k].slice(0, k === 'msg' ? 220 : 90) : d[k];
-  if (!CARD_THEMES.some(t => t.id === out.theme)) out.theme = d.theme;
+  if (out.theme !== 'own' && !CARD_THEMES.some(t => t.id === out.theme)) out.theme = d.theme;
   if (!CARD_SIZES[out.size]) out.size = 'post';
   BIDA.card = out;
 }
@@ -527,7 +595,8 @@ function renderCard() {
       <div class="card-form">
         <span class="field-label">Theme — bagay sa ${esc(eventType().label)}</span>
         <div class="theme-chips">${fit.map(chip).join('')}</div>
-        <details class="more-themes"><summary>Iba pang themes</summary><div class="theme-chips">${rest.map(chip).join('')}</div></details>
+        <details class="more-themes" ${CARD_UI.more ? 'open' : ''} ontoggle="CARD_UI_more(this.open)"><summary>Iba pang themes</summary><div class="theme-chips">${rest.map(chip).join('')}</div></details>
+        <div id="own-bg-wrap" style="margin-top:14px">${cardOwnHTML()}</div>
         <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Laki ng card" style="margin:14px 0 4px">
           ${Object.entries(CARD_SIZES).map(([k, v]) => `<button class="${c.size === k ? 'on' : ''}" onclick="setCard('size','${k}')">${v[2]}</button>`).join('')}</div>
         <div class="stack" style="margin-top:12px">
@@ -544,12 +613,17 @@ function renderCard() {
     </div>`;
   const draw = () => { const cv = $('#card-canvas'); if (cv) drawCard(cv); };
   draw();
+  if (!CARD_BG.loaded) loadCardBg().then(() => { if (BIDA.tab === 'card' && CARD_BG.img) renderCard(); });
   if (!cardFontsReady && document.fonts) Promise.all([document.fonts.load(`800 80px "Bricolage Grotesque"`), document.fonts.load(`700 40px "Nunito"`), document.fonts.load(`italic 600 40px "Nunito"`)])
     .then(() => { cardFontsReady = true; draw(); }).catch(() => { });
 }
 function setCard(k, v) {
   ensureCard(); BIDA.card[k] = String(v).slice(0, k === 'msg' ? 220 : 90); saveState();
-  if (k === 'theme' || k === 'size') renderCard(); else redrawCard();
+  if (k === 'theme') {     // update the chips in place so open/closed sections stay as they are
+    $$('.theme-chip').forEach(b => { const on = b.getAttribute('onclick') === `setCard('theme','${v}')`; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    const w = $('#own-bg-wrap'); if (w) w.innerHTML = cardOwnHTML();
+    redrawCard();
+  } else if (k === 'size') renderCard(); else redrawCard();
 }
 async function resetCard() {
   if (!await askConfirm('Palitan ng detalye mula sa Plan ang pangalan, petsa at oras?', 'Palitan')) return;
@@ -1030,10 +1104,11 @@ let DB;
 function db() {
   if (DB) return Promise.resolve(DB);
   return new Promise((res, rej) => {
-    const r = indexedDB.open('bidavibe_media', 2);
+    const r = indexedDB.open('bidavibe_media', 3);
     r.onupgradeneeded = () => {
       if (!r.result.objectStoreNames.contains('sounds')) r.result.createObjectStore('sounds', { keyPath: 'id' });
       if (!r.result.objectStoreNames.contains('padcache')) r.result.createObjectStore('padcache', { keyPath: 'id' });
+      if (!r.result.objectStoreNames.contains('images')) r.result.createObjectStore('images', { keyPath: 'id' });   // card background (this device only)
     };
     r.onsuccess = () => { DB = r.result; res(DB); }; r.onerror = () => rej(r.error);
   });
@@ -1929,6 +2004,7 @@ function musicSkip(d) {
 let barSrc = '';
 function updateBar(src) {
   if (src) barSrc = src;
+  rmtPublish();
   const has = !!M.kind;
   $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang tumutugtog';
   $('#mb-sub').textContent = has ? [barSrc, M.pos, M.faded ? 'faded out' : ''].filter(Boolean).join(' · ') : (ytLinks().length ? 'Tap para i-play ang naka-save' : 'Tap para pumili ng music');
@@ -2233,10 +2309,11 @@ async function vkStart() {
   if (M.playing) musicPause();                         // party music stops while someone sings
   try { navigator.wakeLock?.request('screen').then(l => VK.lock = l).catch(() => { }); } catch (e) { }
   if (!VK.cur) vkNext(); else vkStageInfo();
-  vkStageQR();
+  // the QR on the right lets guests add songs; make the link now if the host hasn't yet
+  if (!vkRoomValid() && AUTH.user) vkMakeRoom(true); else vkStageQR();
 }
 function vkClose() {
-  $('#vk-stage').hidden = true; document.body.classList.remove('in-vk'); document.body.style.overflow = '';
+  $('#vk-stage').hidden = true; document.body.classList.remove('in-vk'); document.body.style.overflow = ''; rmtPublish();
   try { VK.yt?.pauseVideo(); } catch (e) { }
   clearTimeout(VK.introT); $('#vk-intro').hidden = true;
   if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
@@ -2281,6 +2358,7 @@ function vkStageInfo() {
   const line = (it, s, n, k) => `<li class="vk-tx" style="--i:${k + 2};--o:${Math.max(.22, .9 - k * .14).toFixed(2)}"><span>${n}</span><b>${esc(it.singer || 'Bisita')}</b> <em>${esc(s ? s.t : 'Code ' + it.c)}</em></li>`;
   const all = (cur ? [[VK.cur, cur]] : []).concat(q.map(it => [it, vkSong(it.c)]));
   const items = all.slice(0, 8).map(([it, s], i) => i === 0 ? box(it, s, 0, !!cur) : i === 1 ? box(it, s, 1, false) : line(it, s, cur ? i : i + 1, i - 2));
+  rmtPublish();
   $('#vk-side').innerHTML = items.join('') + (all.length > 8 ? `<li class="vk-tx" style="--o:.22">+${all.length - 8} pa</li>` : '');
 }
 /* "Susunod na kakanta" — a big, fun intro before each song, then the video starts */
@@ -2335,9 +2413,9 @@ function vkRoomValid() {
   const r = BIDA.vk && BIDA.vk.room;
   return !!(r && /^[A-Za-z0-9]{24}$/.test(r.id) && r.owner === AUTH.user?.uid && r.exp > Date.now());
 }
-async function vkMakeRoom() {
-  if (!authReady()) { toast('Hindi pa bukas ang sign-in'); return; }
-  if (!AUTH.user) { await signIn(); if (!AUTH.user) return; }
+async function vkMakeRoom(silent) {
+  if (!authReady()) { if (!silent) toast('Hindi pa bukas ang sign-in'); return; }
+  if (!AUTH.user) { if (silent) return; await signIn(); if (!AUTH.user) return; }
   const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang link. I-refresh mo.'); return; }
   const old = BIDA.vk.room;
   if (old && old.owner === AUTH.user.uid) fs.collection('vk_rooms').doc(old.id).update({ open: false }).catch(() => { });
@@ -2349,7 +2427,7 @@ async function vkMakeRoom() {
       expires: firebase.firestore.Timestamp.fromMillis(exp), queue: [], now: null, updated: firebase.firestore.FieldValue.serverTimestamp() });
   } catch (e) { toast(/permission/i.test(e.message) ? 'Hindi pa naka-publish ang bagong Firestore rules' : 'Hindi nagawa ang link. Try ulit.'); return; }
   vkState().room = { id, owner: AUTH.user.uid, exp }; saveState();
-  vkListen(); vkPublish(); renderVideoke(); vkShowQR(); if (!$('#vk-stage').hidden) vkStageQR();
+  vkListen(); vkPublish(); if (BIDA.tab === 'videoke') renderVideoke(); if (!silent) vkShowQR(); if (!$('#vk-stage').hidden) vkStageQR();
 }
 async function vkShareRoom() {
   if (!vkRoomValid()) return;
@@ -2419,7 +2497,7 @@ async function vkStageQR() {
   if (!vkRoomValid()) { el.hidden = true; el.innerHTML = ''; return; }
   const url = vkRoomUrl(BIDA.vk.room.id);
   if (el.dataset.url === url && !el.hidden) return;
-  try { const c = await qrCanvas(url, 240); el.innerHTML = '<small>Scan para kumanta</small>'; el.prepend(c); el.dataset.url = url; el.hidden = false; }
+  try { const c = await qrCanvas(url, 360); el.innerHTML = '<b>Gusto mong kumanta?</b><small>I-scan para mag-add ng kanta</small>'; el.prepend(c); el.dataset.url = url; el.hidden = false; }
   catch (e) { el.hidden = true; }
 }
 async function vkCloseRoom() {
@@ -2462,6 +2540,128 @@ function vkPublish() {
       title: String(BIDA.event.name || eventType().label).slice(0, 90), updated: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(() => { });
   }, 700);
+}
+
+/* ============================================================
+   HOST REMOTE — control the TV laptop/tablet from your phone.
+   The app on the TV keeps a Firestore doc vk_remotes/{24 random chars} up to date
+   (plan, sound pads, videoke queue, music). remote.html?k=<id> shows it and sends
+   small commands back; the TV checks each command and runs it.
+   The link is the key: only share it with co-hosts. It ends after 24 hours.
+   ============================================================ */
+const RMT = { unsub: null, pubT: 0, seen: new Set(), last: '' };
+const REMOTE_HOURS = 24;
+function rmtValid() {
+  const r = BIDA.remote;
+  return !!(r && /^[A-Za-z0-9]{24}$/.test(r.id) && r.owner === AUTH.user?.uid && r.exp > Date.now());
+}
+function rmtUrl() { return new URL('remote.html?k=' + BIDA.remote.id, location.href).href; }
+function rmtSheet() {
+  const on = rmtValid();
+  openSheet(`<div class="sheet-head"><h3>Remote para sa host</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <p class="muted">Naka-connect ba sa TV ang laptop o tablet na 'to? I-scan ang QR gamit ang phone mo para ma-control ang sounds, videoke, music at makita ang plan nang hindi hinahawakan ang device na 'to.</p>
+    ${on ? `<div class="qr-box" id="rmt-qr"><p class="muted">Ginagawa ang QR…</p></div>
+      <p class="note" style="margin-top:12px"><b>Para sa co-host lang 'to.</b> Kahit sino ang may hawak ng link, pwedeng mag-control. Huwag i-send sa GC. Mag-e-expire in ${Math.max(1, Math.round((BIDA.remote.exp - Date.now()) / 36e5))} oras.</p>
+      <div class="qr-btns"><button class="btn btn--ink" onclick="rmtCopy()">${ic('share')}I-copy ang link</button>
+        <button class="btn btn--ghost" onclick="rmtStop()">Isara ang remote</button></div>
+      <p class="muted" style="margin-top:12px;text-align:center">Tip: mag-tap muna kahit isang beses sa device na 'to para payagan ng browser ang sounds. Huwag i-minimize ang app sa TV.</p>`
+    : `<button class="btn btn--chili btn--block" style="margin-top:14px" onclick="rmtStart()">${ic('qr')}${AUTH.user ? 'Gawa ng remote link' : 'Mag-sign in para makagawa'}</button>`}`);
+  if (on) qrCanvas(rmtUrl(), 520).then(c => { c.className = 'qr-img'; const b = $('#rmt-qr'); if (b) { b.innerHTML = ''; b.appendChild(c); } })
+    .catch(() => { const b = $('#rmt-qr'); if (b) b.innerHTML = '<p class="muted">Hindi ma-load ang QR. I-copy na lang ang link.</p>'; });
+}
+async function rmtStart() {
+  if (!authReady()) { toast('Hindi pa bukas ang sign-in'); return; }
+  if (!AUTH.user) { await signIn(); if (!AUTH.user) return; }
+  const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang remote. I-refresh mo.'); return; }
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const id = [...crypto.getRandomValues(new Uint8Array(24))].map(b => abc[b % abc.length]).join('');
+  const exp = Date.now() + REMOTE_HOURS * 36e5;
+  try {
+    await fs.collection('vk_remotes').doc(id).set({ owner: AUTH.user.uid, open: true, expires: firebase.firestore.Timestamp.fromMillis(exp),
+      state: rmtState(), updated: firebase.firestore.FieldValue.serverTimestamp() });
+  } catch (e) { toast(/permission/i.test(e.message) ? 'Hindi pa naka-publish ang bagong Firestore rules' : 'Hindi nagawa ang remote. Try ulit.'); return; }
+  BIDA.remote = { id, owner: AUTH.user.uid, exp }; saveState();
+  rmtListen(); rmtSheet();
+}
+async function rmtCopy() {
+  if (!rmtValid()) return;
+  try { await navigator.clipboard.writeText(rmtUrl()); toast('Na-copy ang remote link'); } catch (e) { askText('I-copy ang link na ito', rmtUrl(), 600); }
+}
+async function rmtStop() {
+  if (!await askConfirm('Isara ang remote? Hindi na gagana ang link sa phone.', 'Isara')) return;
+  const fs = vkFs(); if (fs && rmtValid()) fs.collection('vk_remotes').doc(BIDA.remote.id).update({ open: false }).catch(() => { });
+  RMT.unsub?.(); RMT.unsub = null; BIDA.remote = null; saveState(); closeSheet(); toast('Sarado na ang remote');
+}
+// What the phone sees. Names and titles only: no account details, no links.
+function rmtState() {
+  const nxt = nextIdx();
+  const song = it => { const s = vkSong(it.c); return { n: String(it.singer || 'Bisita').slice(0, 24), av: it.av || vkAvatarFor(it.singer), t: s ? s.t.slice(0, 80) : 'Code ' + it.c, a: s ? s.a.slice(0, 60) : '', c: it.c }; };
+  return {
+    ev: String(BIDA.event.name || eventType().label).slice(0, 90),
+    plan: BIDA.program.slice(0, 60).map((p, i) => ({ id: p.id, t: String(p.title || '').slice(0, 80), min: p.min, done: !!p.done, next: i === nxt, note: String(p.note || '').slice(0, 200) })),
+    pads: padList().filter(p => canPlaySound(p.id)).slice(0, 40).map(p => ({ id: p.id, n: p.name.slice(0, 24), c: p.c })),
+    music: { has: !!M.kind, on: !!M.playing, t: String(M.title || '').slice(0, 90), duck: !!M.ducked, faded: !!M.faded, pro: !!BIDA.premium },
+    vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song) }
+  };
+}
+// Keep the phone's copy fresh (only writes when something actually changed)
+function rmtPublish() {
+  if (!BIDA.remote) return;
+  clearTimeout(RMT.pubT);
+  RMT.pubT = setTimeout(() => {
+    const fs = vkFs(); if (!fs || !rmtValid()) return;
+    const st = rmtState(), key = JSON.stringify(st);
+    if (key === RMT.last) return; RMT.last = key;
+    fs.collection('vk_remotes').doc(BIDA.remote.id).update({ state: st, updated: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => { });
+  }, 500);
+}
+function rmtListen() {
+  RMT.unsub?.(); RMT.unsub = null;
+  const fs = vkFs(); if (!fs || !rmtValid()) return;
+  RMT.last = ''; rmtPublish(); setTimeout(rmtPublish, 4000);   // again once the sound pads have loaded
+  RMT.unsub = fs.collection('vk_remotes').doc(BIDA.remote.id).collection('cmds').orderBy('at').onSnapshot(snap => {
+    snap.docChanges().forEach(ch => {
+      if (ch.type !== 'added' || RMT.seen.has(ch.doc.id)) return;
+      RMT.seen.add(ch.doc.id);
+      const d = ch.doc.data() || {}, at = d.at && d.at.toMillis ? d.at.toMillis() : Date.now();
+      ch.doc.ref.delete().catch(() => { });
+      if (Date.now() - at > 20000) return;            // old command (TV was offline): don't fire it late
+      try { rmtRun(d); } catch (e) { }
+      rmtPublish();
+    });
+  }, () => { });
+}
+// Every command is checked here; the phone can't do anything the host's own buttons can't.
+function rmtRun(d) {
+  const v = String(d.v || ''), n = Number(d.n);
+  switch (d.k) {
+    case 'pad': if (soundEntry(v) && canPlaySound(v)) playSound(v); break;
+    case 'stop': if (CUR_PAD) { try { CUR_PAD.src.stop(); } catch (e) { } } break;
+    case 'music':
+      if (!M.kind) { toast('Remote: wala pang music na naka-set'); break; }
+      if (v === 'toggle') musicToggle();
+      else if (v === 'next') musicSkip(1);
+      else if (v === 'prev') musicSkip(-1);
+      else if (v === 'fade' && BIDA.premium) fadeToggle();
+      else if (v === 'talk' && BIDA.premium) (M.ducked ? duckUp() : duckDown());
+      break;
+    case 'plan': if (v === 'done' && BIDA.program.some(p => p.id === n)) { toggleDone(n); if (BIDA.tab === 'plan') renderPlan(); } break;
+    case 'vk':
+      if (v === 'start') vkStart();
+      else if (v === 'close') { if (!$('#vk-stage').hidden) vkClose(); }
+      else if (v === 'skip') { if (!$('#vk-stage').hidden) vkNext(); }
+      else if (v === 'reserve') {
+        const s = vkSong(n); if (!s) break;
+        const singer = String(d.s || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
+        const av = VK_AVATARS.some(a => a.id === d.av) ? d.av : vkAvatarFor(singer);
+        vkState().queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av, src: '' });
+        saveState(); toast(`Remote: ${singer} · ${s.t}`);
+        if (BIDA.tab === 'videoke' && !$('#app').hidden) renderVideoke();
+        if (!$('#vk-stage').hidden) { vkStageInfo(); if (!VK.cur) vkNext(); }
+        vkPublish();
+      } else if (v === 'del' && Number.isInteger(n)) { const q = vkState().queue; if (q[n]) { q.splice(n, 1); saveState(); if (!$('#vk-stage').hidden) vkStageInfo(); if (BIDA.tab === 'videoke') renderVideoke(); vkPublish(); } }
+      break;
+  }
 }
 
 /* ---- Hosts' own songs (saved only on this device) ---- */
@@ -2707,9 +2907,9 @@ function initAuth() {
         // A different Google account on this device must not inherit the last user's unlock
         if (BIDA.premiumUid && BIDA.premiumUid !== u.uid) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; applyEntitlement(); }
         await refreshPremium();
-        vkState(); vkListen();          // pick up guest song requests again after a reload
+        vkState(); vkListen(); rmtListen();   // pick up guest songs and remote commands again after a reload
       } else {
-        VKR.unsub?.(); VKR.unsub = null;
+        VKR.unsub?.(); VKR.unsub = null; RMT.unsub?.(); RMT.unsub = null;
         AUTH.admin = false;
         BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = '';
         applyEntitlement(); saveState(); rerenderPremiumViews();
@@ -2765,6 +2965,7 @@ async function refreshPremium() {
   return BIDA.premium;
 }
 function rerenderPremiumViews() {
+  rmtPublish();
   purgePremiumCache();   // premium audio leaves this device when the pass ends or another account signs in
   if (!isAdmin()) { GH.token = null; GH.state = ''; GH.files = []; }   // the GitHub token never outlives the admin's sign-in
   setTimeout(preloadPads, 0);                                          // newly unlocked pads get ready to play instantly
@@ -3005,7 +3206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- exports for inline handlers ---------- */
-Object.assign(window, {
+Object.assign(window, { rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
