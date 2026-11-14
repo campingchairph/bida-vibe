@@ -2607,9 +2607,9 @@ function vkSinger() {
       <svg class="vk-sm" viewBox="0 0 120 200" aria-hidden="true">
         ${['#FFF6E5" stroke-width="15', '#1E1A16" stroke-width="7'].map(st => `<g fill="none" stroke="${st}" stroke-linecap="round" stroke-linejoin="round">
           <path d="M60 74V138"/><path class="vk-sm-l1" d="M60 138L44 190"/><path class="vk-sm-l2" d="M60 138L76 190"/>
-          <path d="M60 94L86 100L80 70"/><path class="vk-sm-wave" d="M60 94L32 84L22 56"/>
+          <path d="M60 94L90 104L92 84"/><path class="vk-sm-wave" d="M60 94L32 84L22 56"/>
         </g>`).join('')}
-        <g transform="rotate(18 80 60)"><rect x="73" y="50" width="14" height="26" rx="6" fill="#1E1A16"/><circle cx="80" cy="50" r="9" fill="#5F5E5A" stroke="#1E1A16" stroke-width="3"/></g>
+        <g transform="rotate(-24 92 82)"><rect x="86" y="68" width="12" height="24" rx="5" fill="#1E1A16" stroke="#FFF6E5" stroke-width="2"/><circle cx="92" cy="68" r="8.5" fill="#5F5E5A" stroke="#1E1A16" stroke-width="3"/></g>
       </svg>
       <div class="vk-sm-head">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, 80)}</div>
     </div>

@@ -602,7 +602,8 @@ body.in-live .pl-panel { bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)
 .vk-singer[hidden] { display: none; }
 .vk-sm-wrap { position: relative; transform-origin: 50% 100%; animation: vkSway 1.1s ease-in-out infinite alternate; }
 .vk-sm { display: block; width: 100%; height: auto; overflow: visible; }
-.vk-sm-head { position: absolute; left: 25%; top: -4%; width: 50%; aspect-ratio: 1; animation: vkHead .55s ease-in-out infinite alternate; }
+/* head = 60×60 of the 120×200 body; its bottom sits on the neck (y 74), overlapping a little */
+.vk-sm-head { position: absolute; left: 25%; top: 9%; width: 50%; aspect-ratio: 1; transform-origin: 50% 100%; animation: vkHead .55s ease-in-out infinite alternate; }
 .vk-sm-head > svg, .vk-sm-head > img { display: block; width: 100% !important; height: 100% !important; border-radius: 50%; }
 .vk-sm-wave { transform-box: view-box; transform-origin: 60px 94px; animation: vkWave .55s ease-in-out infinite alternate; }
 .vk-sm-l1 { transform-box: view-box; transform-origin: 60px 138px; animation: vkStep 1.1s ease-in-out infinite alternate; }
