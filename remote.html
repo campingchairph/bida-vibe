@@ -15,10 +15,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116q">
+<link rel="stylesheet" href="bida.css?v=20261116r">
 <style>
   :root { --rs-h: calc(150px + env(safe-area-inset-bottom)); }
-  html, body { overflow-x: hidden; }
+  html, body { overflow-x: clip; }
   body { background: var(--cream); min-height: 100vh; padding-bottom: calc(var(--rs-h) + 20px); }
   .rm { max-width: 560px; margin: 0 auto; padding: 12px 14px 20px; }
   /* Top: event title + the TV bar (the only control that changes what the TV shows) */
@@ -43,7 +43,8 @@
   .cp:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
   .cp.dark { color: var(--ink); }
   .cp.wide { grid-column: 1 / -1; }
-  .cp .tvb { position: absolute; right: 8px; bottom: 7px; font: 800 10px/1 var(--f); letter-spacing: .08em; background: var(--ink); color: var(--gold); padding: 4px 6px; border-radius: 99px; }
+  .cp .tvb { position: absolute; right: 8px; bottom: 7px; display: grid; place-items: center; width: 28px; height: 22px; background: var(--ink); color: var(--gold); border-radius: 8px; }
+  .cp .tvb .ic { width: 16px; height: 16px; }
 
   /* Inside pages: the app's usual look */
   .rp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -101,6 +102,7 @@
   .rp-now > div { flex: 1; min-width: 0; }
   .rp-ctl { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; margin-top: 10px; }
   .rp-ctl .btn { min-height: 56px; justify-content: center; font-size: 16px; }
+  .rp-ctl .btn .ic { width: 24px; height: 24px; margin: 0; }
   .rp-time { font: 800 64px/1 var(--f2); text-align: center; padding: 18px 0; font-variant-numeric: tabular-nums; background: #fff; border: 3px solid var(--ink); border-radius: 20px; }
   .rp-time.warn { color: var(--chili); }
   .rp-word { text-align: center; padding: 16px; background: #fff; border: 3px solid var(--ink); border-radius: 18px; }
@@ -121,7 +123,37 @@
   .rm-cam { width: 46px; height: 46px; display: grid; place-items: center; background: var(--turq-soft) !important; font-size: 22px; }
   .rm-cam.on { background: var(--gold) !important; }
 
-  /* Floating widgets: what's on the TV · music */
+  /* Compact list in a fixed frame (about 8 rows, then it scrolls inside) */
+  .rp-frame { max-height: 352px; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+  .rp-list.compact { gap: 4px; }
+  .rp-list.compact li { padding: 5px 8px; gap: 8px; border-width: 1.5px; border-radius: 10px; min-height: 40px; }
+  .rp-list.compact b { font-size: 13.5px; }
+  .rp-list.compact small { font-size: 11px; }
+  .rp-list.compact .rp-ib { width: 32px; height: 32px; }
+  /* Library rows: 2 columns, one line each (title · artist + button) */
+  .rp-rows { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+  .rp-rows li { min-width: 0; display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 8px; background: #fff; border: 1.5px solid var(--ink); border-radius: 10px; min-height: 38px; }
+  .rp-rows li.lock { opacity: .5; }
+  .rp-rows .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 800 12.5px/1.2 var(--f); }
+  .rp-rows .t small { font: 700 11px/1 var(--f); color: var(--ink-3); margin-left: 4px; }
+  .rp-rows .rp-ib { width: 28px; height: 28px; border-width: 1.5px; font-size: 12px; }
+  .rp-rows .rp-ib .ic { width: 13px; height: 13px; }
+  /* Bottom-sheet library: small filters stay on top while the list scrolls */
+  .lib-top { position: sticky; top: -16px; z-index: 2; background: var(--paper); margin: -4px -14px 8px; padding: 6px 14px 8px; border-bottom: 1.5px solid rgba(30,26,22,.12); }
+  .lib-top .input { height: 38px; font-size: 14px; padding: 6px 10px; }
+  .lib-top .rp-chips { margin-top: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .lib-top .rp-chips::-webkit-scrollbar { display: none; }
+  .rp-chip.sm { padding: 5px 10px; font-size: 12px; flex: none; }
+  .lib-who { display: flex; gap: 8px; align-items: center; }
+  .lib-who .input { flex: 1; }
+  .lib-top .rm-avs { padding: 6px 0 0; }
+  .lib-top .rm-avs svg, .lib-top .rm-avs img { width: 34px !important; height: 34px !important; }
+  .lib-top .rm-cam { width: 38px; height: 38px; font-size: 18px; }
+  .rp-addbtn { width: 100%; margin-top: 12px; min-height: 50px; justify-content: center; font-size: 15px; }
+  .rp-pro { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--magenta-soft); border: 2px solid var(--ink); font: 700 12.5px/1.35 var(--f); }
+  .rp-pro span { flex: 1; }
+  .rp-pro .btn { flex: none; }
+  .rp-more-card .btn { margin-top: 10px; }
 
   /* Sound strip: 2 x 4 pads, swipe for more */
   .rs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; background: var(--ink); padding: 9px 9px calc(7px + env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; }
@@ -155,13 +187,16 @@
   <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="17" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z" fill="currentColor"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5h2.6v14H6zM20 5v14L9.5 12z" fill="currentColor"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M15.4 5H18v14h-2.6zM4 5v14l10.5-7z" fill="currentColor"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
 </svg>
 <div class="rtop" id="rtop" hidden>
   <header class="rh" id="rh"></header>
   <button class="rtv" id="rtv" onclick="RM.sheet('tv')" aria-haspopup="dialog"></button>
 </div>
-<main class="rm" id="rm"><p class="muted" style="padding:40px 0;text-align:center">Connecting sa TV…</p></main>
+<main class="rm" id="rm"><p class="muted" style="padding:40px 0;text-align:center">Connecting sa display…</p></main>
 <div class="rs" id="rs" hidden><div class="rs-pages" id="rs-pages"></div><div class="rs-dots" id="rs-dots"></div></div>
 <div class="rsh" id="rsh" hidden onclick="if (event.target === this) RM.sheet('')"><div class="rsh-in" id="rsh-in" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -169,7 +204,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116q"></script>
+<script src="vk-avatars.js?v=20261116r"></script>
 <script>
 /* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
    Home = big category pads. Each game page puts that game on the TV and has its settings + a big trigger.
@@ -205,7 +240,7 @@
 
   function closed(msg) {
     ['#rs', '#rtop'].forEach(s => $(s).hidden = true); $('#rsh').hidden = true;
-    $('#rm').innerHTML = `<div class="card rm-closed">${vkAvatar('dj', 90)}<h2>${esc(msg)}</h2><p class="muted" style="margin-top:8px">Gawa ng bagong remote link sa app na naka-connect sa TV.</p></div>`;
+    $('#rm').innerHTML = `<div class="card rm-closed">${vkAvatar('dj', 90)}<h2>${esc(msg)}</h2><p class="muted" style="margin-top:8px">Gawa ng bagong remote link sa host app na naka-connect sa display.</p></div>`;
   }
   if (!/^[A-Za-z0-9]{24}$/.test(key)) { closed('Mali ang remote link'); return; }
 
@@ -224,6 +259,13 @@
     }
   }
   const tv = () => (S.st && S.st.tv) || {};
+  // Premium is tied to the Google account: buying in the app on this phone, signed in as the host, unlocks the display too
+  const UNLOCK = `<a class="btn btn--magenta btn--sm" href="./?unlock=1" target="_blank" rel="noopener">${'<svg class="ic"><use href="#i-star"/></svg>'}Unlock · ₱150</a>`;
+  const proBar = what => `<div class="rp-pro"><span><b>Premium:</b> ${what}. Gamitin ang parehong Google account ng host.</span>${UNLOCK}</div>`;
+  const lockCard = (title, text) => `<div class="rp-more-card"><h3>${title}</h3><p>${text}</p>
+      <p class="rp-more-dev">Isang developer lang ang gumawa ng Bida-Vibe. Ang ₱150 mo ay tulong para mas gumanda pa ito.</p>
+      <a class="btn btn--magenta" href="./?unlock=1" target="_blank" rel="noopener"><svg class="ic"><use href="#i-star"/></svg>Unlock all songs · ₱150</a>
+      <p class="rp-note">Mag-sign in gamit ang parehong Google account ng host para ma-unlock din ang display.</p></div>`;
   const onTV = id => id === 'timer' ? !!(S.st && S.st.timer && S.st.timer.on) : tv().screen === id;
 
   window.RM = {
@@ -243,10 +285,10 @@
     madd(c) {
       const m = S.st.music || {}, s = S.mlib.find(x => x.c === c); if (!s) return;
       const have = (m.list || []).some(l => l.y === s.y);
-      if (!have && Array.isArray(m.free) && !m.free.includes(s.y)) { toast('Premium song. I-unlock sa app sa TV para sa lahat ng songs.'); return; }
+      if (!have && Array.isArray(m.free) && !m.free.includes(s.y)) { toast('Premium song. I-tap ang Unlock para sa lahat ng songs.'); return; }
       send('music', 'add', c); buzz(10); toast(have ? `Play: ${s.t}` : `Added: ${s.t}`);
     },
-    mcat(c) { S.mcat = c; S.mq = ''; render(true); },
+    mcat(c) { S.mcat = c; S.mq = ''; renderSheet(); },
     mfind(q) { S.mq = q; if (q) S.mcat = ''; const b = $('#ml-res'); if (b) b.innerHTML = mlibHTML(); const c = $('#ml-cats'); if (c) c.innerHTML = mlibCatsHTML(); },
     tool(v, n = -1, s = '') { send('show', v, n, s); buzz(12); },
     done(id) { send('plan', 'done', id); },
@@ -257,8 +299,8 @@
     rfAdd() { const el = $('#rf-new'); const v = (el.value || '').replace(/\s+/g, ' ').trim(); if (!v) return; send('show', 'rf-add', -1, v); el.value = ''; el.focus(); },
     find(q) { S.q = q; songs(); },
     name(v) { S.who.name = v.replace(/\s+/g, ' ').slice(0, 24); store.set('bv_rm_who', S.who); },
-    av(id) { S.who.av = id; S.who.ph = ''; S.who.mo = ''; store.set('bv_rm_who', S.who); render(true); },
-    cam() { vkCamera((p, m) => { S.who.ph = p; S.who.mo = m; store.set('bv_rm_who', S.who); render(true); }); },
+    av(id) { S.who.av = id; S.who.ph = ''; S.who.mo = ''; store.set('bv_rm_who', S.who); renderSheet(); },
+    cam() { vkCamera((p, m) => { S.who.ph = p; S.who.mo = m; store.set('bv_rm_who', S.who); renderSheet(); }); },
     add(c) {
       const s = S.lib.find(x => x.c === c); if (!s) return;
       const name = (S.who.name || '').trim() || 'Bisita';
@@ -279,15 +321,14 @@
     if (!force && typing()) { S.pending = true; return; }       // don't wipe what they're typing; redraw when they're done
     const page = { home: homeHTML, plan: planHTML, videoke: vkHTML, music: musicHTML, score: scoreHTML, raffle: raffleHTML, dice: diceHTML, color: colorHTML, henyo: henyoHTML, timer: timerHTML }[S.page] || homeHTML;
     $('#rm').innerHTML = page(st);
-    if (S.page === 'videoke') songs();
     tick();
   }
-  const head = (title, id) => `<div class="rp-head"><button class="rp-back" onclick="RM.go('home')" aria-label="Back">‹</button><h2>${esc(title)}</h2>${id ? (onTV(id) ? '<span class="rp-tv">Nasa TV</span>' : `<button class="rp-show" onclick="RM.tv('${id}')">${ic('tv')}I-display sa TV</button>`) : ''}</div>`;
+  const head = (title, id) => `<div class="rp-head"><button class="rp-back" onclick="RM.go('home')" aria-label="Back">‹</button><h2>${esc(title)}</h2>${id ? (onTV(id) ? '<span class="rp-tv">Nasa display</span>' : `<button class="rp-show" onclick="RM.tv('${id}')">${ic('tv')}I-display</button>`) : ''}</div>`;
   // Shown on a game page when that game isn't on the TV yet: the big button only works on what the guests can see
-  const needTV = (id, label) => onTV(id) ? '' : `<div class="rp-hint">Para gumana ang button, i-tap muna ang <b>I-display sa TV</b> sa taas para lumabas ang ${label} sa TV.</div>`;
+  const needTV = (id, label) => onTV(id) ? '' : `<div class="rp-hint">Para gumana ang button, i-tap muna ang <b>I-display</b> sa taas para lumabas ang ${label} sa display.</div>`;
 
   function homeHTML() {
-    return `<div class="cats">${CATS.map(([id, l, c, dark, wide]) => `<button class="cp ${dark ? 'dark' : ''} ${wide ? 'wide' : ''}" style="background:${c}" onclick="RM.go('${id}')">${l}${onTV(id === 'videoke' ? 'stage' : id) ? '<span class="tvb">TV</span>' : ''}</button>`).join('')}</div>`;
+    return `<div class="cats">${CATS.map(([id, l, c, dark, wide]) => `<button class="cp ${dark ? 'dark' : ''} ${wide ? 'wide' : ''}" style="background:${c}" onclick="RM.go('${id}')">${l}${onTV(id === 'videoke' ? 'stage' : id) ? `<span class="tvb" title="Nasa display">${ic('tv')}</span>` : ''}</button>`).join('')}</div>`;
   }
   function planHTML(st) {
     const list = st.plan || [];
@@ -299,17 +340,17 @@
 
   /* Music page: now playing, controls, playlist, add from the music library */
   function nowHTML(m) {
-    if (m.vk) return `<div class="rp-hint">Naka-videoke pa ang TV. Bawal sabay ang music at videoke: i-close muna ang videoke screen (TV bar sa taas).</div>`;
+    if (m.vk) return `<div class="rp-hint">Naka-videoke pa ang display. Bawal sabay ang music at videoke: i-close muna ang videoke screen (display bar sa taas).</div>`;
     return `<div class="rp-now"><div><small>${m.has ? (m.on ? 'Playing' : 'Paused') : 'Music'}</small><b>${esc(m.has ? (m.t || 'Music') : 'Walang naka-play')}</b></div></div>
-      <div class="rp-ctl"><button class="btn btn--ghost" onclick="RM.music('prev')">Prev</button>
-        <button class="btn ${m.on ? 'btn--ink' : 'btn--chili'}" onclick="RM.music('toggle')">${m.on ? 'Pause' : 'Play'}</button>
-        <button class="btn btn--ghost" onclick="RM.music('next')">Next</button></div>
+      <div class="rp-ctl"><button class="btn btn--ghost" onclick="RM.music('prev')" aria-label="Previous">${ic('prev')}</button>
+        <button class="btn ${m.on ? 'btn--ink' : 'btn--chili'}" onclick="RM.music('toggle')" aria-label="${m.on ? 'Pause' : 'Play'}">${ic(m.on ? 'pause' : 'play')}</button>
+        <button class="btn btn--ghost" onclick="RM.music('next')" aria-label="Next">${ic('next')}</button></div>
       ${m.pro ? `<div class="rp-row" style="margin-top:8px"><button class="btn ${m.duck ? 'btn--magenta' : 'btn--ghost'}" onclick="RM.music('talk')">${m.duck ? 'Balik music' : 'Talk (hinaan)'}</button>
         <button class="btn ${m.faded ? 'btn--magenta' : 'btn--ghost'}" onclick="RM.music('fade')">${m.faded ? 'Fade in' : 'Fade out'}</button></div>` : ''}`;
   }
   function filesHTML(m) {
     const f = m.files || []; if (!f.length) return '';
-    return `<span class="rp-lbl" style="margin-top:14px">Sariling files (sa device ng TV)</span><ul class="rp-list">${f.map((n, i) => { const now = m.kind === 'local' && m.fi === i; return `<li class="${now ? 'now' : ''}"><div><b>${esc(n)}</b></div>
+    return `<span class="rp-lbl" style="margin-top:14px">Sariling files (sa host device)</span><ul class="rp-list compact rp-frame">${f.map((n, i) => { const now = m.kind === 'local' && m.fi === i; return `<li class="${now ? 'now' : ''}"><div><b>${esc(n)}</b></div>
       <button class="rp-ib ${now ? 'on' : ''}" onclick="RM.playf(${i})" aria-label="Play" ${m.vk ? 'disabled' : ''}>${ic(now && m.on ? 'pause' : 'play')}</button></li>`; }).join('')}</ul>`;
   }
   function playlistHTML(m) {
@@ -318,13 +359,13 @@
     return `<span class="rp-lbl">${m.pro ? 'Playlist mo' : 'Songs mo'}</span>
       ${cats.length ? `<div class="rp-chips" style="margin-bottom:8px">${['', ...cats].map(c => `<button class="rp-chip ${m.cat === c ? 'on' : ''}" data-c="${esc(c)}" onclick="RM.plcat(this.dataset.c)">${c ? esc(c) : 'Lahat'}</button>`).join('')}
         <button class="rp-chip" style="background:var(--chili);color:#fff" onclick="RM.plplay()">Play ${m.cat ? esc(m.cat) : 'lahat'}</button></div>` : ''}
-      ${shown.length ? `<ul class="rp-list">${shown.map(l => `<li class="${m.idx === l.i ? 'now' : ''} ${l.ok ? '' : 'lock'}"><div><b>${esc(l.t)}</b><small>${l.pl ? 'Playlist' : esc(l.g || 'Song')}${l.ok ? '' : ' · Premium'}</small></div>
+      ${shown.length ? `<ul class="rp-list compact rp-frame">${shown.map(l => `<li class="${m.idx === l.i ? 'now' : ''} ${l.ok ? '' : 'lock'}"><div><b>${esc(l.t)}</b><small>${l.pl ? 'Playlist' : esc(l.g || 'Song')}${l.ok ? '' : ' · Premium'}</small></div>
         <button class="rp-ib ${m.idx === l.i ? 'on' : ''}" onclick="RM.play(${l.i})" aria-label="Play" ${l.ok && !m.vk ? '' : 'disabled'}>${ic(l.ok ? (m.idx === l.i && m.on ? 'pause' : 'play') : 'lock')}</button></li>`).join('')}</ul>`
-        : '<p class="muted">Wala pang songs. Pili sa baba.</p>'}${filesHTML(m)}`;
+        : '<p class="muted">Wala pang songs. I-tap ang Add songs.</p>'}${filesHTML(m)}`;
   }
   function mlibCatsHTML() {
     const cats = [...new Set(S.mlib.map(s => s.g).filter(Boolean))].sort();
-    return cats.length ? ['', ...cats].map(c => `<button class="rp-chip ${S.mcat === c && !S.mq ? 'on' : ''}" data-c="${esc(c)}" onclick="RM.mcat(this.dataset.c)">${c ? esc(c) : 'Lahat'}</button>`).join('') : '';
+    return cats.length ? ['', ...cats].map(c => `<button class="rp-chip sm ${S.mcat === c && !S.mq ? 'on' : ''}" data-c="${esc(c)}" onclick="RM.mcat(this.dataset.c)">${c ? esc(c) : 'Lahat'}</button>`).join('') : '';
   }
   function mlibHTML() {
     if (!S.mlib.length) return '<p class="muted">Wala pang songs sa music library.</p>';
@@ -332,25 +373,23 @@
     const all = S.mlib.filter(s => (!S.mcat || q || s.g === S.mcat) && (!q || norm(s.t).includes(q) || norm(s.a).includes(q))), res = all.slice(0, 60);
     // free host: the free songs play; the rest of the library fades behind the unlock box (same as the app on the TV)
     const fr = Array.isArray(m.free) ? new Set(m.free) : null;
-    const rows = list => `<ul class="rp-grid">${list.map(s => { const on = have.has(s.y); return `<li><b>${esc(s.t)}</b><small>${esc(s.a)}</small>
+    const rows = list => `<ul class="rp-rows">${list.map(s => { const on = have.has(s.y); return `<li><span class="t">${esc(s.t)}<small>${esc(s.a)}</small></span>
       <button class="rp-ib ${on ? 'on' : ''}" onclick="RM.madd(${s.c})" aria-label="${on ? 'Play' : 'Add'}: ${esc(s.t)}">${ic(on ? 'play' : 'plus')}</button></li>`; }).join('')}</ul>`;
     if (!fr) return res.length ? rows(res) : '<p class="muted">Walang lumabas.</p>';
     const open = all.filter(s => fr.has(s.y)), locked = all.filter(s => !fr.has(s.y)).slice(0, 8);   // every free song shows, whatever its letter
-    return (open.length ? rows(open) : '') + (locked.length ? `<div class="rp-more" style="margin-top:8px"><ul class="rp-grid rp-peek" aria-hidden="true">${locked.map(s => `<li><b>${esc(s.t)}</b><small>${esc(s.a)}</small><span class="rp-ib">${ic('lock')}</span></li>`).join('')}</ul>
-      <div class="rp-more-card"><h3>Gusto mo pa ng ibang songs?</h3><p>Unlock all songs sa app sa TV (Account → Unlock Premium · ₱150) para buong music library ang magamit mo.</p>
-      <p class="rp-more-dev">Isang developer lang ang gumawa ng Bida-Vibe. Ang ₱150 mo ay tulong para mas gumanda pa ito.</p></div></div>` : (open.length ? '' : '<p class="muted">Walang lumabas.</p>'));
+    return (open.length ? rows(open) : '') + (locked.length ? `<div class="rp-more" style="margin-top:8px;min-height:340px"><ul class="rp-rows rp-peek" aria-hidden="true">${locked.concat(locked).slice(0, 12).map(s => `<li><span class="t">${esc(s.t)}<small>${esc(s.a)}</small></span><span class="rp-ib">${ic('lock')}</span></li>`).join('')}</ul>
+      ${lockCard('Gusto mo pa ng ibang songs?', 'Unlock all songs para buong music library ang magamit mo: party, OPM, love songs at marami pa.')}</div>` : (open.length ? '' : '<p class="muted">Walang lumabas.</p>'));
   }
   function musicHTML(st) {
     const m = st.music || {};
     return head('Music') + nowHTML(m) + `<div class="rp-sec">${playlistHTML(m)}</div>
-      <div class="rp-sec"><span class="rp-lbl">Add songs</span><div class="rp-chips" id="ml-cats" style="margin-bottom:8px">${mlibCatsHTML()}</div>
-        <input class="input" placeholder="Search song o artist" value="${esc(S.mq)}" oninput="RM.mfind(this.value)" autocomplete="off">
-        <div id="ml-res" style="margin-top:8px">${mlibHTML()}</div></div>`;
+      <button class="btn btn--ink rp-addbtn" onclick="RM.sheet('mlib')">${ic('plus')}Add songs</button>
+      ${m.pro ? '' : proBar('lahat ng songs, playlist by category, Talk at Fade')}`;
   }
 
   /* Game pages */
   function scoreHTML(st) {
-    const sb = st.sb; if (!sb) return head('Score', 'score') + '<p class="muted">I-update ang app sa TV.</p>';
+    const sb = st.sb; if (!sb) return head('Score', 'score') + '<p class="muted">I-update ang host app.</p>';
     const modes = sb.modes || { teams: 'Grupo vs Grupo', duel: '1 vs 1', custom: 'Custom' };
     return head('Score', 'score') + `<div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Format">${Object.entries(modes).map(([k, l]) => `<button class="${sb.mode === k ? 'on' : ''}" onclick="RM.tool('sb-mode',-1,'${k}')">${esc(l)}</button>`).join('')}</div>
       <ul class="rp-sb" style="margin-top:12px">${(sb.teams || []).map((t, i) => `<li style="--c:${/^#[0-9A-Fa-f]{6}$/.test(t.c) ? t.c : '#1E1A16'}">
@@ -371,10 +410,12 @@
         <button class="${t.rmode === 'shuffle' ? 'on' : ''}" onclick="RM.tool('rf-mode',-1,'shuffle')">Name shuffle</button></div>
       <div class="rp-sec"><span class="rp-lbl">Mga kasali (${names.length})</span>
         <div class="rp-add"><input class="input" id="rf-new" maxlength="24" placeholder="Type ang name" autocomplete="off" onkeydown="if(event.key==='Enter')RM.rfAdd()"><button class="btn btn--ink" onclick="RM.rfAdd()">${ic('plus')}Add</button></div>
-        ${names.length ? `<div class="rp-chips" style="margin-top:10px">${names.map((n, i) => `<button class="rp-chip" onclick="RM.tool('rf-del', ${i})" aria-label="Tanggalin si ${esc(n)}">${esc(n)} <span class="x">✕</span></button>`).join('')}</div>` : '<p class="rp-note">Kailangan ng at least 2 names.</p>'}
+        ${names.length ? `<div class="rp-chips" style="margin-top:10px">${names.map((n, i) => `<button class="rp-chip" onclick="RM.tool('rf-del', ${i})" aria-label="Tanggalin si ${esc(n)}">${esc(n)} <span class="x">✕</span></button>`).join('')}</div>` : '<p class="rp-note">Mag-add ng names.</p>'}
         <label class="toggle" style="margin-top:12px"><input type="checkbox" ${t.remove ? 'checked' : ''} onchange="RM.tool('rf-remove', this.checked ? 1 : 0)">Tanggalin sa list ang nanalo</label>
         ${names.length ? `<button class="btn btn--ghost btn--sm" style="margin-top:8px" onclick="if(confirm('Burahin lahat ng names?'))RM.tool('rf-clear')">Clear lahat</button>` : ''}</div>
-      ${needTV('raffle', 'Raffle')}<button class="rp-go" onclick="RM.tool('raffle-go')" ${names.length < 2 || !onTV('raffle') ? 'disabled' : ''}>${t.rmode === 'shuffle' ? 'Bunot na!' : 'I-spin!'}</button>`;
+      ${needTV('raffle', 'Raffle')}${t.win && onTV('raffle')
+        ? `<button class="rp-go" style="background:var(--ink);color:#fff" onclick="RM.tool('raffle-go')">Close · balik sa ${t.rmode === 'shuffle' ? 'raffle' : 'roleta'}</button>`
+        : `<button class="rp-go" onclick="RM.tool('raffle-go')" ${!names.length || !onTV('raffle') ? 'disabled' : ''}>${names.length === 1 ? 'Last winner!' : t.rmode === 'shuffle' ? 'Bunot na!' : 'I-spin!'}</button>`}`;
   }
   function diceHTML(st) {
     const d = (st.tools || {}).dice || { n: 2, kind: 'num' };
@@ -396,7 +437,7 @@
         ${onTV('henyo') ? `<div class="rp-row" style="margin-top:8px"><button class="btn btn--ghost" onclick="RM.tool('hy-hide')">${w.hid ? 'Ipakita ang word' : 'Itago ang word'}</button>
         <button class="btn btn--ghost" onclick="RM.tool('hy-timer')">Start timer · ${fmt(t.hsec || 120)}</button></div>` : ''}` : '<p class="rp-note">Pindutin ang Bunot para lumabas ang word.</p>'}
       <div class="rp-sec"><span class="rp-lbl">Categories</span><div class="rp-chips">${cats.map(c => `<button class="rp-chip ${on.includes(c.k) ? 'on' : ''}" data-k="${esc(c.k)}" onclick="RM.tool('hy-cat',-1,this.dataset.k)">${esc(c.l)}</button>`).join('')}</div></div>
-      <div class="rp-sec"><span class="rp-lbl">Oras bawat round</span><div class="seg-ctrl seg-ctrl--light" role="group">${[[60, '1 min'], [120, '2 min'], [180, '3 min']].map(([s, l]) => `<button class="${t.hsec === s ? 'on' : ''}" onclick="RM.tool('hy-sec', ${s})">${l}</button>`).join('')}</div></div>
+      <div class="rp-sec"><span class="rp-lbl">Oras bawat round</span><div class="seg-ctrl seg-ctrl--light" role="group">${[[30, '30 sec'], [60, '1 min'], [120, '2 min'], [180, '3 min']].map(([s, l]) => `<button class="${t.hsec === s ? 'on' : ''}" onclick="RM.tool('hy-sec', ${s})">${l}</button>`).join('')}</div></div>
       ${needTV('henyo', 'Henyo')}<button class="rp-go" style="background:#C8553D" onclick="RM.tool('henyo-go')" ${onTV('henyo') ? '' : 'disabled'}>Bunot!</button>`;
   }
   function timerHTML(st) {
@@ -414,30 +455,30 @@
     const v = st.vk || {}, q = v.q || [];
     return head('Videoke', 'stage') + `${v.now ? `<div class="rp-now">${vkFace(v.now, 52)}<div><small>Kumakanta</small><b>${esc(v.now.n)}</b><small>${esc(v.now.t)}</small></div></div>` : ''}
       <div class="rp-ctl">
-        <button class="btn btn--ghost" onclick="RM.vk('restart')" ${v.stage && v.now ? '' : 'disabled'} aria-label="Ulitin ang song">⏮ Ulit</button>
-        ${v.stage ? `<button class="btn ${v.playing ? 'btn--ink' : 'btn--chili'}" onclick="RM.vk('toggle')" ${v.now && !v.intro ? '' : 'disabled'}>${v.playing ? '⏸ Pause' : '▶ Play'}</button>`
-          : `<button class="btn btn--chili" onclick="RM.vk('start')" ${q.length || v.now ? '' : 'disabled'}>▶ Play</button>`}
-        <button class="btn btn--ghost" onclick="RM.vk('skip')" ${v.stage && (v.now || q.length) ? '' : 'disabled'} aria-label="Next singer">Skip ⏭</button></div>
+        <button class="btn btn--ghost" onclick="RM.vk('restart')" ${v.stage && v.now ? '' : 'disabled'} aria-label="Ulitin ang song">${ic('prev')}</button>
+        ${v.stage ? `<button class="btn ${v.playing ? 'btn--ink' : 'btn--chili'}" onclick="RM.vk('toggle')" ${v.now && !v.intro ? '' : 'disabled'} aria-label="${v.playing ? 'Pause' : 'Play'}">${ic(v.playing ? 'pause' : 'play')}</button>`
+          : `<button class="btn btn--chili" onclick="RM.vk('start')" ${q.length || v.now ? '' : 'disabled'} aria-label="Play">${ic('play')}</button>`}
+        <button class="btn btn--ghost" onclick="RM.vk('skip')" ${v.stage && (v.now || q.length) ? '' : 'disabled'} aria-label="Next singer">${ic('next')}</button></div>
       ${v.stage ? `<div class="rp-row" style="margin-top:8px"><button class="btn btn--ghost" onclick="RM.vk('close')">■ Stop videoke</button></div>`
-        : `<p class="rp-note">${q.length ? 'Play = bukas ang videoke screen sa TV, simula sa unang nakapila.' : 'Mag-reserve muna ng song sa baba.'}</p>`}
+        : `<p class="rp-note">${q.length ? 'Play = bukas ang videoke screen sa display, simula sa unang nakapila.' : 'Mag-reserve muna ng song.'}</p>`}
       <div class="rp-sec"><span class="rp-lbl">Pila (${q.length})</span>
-      ${q.length ? `<ol class="rp-list">${q.map((it, i) => `<li>${vkFace(it, 34)}<div><b>${esc(it.t)}</b><small>${i + 1}. ${esc(it.n)}${it.a ? ' · ' + esc(it.a) : ''}</small></div>
+      ${q.length ? `<ol class="rp-list compact rp-frame">${q.map((it, i) => `<li>${vkFace(it, 34)}<div><b>${esc(it.t)}</b><small>${i + 1}. ${esc(it.n)}${it.a ? ' · ' + esc(it.a) : ''}</small></div>
         <button class="rp-ib plain" onclick="RM.del(${i})" aria-label="Alisin">${ic('x')}</button></li>`).join('')}</ol>` : '<p class="muted">Wala pang nakapila.</p>'}</div>
-    <div class="rp-sec card"><span class="rp-lbl">Reserve</span>
-      <input class="input" placeholder="Sino ang kakanta?" maxlength="24" value="${esc(S.who.name)}" oninput="RM.name(this.value)" autocomplete="off">
-      <div class="rm-avs"><button class="rm-cam ${S.who.ph ? 'on' : ''}" onclick="RM.cam()" aria-label="Selfie">${S.who.ph ? vkFace(S.who, 40) : '<span>📷</span>'}</button>${VK_AVATARS.map(a => `<button class="${!S.who.ph && S.who.av === a.id ? 'on' : ''}" onclick="RM.av('${a.id}')" aria-label="${esc(a.name)}">${a.svg(40)}</button>`).join('')}</div>
-      <input class="input" style="margin-top:6px" placeholder="Search song o artist" value="${esc(S.q)}" oninput="RM.find(this.value)" autocomplete="off">
-      <ul class="rp-list" id="rm-songs" style="margin-top:8px"></ul></div>`;
+    <button class="btn btn--ink rp-addbtn" onclick="RM.sheet('vlib')">${ic('plus')}Reserve song</button>
+    ${Array.isArray(v.free) ? proBar('lahat ng songs at QR para sa guests') : ''}`;
   }
   function songs() {
     const box = $('#rm-songs'); if (!box) return;
-    if (!S.lib.length) { box.innerHTML = '<li class="muted" style="border:0;background:none">Loading ang library…</li>'; return; }
+    if (!S.lib.length) { box.innerHTML = '<p class="muted">Loading ang library…</p>'; return; }
     const vk = (S.st && S.st.vk) || {}, fr = Array.isArray(vk.free) ? new Set(vk.free) : null, ok = c => !fr || fr.has(c);
-    const q = norm(S.q), res = (q ? S.lib.filter(s => norm(s.t).includes(q) || norm(s.a).includes(q)) : S.lib).filter(s => ok(s.c)).slice(0, 40);
+    const q = norm(S.q), match = q ? S.lib.filter(s => norm(s.t).includes(q) || norm(s.a).includes(q)) : S.lib;
+    const res = match.filter(s => ok(s.c)).slice(0, 80), locked = fr ? match.filter(s => !ok(s.c)).slice(0, 12) : [];
     const cnt = new Map(); (vk.q || []).forEach(it => cnt.set(it.c, (cnt.get(it.c) || 0) + 1));
-    box.innerHTML = res.length ? res.map(s => { const n = cnt.get(s.c) || 0; return `<li><div><b>${esc(s.t)}${n ? ' ✓' : ''}</b><small>${esc(s.a)}</small></div>
-      <button class="rp-ib ${n ? 'on' : ''}" onclick="RM.add(${s.c})" aria-label="${n ? 'Nakapila na ×' + n + '. Reserve ulit' : 'Reserve'}">${n ? n : ic('plus')}</button></li>`; }).join('')
-      : `<li class="muted" style="border:0;background:none">${fr && q ? 'Walang libreng song na ganyan. Unlock all songs sa app sa TV.' : 'Walang lumabas.'}</li>`;
+    const rows = res.length ? `<ul class="rp-rows">${res.map(s => { const n = cnt.get(s.c) || 0; return `<li><span class="t">${esc(s.t)}${n ? ' ✓' : ''}<small>${esc(s.a)}</small></span>
+      <button class="rp-ib ${n ? 'on' : ''}" onclick="RM.add(${s.c})" aria-label="${n ? 'Nakapila na ×' + n + '. Reserve ulit' : 'Reserve'}">${n ? n : ic('plus')}</button></li>`; }).join('')}</ul>` : '';
+    box.innerHTML = rows + (locked.length ? `<div class="rp-more" style="margin-top:8px;min-height:340px"><ul class="rp-rows rp-peek" aria-hidden="true">${locked.map(s => `<li><span class="t">${esc(s.t)}<small>${esc(s.a)}</small></span><span class="rp-ib">${ic('lock')}</span></li>`).join('')}</ul>
+      ${lockCard('Bitin pa? Marami pang kanta dito!', 'Unlock all songs para tuloy-tuloy ang kantahan, kasama ang QR para makapag-reserve ang guests sa phone nila.')}</div>` : '')
+      || '<p class="muted">Walang lumabas.</p>';
   }
 
   /* Sound strip: pages of 7 pads + Stop; only redrawn when the pads change, so swiping isn't reset */
@@ -461,25 +502,41 @@
   function renderTvBar() {
     const t = tv(), tm = S.st.timer || {};
     const what = (SCREENS[t.screen] || 'Screen') + (tm.on ? ' + Timer' : '');
-    $('#rtv').innerHTML = `${ic('tv')}<span><small>Nasa TV ngayon</small><b>${t.view === 'tv' ? 'TV view · tap para palitan' : 'Host view · tap para palitan'}</b></span><em>${esc(what)} ▾</em>`;
+    $('#rtv').innerHTML = `${ic('tv')}<span><small>Nasa display ngayon</small><b>${t.view === 'tv' ? 'Display view · tap para palitan' : 'Host view · tap para palitan'}</b></span><em>${esc(what)} ▾</em>`;
   }
   function renderSheet() {
     const box = $('#rsh');
-    if (!S.sheet || !S.st) { box.hidden = true; return; }
-    const t = tv(), m = S.st.music || {};
+    if (!S.sheet || !S.st) { box.hidden = true; S.sheetWas = ''; return; }
+    const t = tv(), m = S.st.music || {}, inner = $('#rsh-in'), same = S.sheetWas === S.sheet, keep = same ? inner.scrollTop : 0;
+    S.sheetWas = S.sheet;
+    if (S.sheet === 'mlib') {
+      inner.innerHTML = `<div class="rsh-h"><h3>Add songs</h3><button class="rp-back" onclick="RM.sheet('')" aria-label="Close">${ic('x')}</button></div>
+        <div class="lib-top"><input class="input" placeholder="Search song o artist" value="${esc(S.mq)}" oninput="RM.mfind(this.value)" autocomplete="off">
+          <div class="rp-chips" id="ml-cats">${mlibCatsHTML()}</div></div>
+        <div id="ml-res">${mlibHTML()}</div>`;
+      box.hidden = false; inner.scrollTop = keep; return;
+    }
+    if (S.sheet === 'vlib') {
+      inner.innerHTML = `<div class="rsh-h"><h3>Reserve song</h3><button class="rp-back" onclick="RM.sheet('')" aria-label="Close">${ic('x')}</button></div>
+        <div class="lib-top"><div class="lib-who"><input class="input" placeholder="Sino ang kakanta?" maxlength="24" value="${esc(S.who.name)}" oninput="RM.name(this.value)" autocomplete="off"></div>
+          <div class="rm-avs"><button class="rm-cam ${S.who.ph ? 'on' : ''}" onclick="RM.cam()" aria-label="Selfie">${S.who.ph ? vkFace(S.who, 34) : '<span>📷</span>'}</button>${VK_AVATARS.map(a => `<button class="${!S.who.ph && S.who.av === a.id ? 'on' : ''}" onclick="RM.av('${a.id}')" aria-label="${esc(a.name)}">${a.svg(34)}</button>`).join('')}</div>
+          <input class="input" style="margin-top:6px" placeholder="Search song o artist" value="${esc(S.q)}" oninput="RM.find(this.value)" autocomplete="off"></div>
+        <div id="rm-songs"></div>`;
+      songs(); box.hidden = false; inner.scrollTop = keep; return;
+    }
     if (S.sheet === 'tv') {
       const cur = t.screen;
       const opts = ['videoke', 'stage', 'card', 'games', 'score', 'raffle', 'dice', 'color', 'henyo'];
-      $('#rsh-in').innerHTML = `<div class="rsh-h"><h3>Ipakita sa TV</h3><button class="rp-back" onclick="RM.sheet('')" aria-label="Close">${ic('x')}</button></div>
+      $('#rsh-in').innerHTML = `<div class="rsh-h"><h3>Ipakita sa display</h3><button class="rp-back" onclick="RM.sheet('')" aria-label="Close">${ic('x')}</button></div>
         <div class="tv-opts">${opts.map(id => `<button class="${cur === id ? 'on' : ''}" onclick="RM.tv('${id}')">${SCREENS[id]}</button>`).join('')}
           <button class="${(S.st.timer || {}).on ? 'on' : ''}" onclick="RM.tv('${(S.st.timer || {}).on ? 'tm-close' : 'timer'}')">${(S.st.timer || {}).on ? 'Itago ang Timer' : 'Timer'}</button></div>
         <div class="rp-row" style="margin-top:12px">${t.view === 'tv' ? `<button class="btn btn--ink" onclick="RM.tv('host')">Host view</button>` : ''}
-          <button class="btn btn--ghost" onclick="RM.tv('close')">Close sa TV</button></div>
-        <p class="rp-note">Sa TV view, games at videoke lang ang nakikita ng mga bisita.</p>`;
+          <button class="btn btn--ghost" onclick="RM.tv('close')">Close display</button></div>
+        <p class="rp-note">Sa display view, games at videoke lang ang nakikita ng mga bisita.</p>`;
     } else {
       $('#rsh-in').innerHTML = `<div class="rsh-h"><h3>Music queue</h3><button class="rp-back" onclick="RM.sheet('')" aria-label="Close">${ic('x')}</button></div>
         ${nowHTML(m)}<div class="rp-sec">${playlistHTML(m)}</div>
-        <button class="btn btn--ghost btn--block" style="margin-top:12px" onclick="RM.sheet('');RM.go('music')">${ic('plus')}Add songs</button>`;
+        <button class="btn btn--ghost btn--block" style="margin-top:12px" onclick="RM.sheet('mlib')">${ic('plus')}Add songs</button>`;
     }
     box.hidden = false;
   }
@@ -498,7 +555,7 @@
       .sort((a, b) => norm(a.t) < norm(b.t) ? -1 : 1); songs(); }).catch(() => { });
   fetch('music/library.json?t=' + Math.floor(Date.now() / 6e5), { cache: 'no-cache' }).then(r => r.ok ? r.json() : { songs: [] })
     .then(j => { S.mlib = (j.songs || []).filter(s => s && s.c >= 1 && /^[\w-]{11}$/.test(s.y)).map(s => ({ c: +s.c, y: s.y, t: String(s.t || 'Song').slice(0, 80), a: String(s.a || '').slice(0, 60), g: String(s.g || '').slice(0, 20) }))
-      .sort((a, b) => norm(a.t) < norm(b.t) ? -1 : 1); const b = $('#ml-res'); if (b) { b.innerHTML = mlibHTML(); $('#ml-cats').innerHTML = mlibCatsHTML(); } }).catch(() => { });
+      .sort((a, b) => norm(a.t) < norm(b.t) ? -1 : 1); if (S.sheet === 'mlib') renderSheet(); }).catch(() => { });
 
   db.collection('vk_remotes').doc(key).onSnapshot(d => {
     if (!d.exists) { closed('Walang ganitong remote'); return; }

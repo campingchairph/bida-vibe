@@ -276,6 +276,7 @@ function tvShow(v) {
 }
 // "Go" from the remote: spin / roll / draw / pick a colour / start the timer — whatever is on screen
 function tvGo() {
+  if (!$('#tl-stage').hidden && !$('#tl-win').hidden) { tlWinClose(); return; }
   if (!$('#tl-stage').hidden) { ({ raffle: raffleGo, dice: diceRoll, color: colorGo, henyo: henyoNext })[TL.kind]?.(); }
   else if (!$('#sb-stage').hidden) sbWinner();
   else if (!$('#gtimer').hidden) timerToggle();
@@ -3446,8 +3447,9 @@ function tlWinner(tag, name, sub, color) {
     <div class="vki-tag">${esc(tag)}</div><div class="sb-win-name" style="${color ? `color:${color}` : 'color:var(--chili)'}">${esc(name)}</div>
     ${sub ? `<div class="sb-win-score">${esc(sub)}</div>` : ''}<small>Tap para i-close</small></div>`;
   el.hidden = false; vkSfx('go'); vkPlayPad(/palakpak|applause|clap|ta-?da/i);
+  rmtPublish();
 }
-function tlWinClose() { $('#tl-win').hidden = true; if (TL.kind === 'raffle') raffleShow(); }
+function tlWinClose() { $('#tl-win').hidden = true; if (TL.kind === 'raffle') raffleShow(); rmtPublish(); }
 
 /* ---- Raffle ---- */
 function raffleSetup() {
@@ -3470,14 +3472,14 @@ function raffleNames(v) {
 function raffleMode(m) { toolsState().rmode = m; saveState(); raffleSetup(); if (!$('#tl-stage').hidden && TL.kind === 'raffle') raffleShow(); }
 function raffleShow() {
   const t = toolsState(), n = t.names.length;
-  const empty = n < 2 ? `<p class="tl-empty">Kailangan ng at least 2 names. I-tap ang <b>Settings</b> para mag-add.</p>` : '';
+  const empty = !n ? `<p class="tl-empty">Wala nang names. I-tap ang <b>Settings</b> para mag-add.</p>` : '';
   const body = t.rmode === 'wheel'
     ? `<div class="rf-wheel-wrap"><canvas id="rf-wheel" width="900" height="900"></canvas><div class="rf-pointer"></div></div>`
     : `<div class="rf-shuffle" id="rf-name">${n ? esc(t.names[0]) : '—'}</div>`;
   if ($('#tl-stage').hidden || TL.kind !== 'raffle') tlOpen('raffle', 'Raffle', '');
-  $('#tl-body').innerHTML = `${empty || body}<div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="raffleGo()" ${n < 2 ? 'disabled' : ''}>${t.rmode === 'wheel' ? 'I-spin!' : 'Bunot na!'}</button>
+  $('#tl-body').innerHTML = `${empty || body}<div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="raffleGo()" ${n ? '' : 'disabled'}>${n === 1 ? 'Last winner!' : t.rmode === 'wheel' ? 'I-spin!' : 'Bunot na!'}</button>
     <span class="tl-note">${n} kasali</span></div>`;
-  if (t.rmode === 'wheel' && n >= 2) raffleDraw(TL.angle);
+  if (t.rmode === 'wheel' && n >= 1) raffleDraw(TL.angle);
 }
 function raffleDraw(rot) {
   const cv = $('#rf-wheel'); if (!cv) return;
@@ -3501,7 +3503,14 @@ function raffleDraw(rot) {
 }
 async function raffleGo() {
   const t = toolsState(), names = t.names.slice(), n = names.length;
-  if (TL.busy || n < 2) return; TL.busy = true;
+  if (!$('#tl-win').hidden) { tlWinClose(); return; }               // winner on screen: this button closes it and goes back to the roleta
+  if (TL.busy || !n) return;
+  if (n === 1) {                                                    // one name left: no spin, just reveal the last winner
+    tlWinner('Last winner is', names[0], '');
+    if (t.remove) { t.names = []; saveState(); }
+    return;
+  }
+  TL.busy = true;
   $$('.tl-go').forEach(b => b.disabled = true);
   const win = tlRand(n);
   vkSfx('roll');
@@ -3641,7 +3650,7 @@ function henyoSetup() {
     <span class="field-label" style="display:block">Categories <small class="muted">(random kung alin ang lalabas)</small></span>
     <div class="cl-chips">${BIDA_WORD_CATS.map(([k, l]) => `<button class="${t.hcats.includes(k) ? 'on' : ''}" onclick="henyoCat('${k}')">${l} <small class="muted">${BIDA_WORDS[k].length}</small></button>`).join('')}</div>
     <span class="field-label" style="display:block;margin-top:14px">Oras bawat round</span>
-    <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">${[[60, '1 min'], [120, '2 min'], [180, '3 min']].map(([s, l]) => `<button class="${t.hsec === s ? 'on' : ''}" onclick="toolsState().hsec=${s};saveState();henyoSetup()">${l}</button>`).join('')}</div>
+    <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">${[[30, '30 sec'], [60, '1 min'], [120, '2 min'], [180, '3 min']].map(([s, l]) => `<button class="${t.hsec === s ? 'on' : ''}" onclick="toolsState().hsec=${s};saveState();henyoSetup()">${l}</button>`).join('')}</div>
     <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();henyoShow()">${ic('play')}Show sa TV</button>`);
 }
 function henyoCat(k) {
@@ -3808,7 +3817,7 @@ function rmtState() {
       free: BIDA.premium ? null : BIDA_CONFIG.freeMusic,
       list: ytLinks().slice(0, 200).map((l, i) => ({ t: ytLabel(l, i).slice(0, 80), y: l.v || '', g: ytCat(l), ok: ytCanUse(i), pl: !!l.list })),
       files: musicFilesOk().slice(0, 100).map(f => f.name.slice(0, 60)) },
-    tools: (t => ({ names: t.names, rmode: t.rmode, remove: t.remove, dice: t.dice, colors: t.colors, hcats: t.hcats, hsec: t.hsec,
+    tools: (t => ({ win: !!($('#tl-win') && !$('#tl-win').hidden), names: t.names, rmode: t.rmode, remove: t.remove, dice: t.dice, colors: t.colors, hcats: t.hcats, hsec: t.hsec,
       word: HY.word ? { w: HY.word, c: (BIDA_WORD_CATS.find(c => c[0] === HY.cat) || [, ''])[1], hid: HY.hidden } : null,
       allColors: TOOL_COLORS.map(([n, h]) => ({ n, h })), allCats: BIDA_WORD_CATS.map(([k, l]) => ({ k, l })) }))(toolsState()),   // objects, not nested arrays (Firestore refuses those)
     timer: { on: !$('#gtimer').hidden, run: TM.running, left: Math.ceil(TM.running ? Math.max(0, (TM.endAt - Date.now()) / 1000) : TM.left), total: TM.total },
@@ -3927,7 +3936,7 @@ function rmtTool(v, n, s) {
     case 'color-go': rmtGo('color'); return true;
     // Henyo / charades
     case 'hy-cat': if (BIDA_WORDS[s]) { const k = t.hcats.indexOf(s); if (k >= 0) { if (t.hcats.length > 1) t.hcats.splice(k, 1); } else t.hcats.push(s); } break;
-    case 'hy-sec': if ([60, 120, 180].includes(n)) t.hsec = n; break;
+    case 'hy-sec': if ([30, 60, 120, 180].includes(n)) t.hsec = n; break;
     case 'hy-hide': HY.hidden = !HY.hidden; if (tlOn('henyo')) henyoShow(); rmtPublish(); return true;
     case 'hy-timer': if (tlOn('henyo')) henyoTimer(); rmtPublish(); return true;
     case 'henyo-go': rmtGo('henyo'); return true;
@@ -3951,6 +3960,7 @@ function rmtTool(v, n, s) {
 }
 // "Spin / Roll / Random / Bunot" from the phone: put that game on the TV first if it isn't there yet
 function rmtGo(kind) {
+  if (tlOn(kind) && !$('#tl-win').hidden) { tlWinClose(); return; }      // winner showing: close it, back to the game
   const go = { raffle: raffleGo, dice: diceRoll, color: colorGo, henyo: henyoNext }[kind];
   if (tlOn(kind)) go();                 // only the TV bar on the phone puts a game on the screen
 }
@@ -4569,12 +4579,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Show the landing page / app FIRST, then do the slower background work
   applyView();
   const startTab = new URLSearchParams(location.search).get('tab');
+  if (new URLSearchParams(location.search).get('unlock') === '1') {          // from the phone remote's "Unlock" button
+    history.replaceState(null, '', location.pathname); setTimeout(() => openPremium('Premium'), 600);
+  }
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
   updateBar();
   if (BIDA.tab === 'videoke' || BIDA.tab === 'music' || !$('#landing').hidden) loadVkLibrary();   // warm up while they look around
   loadFirebase().then(() => { FB_READY = true; initAuth(); }).catch(() => { AUTH.ready = true; });
-  setTimeout(() => { ytApi(); }, 1500);                   // YouTube's player code loads in the background, so the first song starts fast
+  setTimeout(() => { ytApi(); }, 1500);
+  setInterval(() => { if (AUTH.user && !BIDA.premium && paymentsReady() && !document.hidden) refreshPremium().then(() => { if (BIDA.premium) { rerenderPremiumViews(); rmtPublish(); } }).catch(() => { }); }, 120000);                   // YouTube's player code loads in the background, so the first song starts fast
   handlePaidReturn();
   await spHandleRedirect();
   await loadCustom();
