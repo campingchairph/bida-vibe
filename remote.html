@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116m">
+<link rel="stylesheet" href="bida.css?v=20261116n">
 <style>
   :root { --rs-h: calc(150px + env(safe-area-inset-bottom)); }
   html, body { overflow-x: hidden; }
@@ -167,7 +167,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116m"></script>
+<script src="vk-avatars.js?v=20261116n"></script>
 <script>
 /* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
    Home = big category pads. Each game page puts that game on the TV and has its settings + a big trigger.
@@ -241,7 +241,7 @@
     madd(c) {
       const m = S.st.music || {}, s = S.mlib.find(x => x.c === c); if (!s) return;
       const have = (m.list || []).some(l => l.y === s.y);
-      if (!have && m.full) { toast('Naabot na ang limit ng free. I-unlock ang Premium sa app sa TV para sa lahat ng songs.'); return; }
+      if (!have && Array.isArray(m.free) && !m.free.includes(s.y)) { toast('Premium song. I-unlock sa app sa TV para sa lahat ng songs.'); return; }
       send('music', 'add', c); buzz(10); toast(have ? `Play: ${s.t}` : `Added: ${s.t}`);
     },
     mcat(c) { S.mcat = c; S.mq = ''; render(true); },
@@ -327,16 +327,16 @@
   function mlibHTML() {
     if (!S.mlib.length) return '<p class="muted">Wala pang songs sa music library.</p>';
     const m = (S.st && S.st.music) || {}, have = new Set((m.list || []).map(l => l.y)), q = norm(S.mq);
-    const res = S.mlib.filter(s => (!S.mcat || q || s.g === S.mcat) && (!q || norm(s.t).includes(q) || norm(s.a).includes(q))).slice(0, 60);
-    // free host: once 5 songs are chosen, the rest fades behind the unlock box (same as the app on the TV)
-    if (m.full) {
-      const locked = res.filter(s => !have.has(s.y)).slice(0, 8);
-      return locked.length ? `<div class="rp-more"><ul class="rp-grid rp-peek" aria-hidden="true">${locked.map(s => `<li><b>${esc(s.t)}</b><small>${esc(s.a)}</small><span class="rp-ib">${ic('lock')}</span></li>`).join('')}</ul>
-        <div class="rp-more-card"><h3>Gusto mo pa ng ibang songs?</h3><p>Naka-5 songs ka na sa free. Unlock all songs sa app sa TV (Account → Unlock Premium · ₱150).</p>
-        <p class="rp-more-dev">Isang developer lang ang gumawa ng Bida-Vibe. Ang ₱150 mo ay tulong para mas gumanda pa ito.</p></div></div>` : '<p class="muted">Lahat ng nahanap, nasa playlist mo na.</p>';
-    }
-    return res.length ? `<ul class="rp-grid">${res.map(s => { const on = have.has(s.y), lock = !on && m.full; return `<li class="${lock ? 'lock' : ''}"><b>${esc(s.t)}</b><small>${esc(s.a)}</small>
-      <button class="rp-ib ${on ? 'on' : ''}" onclick="RM.madd(${s.c})" aria-label="${on ? 'Play' : lock ? 'Premium' : 'Add'}: ${esc(s.t)}">${ic(on ? 'play' : lock ? 'lock' : 'plus')}</button></li>`; }).join('')}</ul>` : '<p class="muted">Walang lumabas.</p>';
+    const all = S.mlib.filter(s => (!S.mcat || q || s.g === S.mcat) && (!q || norm(s.t).includes(q) || norm(s.a).includes(q))), res = all.slice(0, 60);
+    // free host: the free songs play; the rest of the library fades behind the unlock box (same as the app on the TV)
+    const fr = Array.isArray(m.free) ? new Set(m.free) : null;
+    const rows = list => `<ul class="rp-grid">${list.map(s => { const on = have.has(s.y); return `<li><b>${esc(s.t)}</b><small>${esc(s.a)}</small>
+      <button class="rp-ib ${on ? 'on' : ''}" onclick="RM.madd(${s.c})" aria-label="${on ? 'Play' : 'Add'}: ${esc(s.t)}">${ic(on ? 'play' : 'plus')}</button></li>`; }).join('')}</ul>`;
+    if (!fr) return res.length ? rows(res) : '<p class="muted">Walang lumabas.</p>';
+    const open = all.filter(s => fr.has(s.y)), locked = all.filter(s => !fr.has(s.y)).slice(0, 8);   // every free song shows, whatever its letter
+    return (open.length ? rows(open) : '') + (locked.length ? `<div class="rp-more" style="margin-top:8px"><ul class="rp-grid rp-peek" aria-hidden="true">${locked.map(s => `<li><b>${esc(s.t)}</b><small>${esc(s.a)}</small><span class="rp-ib">${ic('lock')}</span></li>`).join('')}</ul>
+      <div class="rp-more-card"><h3>Gusto mo pa ng ibang songs?</h3><p>Unlock all songs sa app sa TV (Account → Unlock Premium · ₱150) para buong music library ang magamit mo.</p>
+      <p class="rp-more-dev">Isang developer lang ang gumawa ng Bida-Vibe. Ang ₱150 mo ay tulong para mas gumanda pa ito.</p></div></div>` : (open.length ? '' : '<p class="muted">Walang lumabas.</p>'));
   }
   function musicHTML(st) {
     const m = st.music || {};

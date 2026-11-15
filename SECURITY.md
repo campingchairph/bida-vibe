@@ -36,7 +36,7 @@ Bida-Vibe is a static site (GitHub Pages). Anything that runs in the browser can
 
 Not applicable here: SQL injection, CSRF, session cookies, password hashing, server debug mode, npm packages (no server pages, no cookies, no npm).
 
-**What can't be hack-proof (any website):** features that run entirely on the visitor's own phone, such as the Talk/Fade volume control, the 5-song free music limit, the 5 free music files and the 2 personal uploads. The phone runs that code, so someone who rewrites the app's JavaScript could change them on their own device. Editing saved data or clicking around in Inspect Element doesn't unlock them, but a determined programmer could. What they can never do: get Premium sounds, upload or change sounds, fake a payment, or become admin. All of that is decided by the server.
+**What can't be hack-proof (any website):** features that run entirely on the visitor's own phone, such as the Talk/Fade volume control, the 5 free music files and the 2 personal uploads. The phone runs that code, so someone who rewrites the app's JavaScript could change them on their own device. Editing saved data or clicking around in Inspect Element doesn't unlock them, but a determined programmer could. What they can never do: get Premium sounds, upload or change sounds, fake a payment, or become admin. All of that is decided by the server.
 
 ## Console-side settings (can't be done from code)
 

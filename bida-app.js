@@ -27,7 +27,9 @@ const BIDA_CONFIG = {
   adminHashes: ['291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd'],
   // Free tier limits
   freeUploads: 2,     // uploaded sound pads a free user can add
-  freeYtLinks: 5,     // songs from the music library a free user can keep in their playlist; more needs Premium
+  // Free music = these 8 library songs (by YouTube id), playable any time. Everything else needs Premium.
+  // The LIBRARY is what's limited, not the playlist, so swapping songs in and out unlocks nothing.
+  freeMusic: ['bEacVcAtiKU', 'ZVwTBRL6LDM', '5PaJ-BHmWiE', 'U3ASj1L6_sY', 'QslsIWyagvU', 'Ag2xwGQrm1w', 'jSR9bwFMYdc', 'Ofu6jejWYz4'],
   // Test unlock — only works on localhost, never on the live site.
   devUnlockCode: 'BIDATEST',
   // Spotify: create an app at developer.spotify.com, add this page's URL as a Redirect URI, paste the Client ID.
@@ -1813,10 +1815,11 @@ function ytApi() {
 /* Saved YouTube links: 5 free, more with Premium. With 2+ links a floating playlist panel appears. */
 function ytLinks() { return BIDA.music.ytLinks; }
 // Free: up to 5 single songs. Whole playlists (old saved playlist links) and playing by category are Premium.
+// Free: only the free library songs (single videos). Premium: everything.
+const mlFree = y => BIDA_CONFIG.freeMusic.includes(y);
 function ytCanUse(i) {
   if (BIDA.premium) return true;
-  const links = ytLinks(), l = links[i]; if (!l || l.list) return false;
-  return links.slice(0, i).filter(x => !x.list).length < BIDA_CONFIG.freeYtLinks;
+  const l = ytLinks()[i]; return !!(l && !l.list && mlFree(l.v));
 }
 function ytLabel(l, i) { return l.title || (l.list ? `YouTube playlist ${i + 1}` : `YouTube video ${i + 1}`); }
 async function addYouTube() {
@@ -1825,7 +1828,7 @@ async function addYouTube() {
   const links = ytLinks();
   const dup = links.findIndex(l => l.v === p.id && l.list === p.list);
   if (dup >= 0) { inp.value = ''; playYouTube(dup); return; }
-  if (!BIDA.premium && links.length >= BIDA_CONFIG.freeYtLinks) { openPremium(`Lagpas ${BIDA_CONFIG.freeYtLinks} YouTube links`); return; }
+  if (!BIDA.premium && !mlFree(p.id)) { openPremium('Music library'); return; }
   const link = { v: p.id, list: p.list, title: '', thumb: p.id ? `https://i.ytimg.com/vi/${p.id}/mqdefault.jpg` : '' };
   links.push(link); inp.value = ''; saveState();
   fetchYtInfo(link);
@@ -1853,7 +1856,7 @@ async function delYouTube(i) {
 }
 async function playYouTube(i) {
   const l = ytLinks()[i]; if (!l) return;
-  if (!ytCanUse(i)) { openPremium(`Lagpas ${BIDA_CONFIG.freeYtLinks} YouTube links`); return; }
+  if (!ytCanUse(i)) { openPremium('Music library'); return; }
   BIDA.music.ytIdx = i; saveState();
   stopOtherSources('youtube');
   await ytApi();
@@ -2419,7 +2422,7 @@ function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
 
 /* ---- Music library: like the videoke library. The admin imports YouTube playlists into
    music/library.json (up to 1,000 songs). Users pick songs into "Playlist mo"; without Premium
-   they can keep 5 (BIDA_CONFIG.freeYtLinks), then Premium. No pasting of own YouTube links. ---- */
+   they can use the 8 free songs (BIDA_CONFIG.freeMusic); the rest of the library is Premium. No pasting of own YouTube links. ---- */
 const ML_PATH = 'music/library.json', ML_MAX = 1000, ML_PER = 60;
 const ML = { lib: [], loaded: false, q: '', cat: '', page: 0, admin: { busy: false, msg: '', q: '', sel: new Set() } };
 async function mlLoad() {
@@ -2434,7 +2437,7 @@ const mlInList = y => ytLinks().findIndex(l => l.v === y && !l.list);
 function mlAdd(c) {
   const s = ML.lib.find(x => x.c === c); if (!s) return;
   const i = mlInList(s.y); if (i >= 0) { playYouTube(i); return; }          // already in the playlist: just play it
-  if (!BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks) { openPremium('Music library'); return; }
+  if (!BIDA.premium && !mlFree(s.y)) { openPremium('Music library'); return; }        // only the free songs without Premium
   ytLinks().push({ v: s.y, list: '', g: s.g || '', title: (s.a ? s.a + ' – ' : '') + s.t, thumb: `https://i.ytimg.com/vi/${s.y}/mqdefault.jpg` });
   saveState(); renderMusic(); renderPlaylist(); playYouTube(ytLinks().length - 1);
 }
@@ -2449,15 +2452,19 @@ function mlResultsHTML() {
   ML.page = Math.min(ML.page, pages - 1);
   const page = res.slice(ML.page * ML_PER, ML.page * ML_PER + ML_PER);
   if (!page.length) return '<p class="muted">Walang lumabas.</p>';
-  const full = !BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks;
-  if (full) {                                              // free limit reached: only their chosen songs play
-    const locked = res.filter(s => mlInList(s.y) < 0);
-    return locked.length ? unlockBoxHTML(locked.slice(0, 12), { icon: 'music', title: 'Gusto mo pa ng ibang songs?', feature: 'Music library',
-      text: 'Naka-5 songs ka na sa free. Unlock all songs para buong music library ang magamit mo: party, OPM, love songs at marami pa. Pwede ring i-play by category.' }) : '<p class="muted">Lahat ng nahanap, nasa playlist mo na.</p>';
+  if (!BIDA.premium) {                                     // free: the free songs play; everything else waits behind the unlock box
+    const open = res.filter(s => mlFree(s.y)), locked = res.filter(s => !mlFree(s.y));
+    return (open.length ? mlRowsHTML(open) : '') + (locked.length ? unlockBoxHTML(locked.slice(0, 12), { icon: 'music', title: 'Gusto mo pa ng ibang songs?', feature: 'Music library',
+      text: `Free ang ${open.length ? 'mga songs sa taas' : 'ilang songs'}. Unlock all songs para buong music library ang magamit mo: party, OPM, love songs at marami pa. Pwede ring i-play by category.` }) : '');
   }
+  return mlRowsHTML(page) + mlPagerHTML(pages);
+}
+function mlPagerHTML(pages) {
+  return pages > 1 ? `<div class="admin-up" style="margin-top:10px"><button class="btn btn--ghost btn--sm" ${ML.page ? '' : 'disabled'} onclick="mlPage(-1)">Back</button><span class="muted">${ML.page + 1} / ${pages}</span><button class="btn btn--ghost btn--sm" ${ML.page + 1 < pages ? '' : 'disabled'} onclick="mlPage(1)">Next</button></div>` : '';
+}
+function mlRowsHTML(page) {
   return `<ul class="vk-list">${page.map(s => { const on = mlInList(s.y) >= 0; return `<li class="${on ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.g && !ML.cat ? ' · ' + esc(s.g) : ''}</small></div>
-    <button class="vk-add ${on ? 'on' : ''}" onclick="mlAdd(${s.c})" aria-label="${on ? 'Play' : 'Add'}: ${esc(s.t)}" title="${on ? 'Nasa playlist mo na · Play' : 'Add sa playlist'}">${ic(on ? 'play' : 'plus')}</button></li>`; }).join('')}</ul>
-    ${pages > 1 ? `<div class="admin-up" style="margin-top:10px"><button class="btn btn--ghost btn--sm" ${ML.page ? '' : 'disabled'} onclick="mlPage(-1)">Back</button><span class="muted">${ML.page + 1} / ${pages}</span><button class="btn btn--ghost btn--sm" ${ML.page + 1 < pages ? '' : 'disabled'} onclick="mlPage(1)">Next</button></div>` : ''}`;
+    <button class="vk-add ${on ? 'on' : ''}" onclick="mlAdd(${s.c})" aria-label="${on ? 'Play' : 'Add'}: ${esc(s.t)}" title="${on ? 'Nasa playlist mo na · Play' : 'Add sa playlist'}">${ic(on ? 'play' : 'plus')}</button></li>`; }).join('')}</ul>`;
 }
 function mlFind(q) {
   ML.q = q; ML.page = 0;
@@ -2678,7 +2685,7 @@ function vkState() {
     queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)).slice(0, 12), c: q.c, singer: String(q.singer || '').slice(0, 30),
       av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', mo: vkMouthOk(q.mo) ? q.mo : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
-    score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30), lastAv: /^[a-z]{2,10}$/.test(v.lastAv) ? v.lastAv : '',
+    score: v.score !== false, announce: v.announce !== false, lastSinger: String(v.lastSinger || '').slice(0, 30), lastAv: /^[a-z]{2,10}$/.test(v.lastAv) ? v.lastAv : '',
     room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
       ? { id: v.room.id, owner: v.room.owner.slice(0, 128), exp: +v.room.exp } : null
   };
@@ -2745,7 +2752,8 @@ function renderVideoke() {
         <button class="vk-tool vk-tool--ic ${VK.mode === 'search' ? 'on' : ''}" onclick="vkMode('search')" aria-pressed="${VK.mode === 'search'}" aria-label="Search" title="Search">${ic('search')}</button>
         <button class="vk-tool ${VK.mode === 'artist' ? 'on' : ''}" onclick="vkMode('artist')" aria-haspopup="dialog">${ic('people')}<span>${VK.artist ? esc((artists.find(([k]) => k === VK.artist) || [, 'Artist'])[1]) : 'Artist'}</span></button>
         <button class="vk-tool ${VK.mode === 'letter' ? 'on' : ''}" onclick="vkMode('letter')" aria-pressed="${VK.mode === 'letter'}">${ic('music')}<span>${VK.letter ? 'Song: ' + VK.letter : 'By song'}</span></button>
-        <label class="toggle vk-scoretg"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
+        <label class="toggle vk-scoretg"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label>
+        <label class="toggle" style="margin:0" title="Ina-announce ang pangalan ng singer bago kumanta"><input type="checkbox" ${v.announce ? 'checked' : ''} onchange="vkAnnounceToggle(this.checked)">Announce</label></div>
       ${VK.mode === 'search' ? `<div class="vk-find" style="margin-top:10px"><input class="input" id="vk-q" placeholder="Type ang song o artist" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
           <button class="vk-find-x" id="vk-q-x" onclick="vkMode('search')" aria-label="Close search">${ic('x')}</button></div>` : ''}
       ${VK.mode === 'letter' && letters.length > 1 ? `<div class="vk-letters" role="group" aria-label="Unang letra ng song">${letters.map(l => `<button class="${VK.letter === l ? 'on' : ''}" aria-pressed="${VK.letter === l}" onclick="vkSetLetter('${l}')">${l}</button>`).join('')}</div>` : ''}
@@ -2958,26 +2966,38 @@ function vkStageInfo() {
   rmtPublish(); vkSinger();
   $('#vk-side').innerHTML = items.join('') + (all.length > 8 ? `<li class="vk-tx" style="--o:.22">+${all.length - 8} pa</li>` : '');
 }
-/* The intro calls the singer's name out loud in a bright female voice (the device's own text-to-speech).
-   Prefers a Filipino voice (e.g. Edge's "Blessica"), then a female English one. Silent if the device has none. */
-const VK_FEMALE = /blessica|female|woman|samantha|zira|aria|jenny|michelle|karen|moira|tessa|fiona|victoria|serena|susan|hazel|libby|sonia|natasha|ava|allison|nicky|google us english|google uk english female/i;
+/* The intro announces the singer like an emcee, with the device's own text-to-speech.
+   Best voices first: the natural/online Filipino voices (Edge "Blessica"/"Angelo", Google Filipino), then natural
+   English female voices. Short Taglish lines, a beat before the name, normal pitch (no chipmunk).
+   The host can turn it off (Videoke tab → "Announce"), e.g. if the TV device only has a robotic voice. */
+const VK_GOOD = /natural|online|neural|premium|enhanced|google/i;
+const VK_FEMALE = /blessica|female|woman|samantha|zira|aria|jenny|michelle|karen|moira|tessa|fiona|victoria|serena|susan|hazel|libby|sonia|natasha|ava|allison|nicky|emma|google us english|google uk english female/i;
 function vkVoice() {
   const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
-  const fil = v => /^(fil|tl)/i.test(v.lang), en = v => /^en/i.test(v.lang);
-  return vs.find(v => fil(v) && VK_FEMALE.test(v.name)) || vs.find(v => /en-PH/i.test(v.lang) && VK_FEMALE.test(v.name))
-    || vs.find(v => en(v) && VK_FEMALE.test(v.name)) || vs.find(fil) || vs.find(en) || null;
+  const fil = v => /^(fil|tl)/i.test(v.lang), ph = v => /en-PH/i.test(v.lang), en = v => /^en/i.test(v.lang);
+  return vs.find(v => fil(v) && VK_GOOD.test(v.name)) || vs.find(fil)                          // Filipino voice, natural if there is one
+    || vs.find(v => ph(v) && VK_GOOD.test(v.name)) || vs.find(v => en(v) && VK_GOOD.test(v.name) && VK_FEMALE.test(v.name))
+    || vs.find(ph) || vs.find(v => en(v) && VK_FEMALE.test(v.name)) || vs.find(en) || null;
 }
 try { speechSynthesis.getVoices(); speechSynthesis.addEventListener?.('voiceschanged', () => speechSynthesis.getVoices()); } catch (e) { }
+// [before the name, after the name]; one is picked at random each time
+const VK_LINES = [
+  ['Next up', 'Palakpakan natin!'], ['Ang susunod nating bida', 'Let\'s go!'], ['Ladies and gentlemen', 'Palakpakan!'],
+  ['Handa na ang mic para kay', 'Galingan mo!'], ['Ito na, ito na', 'Kanta na!'], ['Bigyan natin ng malakas na palakpak si', 'Woo!']
+];
+let vkLineLast = -1;
 function vkAnnounce(name) {
   try {
-    if (!window.speechSynthesis || $('#vk-intro').hidden) return;
+    if (!window.speechSynthesis || $('#vk-intro').hidden || !vkState().announce) return;
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(name ? `${name}... ikaw na!` : 'Ikaw na!');
-    const v = vkVoice(); if (v) { u.voice = v; u.lang = v.lang; }
-    u.pitch = 1.4; u.rate = 1.05; u.volume = 1;              // high and bubbly
-    speechSynthesis.speak(u);
+    let i; do { i = Math.floor(Math.random() * VK_LINES.length); } while (i === vkLineLast && VK_LINES.length > 1); vkLineLast = i;
+    const [pre, post] = VK_LINES[i], v = vkVoice();
+    const say = (text, rate, pitch) => { const u = new SpeechSynthesisUtterance(text); if (v) { u.voice = v; u.lang = v.lang; } u.rate = rate; u.pitch = pitch; u.volume = 1; speechSynthesis.speak(u); };
+    if (name) { say(pre + '...', 1, 1.1); say(name + '!', .95, 1.15); say(post, 1.05, 1.1); }   // a beat before the name, then a hype line
+    else say('Next singer... ikaw na! Kanta na!', 1, 1.1);
   } catch (e) { }
 }
+function vkAnnounceToggle(on) { vkState().announce = on; saveState(); }
 /* "Susunod na kakanta" — a big, fun intro before each song, then the video starts */
 function vkIntro(it, s, done) {
   const el = $('#vk-intro'), name = it.singer || 'Ikaw na!';
@@ -3783,7 +3803,7 @@ function rmtState() {
     pads: padList().filter(p => canPlaySound(p.id)).slice(0, 40).map(p => ({ id: p.id, n: p.name.slice(0, 24), c: p.c })),
     music: { has: !!M.kind, on: !!M.playing, t: String(M.title || '').slice(0, 90), duck: !!M.ducked, faded: !!M.faded, pro: !!BIDA.premium,
       kind: M.kind || '', src: BIDA.music.src, vk: vkSinging(), idx: M.kind === 'youtube' ? BIDA.music.ytIdx : -1, fi: M.kind === 'local' ? M.qi : -1, cat: plCat(),
-      full: !BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks,
+      free: BIDA.premium ? null : BIDA_CONFIG.freeMusic,
       list: ytLinks().slice(0, 200).map((l, i) => ({ t: ytLabel(l, i).slice(0, 80), y: l.v || '', g: ytCat(l), ok: ytCanUse(i), pl: !!l.list })),
       files: musicFilesOk().slice(0, 100).map(f => f.name.slice(0, 60)) },
     tools: (t => ({ names: t.names, rmode: t.rmode, remove: t.remove, dice: t.dice, colors: t.colors, hcats: t.hcats, hsec: t.hsec,
@@ -3938,7 +3958,7 @@ async function rmtMusic(v, n, s) {
     if (!ML.loaded) await mlLoad();
     const song = ML.lib.find(x => x.c === n); if (!song) return true;
     const i = mlInList(song.y); if (i >= 0) { playYouTube(i); return true; }
-    if (!BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks) return true;   // the phone shows the limit, never a Premium popup on the TV
+    if (!BIDA.premium && !mlFree(song.y)) return true;   // the phone shows the limit, never a Premium popup on the TV
     ytLinks().push({ v: song.y, list: '', g: song.g || '', title: (song.a ? song.a + ' – ' : '') + song.t, thumb: `https://i.ytimg.com/vi/${song.y}/mqdefault.jpg` });
     saveState(); renderPlaylist(); if (BIDA.tab === 'music' && !$('#app').hidden) renderMusic();
     BIDA.music.src = 'youtube'; if (!M.playing) playYouTube(ytLinks().length - 1);
@@ -4563,7 +4583,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
-  vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, vkAnnounceToggle, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
