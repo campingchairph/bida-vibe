@@ -23,7 +23,7 @@ const BIDA_CONFIG = {
   // Google OAuth "Web client" ID (public, not a secret). Turns on the iPhone-safe sign-in: a full-page trip to
   // Google and straight back to this page. Google Auth Platform → Clients → "Web client (auto created by Google
   // Service)": its redirect URIs must include https://campingchairph.github.io/bida-vibe/ (see SECURITY.md).
-  googleClientId: '',
+  googleClientId: '596965053196-gov3pvq0hmu3lonjs7q2svcagucls0do.apps.googleusercontent.com',
   // Admin test accounts: SHA-256 fingerprints of the Google email (lowercase), never the email itself.
   // Only someone who signs in with Google as that verified account matches. To add/change an admin,
   // hash the new email (e.g. `printf '%s' you@gmail.com | sha256sum`) and replace/add it here.
