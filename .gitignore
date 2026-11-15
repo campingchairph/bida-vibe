@@ -1,0 +1,20 @@
+# Never commit secrets: keys live in the Cloudflare Worker settings / Firestore, not in files
+.env
+.env.*
+.dev.vars
+*.pem
+*.key
+secrets*
+*secret*.json
+service-account*.json
+
+# Tools and local junk
+node_modules/
+.wrangler/
+.DS_Store
+Thumbs.db
+*.log
+
+# Temporary test pages
+_*.html
+_fakefb.js

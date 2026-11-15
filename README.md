@@ -55,3 +55,8 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 - `spotifyClientId` — create an app at developer.spotify.com, add the page URL as a Redirect URI. Listeners need Spotify Premium; phones control the Spotify app that's already open.
 
 Apple Music, Deezer, SoundCloud etc. don't give other websites volume control, so they're link-out only (no fade).
+
+## Legal and security
+- [legal.html](legal.html): Terms of Use, Privacy Policy, Refund Policy, YouTube and music notice, copyright takedowns, game safety.
+- [SECURITY.md](SECURITY.md): how each part is protected, plus the console settings to turn on.
+- [SECURITY-AUDIT.md](SECURITY-AUDIT.md): the latest audit and test results.

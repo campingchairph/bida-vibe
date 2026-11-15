@@ -89,7 +89,7 @@ function loadState() {
       const okId = s => typeof s === 'string' && /^[\w-]{0,64}$/.test(s);
       BIDA.music.ytLinks = (Array.isArray(BIDA.music.ytLinks) ? BIDA.music.ytLinks : [])
         .filter(l => l && okId(l.v) && okId(l.list) && (l.v || l.list))
-        .map(l => ({ v: l.v, list: l.list, title: String(l.title || '').slice(0, 120), thumb: /^https:\/\/i\.ytimg\.com\//.test(l.thumb) ? l.thumb : '' }));
+        .map(l => ({ v: l.v, list: l.list, g: String(l.g || '').slice(0, 20), title: String(l.title || '').slice(0, 120), thumb: /^https:\/\/i\.ytimg\.com\//.test(l.thumb) ? l.thumb : '' }));
       // carry over the single link from the old version
       if (d.music?.ytUrl && !BIDA.music.ytLinks.length) { const p = parseYouTube(d.music.ytUrl); if (p) BIDA.music.ytLinks.push({ v: p.id, list: p.list, title: '', thumb: p.id ? `https://i.ytimg.com/vi/${p.id}/mqdefault.jpg` : '' }); }
       delete BIDA.music.ytUrl;
@@ -1946,6 +1946,7 @@ function togglePlaylist(force) {
 /* Own music files are saved in this browser's storage (IndexedDB) on THIS device only.
    They're never uploaded anywhere. Free: 5 files. Premium: no limit. */
 const FREE_MUSIC_FILES = 5;
+const MAX_MUSIC_BYTES = 50 * 1024 * 1024;   // one song is usually 3–10 MB; this keeps the device's storage safe
 let MFILES = [];          // [{id,name,blob,created}]
 async function loadMusicFiles() {
   try {
@@ -1961,7 +1962,9 @@ function musicPut(o) {   // resolves true/false (false = device storage full or 
   })).catch(() => false);
 }
 async function loadLocal(files) {
-  const arr = Array.from(files).filter(f => /^audio\//.test(f.type) || /\.(mp3|m4a|wav|ogg|aac|flac)$/i.test(f.name));
+  const all = Array.from(files).filter(f => /^audio\//.test(f.type) || /\.(mp3|m4a|wav|ogg|aac|flac)$/i.test(f.name));
+  const arr = all.filter(f => f.size > 0 && f.size <= MAX_MUSIC_BYTES);            // audio only, 50 MB max each
+  if (all.length > arr.length) toast('May file na lagpas 50 MB, hindi sinama.');
   if (!arr.length) return;
   const room = BIDA.premium ? Infinity : FREE_MUSIC_FILES - MFILES.length;
   if (room <= 0) { openPremium('Music files'); return; }
@@ -2760,10 +2763,10 @@ function vkRoomHTML() {
       : `<button class="btn btn--chili btn--sm" onclick="vkMakeRoom()">${ic('plus')}${AUTH.user ? 'Create link' : 'Sign in para maka-create ng link'}</button>`}</div>
   </div>`;
 }
-// Brave blocks YouTube ads with Shields on. Shown in Videoke and Music.
+// Shown in Videoke and Music. YouTube's API terms don't allow telling people to block its ads,
+// so we only point to YouTube's own ad-free option (and to YouTube's terms, which apply to these videos).
 function braveTipHTML() {
-  if (navigator.brave) return `<p class="note brave-tip brave-on" style="margin-top:16px">${ic('check')}<span><b>Naka-Brave ka.</b> Basta naka-ON ang Shields (yung leon sa address bar), walang YouTube ads.</span></p>`;
-  return `<p class="note brave-tip" style="margin-top:16px"><span><b>Ayaw ng ads habang kumakanta?</b> Gamitin ang <a href="https://brave.com/download/" target="_blank" rel="noopener noreferrer">Brave browser</a>, auto-block ang YouTube ads. Kung may YouTube Premium ka, dapat naka-sign in yun sa YouTube sa parehong browser at device.</span></p>`;
+  return `<p class="note brave-tip" style="margin-top:16px"><span>Videos at songs galing sa YouTube; sakop sila ng <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a>. <b>Ayaw ng ads?</b> Kung may YouTube Premium ka, mag-sign in sa YouTube sa browser na 'to sa parehong device.</span></p>`;
 }
 function vkResultsHTML(shown, total) {
   if (!VK.lib.length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang songs sa library.' : 'Loading ang library…'}</p>`;
@@ -2990,7 +2993,7 @@ async function vkMakeRoom(silent) {
   if (!AUTH.user) { if (silent) return; await signIn(); if (!AUTH.user) return; }
   const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang link. I-refresh mo.'); return; }
   const old = BIDA.vk.room;
-  if (old && old.owner === AUTH.user.uid) fs.collection('vk_rooms').doc(old.id).update({ open: false }).catch(() => { });
+  if (old && old.owner === AUTH.user.uid) vkWipeRoom(old.id);
   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   const id = [...crypto.getRandomValues(new Uint8Array(24))].map(b => abc[b % abc.length]).join('');
   const exp = Date.now() + ROOM_HOURS * 36e5;
@@ -3072,10 +3075,18 @@ async function vkStageQR() {
   try { const c = await qrCanvas(url, 360); el.innerHTML = '<b>Gusto mong kumanta?</b><small>I-scan para mag-add ng song</small>'; el.prepend(c); el.dataset.url = url; el.hidden = false; }
   catch (e) { el.hidden = true; }
 }
+// Closing a guest link DELETES it (and any song requests not picked up yet), so guests' names and
+// selfies don't stay online after the event. Links nobody closed expire on their own (48 h) — see SECURITY.md for auto-delete.
+async function vkWipeRoom(id) {
+  const fs = vkFs(); if (!fs || !/^[A-Za-z0-9]{24}$/.test(id)) return;
+  const ref = fs.collection('vk_rooms').doc(id);
+  try { const rq = await ref.collection('requests').get(); await Promise.all(rq.docs.map(d => d.ref.delete())); } catch (e) { }
+  ref.delete().catch(() => { });
+}
 async function vkCloseRoom() {
   if (!BIDA.vk.room) return;
   if (!await askConfirm('Close ang link? Hindi na sila makaka-reserve.', 'Close')) return;
-  const fs = vkFs(); if (fs && vkRoomValid()) fs.collection('vk_rooms').doc(BIDA.vk.room.id).update({ open: false }).catch(() => { });
+  if (vkRoomValid()) vkWipeRoom(BIDA.vk.room.id);
   VKR.unsub?.(); VKR.unsub = null; BIDA.vk.room = null; saveState(); renderVideoke(); vkStageQR();
 }
 // Live: pick up guests' requests as they arrive. Only songs that are really in the library are accepted.
@@ -3715,7 +3726,7 @@ async function rmtCopy() {
 }
 async function rmtStop() {
   if (!await askConfirm('Close ang remote? Hindi na gagana ang link sa phone.', 'Close')) return;
-  const fs = vkFs(); if (fs && rmtValid()) fs.collection('vk_remotes').doc(BIDA.remote.id).update({ open: false }).catch(() => { });
+  const fs = vkFs(); if (fs && rmtValid()) fs.collection('vk_remotes').doc(BIDA.remote.id).delete().catch(() => { });      // gone, not just closed
   RMT.unsub?.(); RMT.unsub = null; BIDA.remote = null; saveState(); closeSheet(); toast('Closed na ang remote');
 }
 // What the phone sees. Names and titles only: no account details, no links.
@@ -4268,7 +4279,7 @@ async function startCheckout() {
     saveState();
     location.href = j.url;
   } catch (e) {
-    toast('Ayaw bumukas ng checkout — try ulit');
+    toast(e.message === 'slow_down' ? 'Sandali lang — try ulit after 1 minute.' : 'Ayaw bumukas ng checkout — try ulit');
     if (b) { b.disabled = false; b.querySelector('span').textContent = 'Bayaran'; }
   } finally { AUTH.busy = false; }
 }
@@ -4304,10 +4315,12 @@ function openPremium(feature) {
   let action;
   if (admin || (u && passActive() && isLifetime())) action = `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`;
   else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Sign in with Google para ma-unlock</button>
-      <p class="muted" style="margin-top:10px;text-align:center">Naka-save ang Premium sa Google account mo, kaya gagana sa phone, tablet o computer.</p>`;
+      <p class="muted" style="margin-top:10px;text-align:center">Naka-save ang Premium sa Google account mo, kaya gagana sa phone, tablet o computer.</p>
+      <p class="legal-line">Sa pag-sign in, sang-ayon ka sa <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> at <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>`;
   else action = `${passActive() ? `<div class="note" style="background:var(--leaf-soft);margin-bottom:12px">${passLine()}</div>` : ''}
       <button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>${passActive() ? 'Gawing for good' : 'Bayaran'} · ${esc(BIDA_CONFIG.price)}</span>${ic('arrow')}</button>
-      <p class="muted" style="margin-top:10px;text-align:center">GCash · Maya · Card — secure checkout sa PayMongo</p>`;
+      <p class="muted" style="margin-top:10px;text-align:center">GCash · Maya · Card — secure checkout sa PayMongo</p>
+      <p class="legal-line">Sa pagbayad, sang-ayon ka sa <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> at <a href="legal.html#refunds" target="_blank" rel="noopener">Refund Policy</a>. One-time digital purchase: refund lang para sa double charge o bayad na hindi nag-unlock.</p>`;
   openSheet(`
     <div class="sheet-head"><h3>Bida-Vibe Premium</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="pro-hero">
@@ -4337,9 +4350,11 @@ function openAccount() {
       ${u && line ? `<p>${line}</p>` : ''}
       ${!authReady() ? '<p class="note">Hindi pa ready ang Google sign-in — soon!</p>'
         : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
-          : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Sign in with Google</button>`}
+          : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Sign in with Google</button>
+            <p class="legal-line">Sa pag-sign in, sang-ayon ka sa <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> at <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>`}
       ${!isAdmin() && !(passActive() && isLifetime()) ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">Unlock Premium · ${esc(BIDA_CONFIG.price)} one-time</button>` : ''}
-    </div>`);
+    </div>
+    <p class="legal-line"><a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> · <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy</a> · <a href="legal.html#refunds" target="_blank" rel="noopener">Refunds</a> · <a href="mailto:morphiicreate@gmail.com">Contact</a></p>`);
 }
 function googleG() {
   return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z"/><path fill="#fff" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" opacity=".8"/><path fill="#fff" d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14z" opacity=".6"/><path fill="#fff" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" opacity=".9"/></svg>`;

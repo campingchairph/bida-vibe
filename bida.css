@@ -1131,3 +1131,8 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .bunting .flag { animation: none; }
 }
+
+/* Legal links (landing footer) and consent lines in sheets */
+.land-legal { max-width: 1200px; margin: 0 auto; padding: 8px 20px 28px; text-align: center; font: 700 13px/1.5 var(--f); color: var(--ink-3); }
+.land-legal a, .legal-line a { color: inherit; font-weight: 800; }
+.legal-line { margin-top: 10px; text-align: center; font: 700 12px/1.45 var(--f); color: var(--ink-3); }

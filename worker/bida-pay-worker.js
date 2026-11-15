@@ -92,6 +92,10 @@ async function handleCheckout(req, env, cors) {
   const have = await env.PREMIUM.get('pro:' + user.uid, 'json');
   if ((have?.until || 0) >= LIFETIME_UNTIL) return json({ already: true }, 200, cors);
 
+  // Rate limit: one new checkout per account per minute (KV's shortest expiry is 60 s)
+  if (await env.PREMIUM.get('rl:' + user.uid)) throw err(429, 'slow_down');
+  await env.PREMIUM.put('rl:' + user.uid, '1', { expirationTtl: 60 });
+
   const amount = parseInt(env.PRICE_CENTAVOS || PRICE_DEFAULT, 10);
   const appUrl = env.APP_URL;
   const body = {
@@ -135,6 +139,9 @@ async function handleWebhook(req, env) {
   if (!parts.t || !given) return new Response('bad signature', { status: 401 });
   const expected = await hmacHex(env.PAYMONGO_WEBHOOK_SECRET, `${parts.t}.${raw}`);
   if (!timingSafeEqual(expected, given)) return new Response('bad signature', { status: 401 });
+  // A correctly signed but OLD delivery is a replay: PayMongo signs a fresh timestamp on every attempt
+  const age = Math.abs(Date.now() / 1000 - parseInt(parts.t, 10));
+  if (!(age < 60 * 60 * 24 * 3)) return new Response('stale', { status: 400 });
 
   const evt = JSON.parse(raw);
   const type = evt?.data?.attributes?.type;
@@ -153,7 +160,8 @@ async function handleWebhook(req, env) {
   const paid = (attrs.payments || [])[0]?.attributes || {};
   const expectedAmount = parseInt(env.PRICE_CENTAVOS || PRICE_DEFAULT, 10);
   const amount = paid.amount ?? attrs.line_items?.[0]?.amount ?? 0;
-  if (amount < expectedAmount) return new Response('amount mismatch', { status: 200 });
+  const currency = String(paid.currency || attrs.line_items?.[0]?.currency || 'PHP').toUpperCase();
+  if (amount < expectedAmount || currency !== 'PHP') return new Response('amount mismatch', { status: 200 });
 
   // One-time payment: unlocked for good
   const prev = await env.PREMIUM.get('pro:' + uid, 'json');
@@ -162,7 +170,7 @@ async function handleWebhook(req, env) {
     method: attrs.payment_method_used || paid.source?.type || '', email: attrs.metadata?.email || '',
     payments: (prev?.payments || 0) + 1
   }));
-  await env.PREMIUM.put('paid:' + session.id, '1', { expirationTtl: 60 * 60 * 24 * 90 });
+  await env.PREMIUM.put('paid:' + session.id, '1');          // kept for good, so a payment can never be counted twice
   return new Response('ok', { status: 200 });
 }
 
@@ -297,7 +305,7 @@ function corsHeaders(req, env) {
   return h;
 }
 function json(obj, status, headers = {}) {
-  return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...headers } });
+  return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store', ...headers } });
 }
 function err(status, code) { const e = new Error(code); e.status = status; e.code = code; return e; }
 function b64urlBytes(s) {
