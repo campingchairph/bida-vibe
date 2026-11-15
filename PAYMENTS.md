@@ -61,7 +61,7 @@ curl https://api.paymongo.com/v1/webhooks -u "sk_test_YOURKEY:" -H "Content-Type
 In `bida-app.js`, set `BIDA_CONFIG.workerUrl: 'https://bida-pay.YOU.workers.dev'` and push.
 
 ## 6. Test, then go live
-1. On the live site: sign in with a **non-admin** Google account → Account → **I-unlock ang Premium · ₱150 one-time** → **Bayaran · ₱150** → on PayMongo's test checkout pick GCash and authorize → you're sent back and Premium shows "Bayad na. Sa'yo na 'to for good."
+1. On the live site: sign in with a **non-admin** Google account → Account → **Unlock Premium · ₱150 one-time** → **Bayaran · ₱150** → on PayMongo's test checkout pick GCash and authorize → you're sent back and Premium shows "Bayad na. Sa'yo na 'to for good."
 2. When PayMongo approves your business and live keys appear:
    - Swap `PAYMONGO_SECRET_KEY` to `sk_live_…`.
    - Create the webhook again with the top bar on **Live Mode** (same URL and event).
@@ -71,6 +71,6 @@ In `bida-app.js`, set `BIDA_CONFIG.workerUrl: 'https://bida-pay.YOU.workers.dev'
 
 ## Notes
 - **Who's paid:** Cloudflare → KV → `bida-premium`. Each `pro:<uid>` entry has `lifetime: true`, `until` (9999-12-31 for one-time buyers), the payment date, amount, method and email. To refund/revoke, delete the entry or set `until` to 0.
-- **Free without an account:** activities, all games, Live mode, the first 4 sound pads, 2 uploads and 2 recordings.
+- **Free without an account:** activities, all games and game tools, the first sound pads, 2 sound uploads, 2 YouTube links, 5 own music files (saved on the device only) and 20 videoke songs (unlimited plays). Everything else unlocks with the one-time ₱150.
 - **Test code:** `BIDATEST` only works on `localhost`.
 - Security details and console settings: [SECURITY.md](SECURITY.md).

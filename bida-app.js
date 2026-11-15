@@ -131,7 +131,7 @@ function openDlg(msg, { input = null, yes = 'Oo', no = 'Huwag', max = 40 } = {})
 }
 const askConfirm = (msg, yes) => openDlg(msg, { yes });
 // max = how many characters the box accepts (links need far more than names)
-const askText = (msg, def, max = 40) => openDlg(msg, { input: def, yes: 'I-save', no: 'Kanselahin', max });
+const askText = (msg, def, max = 40) => openDlg(msg, { input: def, yes: 'Save', no: 'Cancel', max });
 
 /* ---------- Helpers ---------- */
 let toastT;
@@ -328,7 +328,7 @@ function nextIdx() { return BIDA.program.findIndex(s => !s.done); }
 function toggleDone(id) {
   const s = BIDA.program.find(x => x.id === id); if (!s) return;
   s.done = !s.done; saveState(); renderPlan();
-  if (s.done) { const n = BIDA.program[nextIdx()]; toast(n ? `Susunod: ${n.title}` : 'Tapos na lahat — palakpakan!'); }
+  if (s.done) { const n = BIDA.program[nextIdx()]; toast(n ? `Next: ${n.title}` : 'Done na lahat — palakpakan!'); }
 }
 function setEv(k, v) {
   BIDA.event[k] = v; saveState(); renderHead();
@@ -336,16 +336,16 @@ function setEv(k, v) {
 }
 async function pickEventType(id) {
   if (id === BIDA.event.type) return;
-  if (!await askConfirm(`Palitan ang activities ng suggested para sa ${eventType(id).label}?`, 'Palitan')) return;
+  if (!await askConfirm(`Palitan ng suggested activities para sa ${eventType(id).label}?`, 'Palitan')) return;
   BIDA.event.type = id; buildProgram(id); saveState(); renderPlan(); renderHead();
-  toast(`Activities para sa ${eventType().label} — handa na!`);
+  toast(`Activities para sa ${eventType().label} — ready na!`);
 }
 function moveSeg(i, d) {
   const j = i + d; if (j < 0 || j >= BIDA.program.length) return;
   const p = BIDA.program;[p[i], p[j]] = [p[j], p[i]]; saveState(); renderPlan();
 }
 async function resetProgram() {
-  if (!await askConfirm('I-reset sa suggested activities ng ' + eventType().label + '? Mabubura ang notes at checks.', 'I-reset')) return;
+  if (!await askConfirm('Ibalik sa suggested activities ng ' + eventType().label + '? Mabubura ang notes at checks.', 'I-reset')) return;
   buildProgram(BIDA.event.type); saveState(); renderPlan(); toast('Na-reset');
 }
 let segDraft = null;
@@ -353,7 +353,7 @@ function editSeg(id) {
   const s = id ? BIDA.program.find(x => x.id === id) : null;
   segDraft = s ? { ...s } : { kind: 'game', title: '', min: 15, game: '', note: '' };
   openSheet(`
-    <div class="sheet-head"><h3>${id ? 'I-edit' : 'Dagdag activity'}</h3>
+    <div class="sheet-head"><h3>${id ? 'Edit activity' : 'Add activity'}</h3>
       <button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     ${id ? '' : `<span class="field-label">Pumili</span>
     <div class="chips" style="margin:8px 0 16px">${QUICK_ADD.map(k => `<button class="chip ${k === segDraft.kind ? 'on' : ''}" onclick="pickKind('${k}',this)">${esc(BIDA_KINDS[k].label)}</button>`).join('')}</div>`}
@@ -367,12 +367,12 @@ function editSeg(id) {
           <option value="">— Sariling laro —</option>
           ${BIDA_GAMES.map(g => `<option value="${g.id}" ${g.id === segDraft.game ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>
       <div class="field"><label for="sg-note">Note</label>
-        <textarea class="input" id="sg-note" rows="3" maxlength="300" placeholder="hal. Si Tito Ben ang magdadala ng premyo · Banggitin ang galing Dubai">${esc(segDraft.note || '')}</textarea></div>
-      ${id ? `<label class="toggle"><input type="checkbox" id="sg-done" ${segDraft.done ? 'checked' : ''}>Tapos na ang activity na ito</label>` : ''}
+        <textarea class="input" id="sg-note" rows="3" maxlength="300" placeholder="hal. Si Tito Ben ang may dala ng prizes · I-shoutout yung galing Dubai">${esc(segDraft.note || '')}</textarea></div>
+      ${id ? `<label class="toggle"><input type="checkbox" id="sg-done" ${segDraft.done ? 'checked' : ''}>Done na 'tong activity</label>` : ''}
     </div>
     <div class="sheet-actions">
-      ${id ? `<button class="btn btn--ghost" onclick="deleteSeg(${id})">${ic('trash')}Tanggalin</button>` : ''}
-      <button class="btn btn--ink" onclick="saveSeg(${id || 0})">I-save</button>
+      ${id ? `<button class="btn btn--ghost" onclick="deleteSeg(${id})">${ic('trash')}Delete</button>` : ''}
+      <button class="btn btn--ink" onclick="saveSeg(${id || 0})">Save</button>
     </div>`);
   setTimeout(() => $('#sg-title')?.focus(), 60);
 }
@@ -522,8 +522,8 @@ async function cardUploadBg(input) {
   const file = input.files && input.files[0]; input.value = '';
   if (!file) return;
   if (!/^image\/(jpeg|png|webp|gif|heic|heif)$/i.test(file.type)) { toast('Picture lang pwede (JPG, PNG o WebP)'); return; }
-  if (file.size > 25e6) { toast('Masyadong malaki ang picture (max 25 MB)'); return; }
-  let bmp; try { bmp = await createImageBitmap(file); } catch (e) { toast('Hindi mabuksan ang picture na yan. Subukan ang JPG o PNG.'); return; }
+  if (file.size > 25e6) { toast('Sobrang laki ng picture (max 25 MB)'); return; }
+  let bmp; try { bmp = await createImageBitmap(file); } catch (e) { toast('Ayaw bumukas ng picture. Try JPG o PNG.'); return; }
   const k = Math.min(1, 1920 / Math.max(bmp.width, bmp.height)), cv = document.createElement('canvas');
   cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
   cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height); bmp.close?.();
@@ -534,7 +534,7 @@ async function cardUploadBg(input) {
   ensureCard(); BIDA.card.theme = 'own'; saveState(); renderCard(); toast('Naka-set na ang background mo!');
 }
 async function cardRemoveBg() {
-  if (!await askConfirm('Alisin ang sarili mong background?', 'Alisin')) return;
+  if (!await askConfirm('Tanggalin ang background mo?', 'Remove')) return;
   await idb('images', 'readwrite', s => s.delete('cardbg'));
   if (CARD_BG.url) URL.revokeObjectURL(CARD_BG.url);
   Object.assign(CARD_BG, { img: null, url: '' });
@@ -547,15 +547,15 @@ function cardOwnHTML() {
     ${CARD_BG.img ? `<div class="own-bg">
         <button class="theme-chip ${on ? 'on' : ''}" onclick="setCard('theme','own')" aria-pressed="${!!on}"><span class="theme-sw own-sw" style="background-image:url('${CARD_BG.url}')"></span>Picture mo</button>
         <label class="btn btn--ghost btn--sm">${ic('upload')}Palitan<input type="file" accept="image/*" hidden onchange="cardUploadBg(this)"></label>
-        <button class="btn btn--ghost btn--sm" onclick="cardRemoveBg()">${ic('trash')}Alisin</button></div>
-      ${on ? `<label class="toggle" style="margin-top:10px"><input type="checkbox" ${BIDA.card.ownPanel === '0' ? '' : 'checked'} onchange="setCard('ownPanel', this.checked ? '1' : '0')">Lagyan ng box ang text para mabasa</label>` : ''}`
-    : `<label class="btn btn--ghost btn--sm own-up">${ic('upload')}Mag-upload ng picture<input type="file" accept="image/*" hidden onchange="cardUploadBg(this)"></label>
+        <button class="btn btn--ghost btn--sm" onclick="cardRemoveBg()">${ic('trash')}Remove</button></div>
+      ${on ? `<label class="toggle" style="margin-top:10px"><input type="checkbox" ${BIDA.card.ownPanel === '0' ? '' : 'checked'} onchange="setCard('ownPanel', this.checked ? '1' : '0')">May box sa likod ng text para readable</label>` : ''}`
+    : `<label class="btn btn--ghost btn--sm own-up">${ic('upload')}Upload picture<input type="file" accept="image/*" hidden onchange="cardUploadBg(this)"></label>
        <p class="muted" style="margin-top:6px">Sa device mo lang naka-save ang picture. Hindi namin ina-upload.</p>`}`;
 }
 function cardDefaults() {
   const e = BIDA.event, et = eventType();
   const theme = (CARD_THEMES.find(t => t.for.includes(e.type)) || CARD_THEMES[2]).id;
-  return { theme, size: 'post', ownPanel: '1', intro: 'Inaanyayahan ka sa', title: e.name || et.label, sub: '', date: e.date || '', time: e.start || '', venue: '', msg: 'Kain, laro at kwentuhan — kumpleto ang saya kapag nandiyan ka!', rsvp: '' };
+  return { theme, size: 'post', ownPanel: '1', intro: 'Imbitado ka sa', title: e.name || et.label, sub: '', date: e.date || '', time: e.start || '', venue: '', msg: 'Kainan, games at kwentuhan — mas masaya kapag nandito ka!', rsvp: '' };
 }
 function ensureCard() {
   const d = cardDefaults(), c = BIDA.card && typeof BIDA.card === 'object' ? BIDA.card : {};
@@ -619,7 +619,7 @@ function drawCard(canvas, size) {      // size: optional override, e.g. 'tv' for
     for (const l of b.lines) { ctx.fillText(l, W / 2, y); y += b.lh; }
   }
   ctx.font = `800 24px ${CARD_FONT}`; ctx.fillStyle = th.panel ? th.fg : fg; ctx.globalAlpha = .55; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-  ctx.fillText('ginawa sa Bida-Vibe', W - 40, H - 34); ctx.globalAlpha = 1;
+  ctx.fillText('made with Bida-Vibe', W - 40, H - 34); ctx.globalAlpha = 1;
 }
 let cardRAF = 0, cardFontsReady = false;
 function redrawCard() {
@@ -642,9 +642,9 @@ function renderCard() {
       <div class="card-preview-wrap">
         <canvas id="card-canvas" class="card-canvas card-canvas--${c.size}" aria-label="Preview ng invitation card"></canvas>
         <div class="card-actions">
-          <button class="btn btn--magenta" onclick="downloadCard()">${ic('upload')}I-download</button>
-          <button class="btn btn--chili" onclick="cardShowTV()">${ic('play')}Ipakita sa TV</button>
-          ${navigator.share ? `<button class="btn btn--ink" onclick="shareCard()">${ic('arrow')}I-share</button>` : ''}
+          <button class="btn btn--magenta" onclick="downloadCard()">${ic('upload')}Download</button>
+          <button class="btn btn--chili" onclick="cardShowTV()">${ic('play')}Show sa TV</button>
+          ${navigator.share ? `<button class="btn btn--ink" onclick="shareCard()">${ic('arrow')}Share</button>` : ''}
         </div>
       </div>
       <div class="card-form">
@@ -655,14 +655,14 @@ function renderCard() {
         <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Laki ng card" style="margin:14px 0 4px">
           ${Object.entries(CARD_SIZES).map(([k, v]) => `<button class="${c.size === k ? 'on' : ''}" onclick="setCard('size','${k}')">${v[2]}</button>`).join('')}</div>
         <div class="stack" style="margin-top:12px">
-          ${field('intro', 'Pambungad', 'Inaanyayahan ka sa')}
-          ${field('title', 'Pangalan ng event', eventType().label)}
-          ${field('sub', 'Mula kay / ng', 'hal. Pamilya Santos')}
+          ${field('intro', 'Intro', 'Imbitado ka sa')}
+          ${field('title', 'Event name', eventType().label)}
+          ${field('sub', 'From', 'hal. Santos Family')}
           <div class="grid-2">${field('date', 'Petsa', '', 'date')}${field('time', 'Oras', '', 'time')}</div>
           ${field('venue', 'Saan', 'hal. Bahay ni Lola, Brgy. San Jose, Batangas')}
           ${field('msg', 'Mensahe', 'Maikling paanyaya', 'area')}
           ${field('rsvp', 'RSVP / contact', 'hal. Tita Bing · 0917 123 4567')}
-          <button class="btn btn--ghost btn--sm" onclick="resetCard()">Kunin ulit ang detalye mula sa Plan</button>
+          <button class="btn btn--ghost btn--sm" onclick="resetCard()">Kunin ulit ang details sa Plan</button>
         </div>
       </div>
     </div>`;
@@ -681,7 +681,7 @@ function setCard(k, v) {
   } else if (k === 'size') renderCard(); else redrawCard();
 }
 async function resetCard() {
-  if (!await askConfirm('Palitan ng detalye mula sa Plan ang pangalan, petsa at oras?', 'Palitan')) return;
+  if (!await askConfirm('Gamitin ulit ang name, date at time galing sa Plan?', 'Palitan')) return;
   const d = cardDefaults(); Object.assign(BIDA.card, { title: d.title, date: d.date, time: d.time }); saveState(); renderCard();
 }
 // Full-screen card for the TV (always the 16:9 layout, whatever size is picked for sharing)
@@ -700,7 +700,7 @@ function cardHideTV() {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
   if ($('#vk-stage').hidden && $('#sb-stage').hidden && $('#live').hidden) document.body.style.overflow = '';
 }
-function cardTVFull() { const el = $('#card-tv'); (el && el.requestFullscreen ? el.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser ang full screen')); }
+function cardTVFull() { const el = $('#card-tv'); (el && el.requestFullscreen ? el.requestFullscreen() : Promise.reject()).catch(() => toast("Walang full screen sa browser na 'to")); }
 addEventListener('keydown', e => { if (e.key === 'Escape') { const el = $('#card-tv'); if (el && !el.hidden) cardHideTV(); } });
 function cardBlob() {
   const cv = document.createElement('canvas'); drawCard(cv);
@@ -1072,7 +1072,7 @@ function watchScenes(root) {
    ============================================================ */
 let gameFilter = 'all';
 const GAME_FILTERS = [
-  ['all', 'Lahat'], ['kids', 'Pang-bata'], ['icebreak', 'Icebreaker'], ['high', 'Mataas ang energy'], ['nomat', 'Walang kailangang gamit'], ['indoor', 'Pang-indoor']
+  ['all', 'Lahat'], ['kids', 'Pang-kids'], ['icebreak', 'Icebreaker'], ['high', 'High energy'], ['nomat', 'No props needed'], ['indoor', 'Indoor']
 ];
 function gameMatch(g) {
   switch (gameFilter) {
@@ -1088,7 +1088,7 @@ function renderGames() {
   const list = BIDA_GAMES.filter(gameMatch);
   $('#panel-games').innerHTML = `
     <div class="panel-head"><div><h2>Mga Laro</h2>
-      <p>May animation, gamit at steps bawat laro. I-tap para makita, tapos i-add sa activities.</p></div></div>
+      <p>Bawat game may animation, gamit at steps. I-tap para makita, tapos i-add sa activities.</p></div></div>
     <div class="tools-row" role="group" aria-label="Game tools">
       <button onclick="sbSetup()"><span class="tr-ic" style="background:var(--gold)">${ic('trophy')}</span>Scoreboard</button>
       <button onclick="raffleSetup()"><span class="tr-ic" style="background:var(--magenta)">🎟️</span>Raffle</button>
@@ -1125,7 +1125,7 @@ function openGame(id) {
     <ol class="gd-steps" id="gd-steps">${g.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
     ${g.tips?.length ? `<div class="sec-title">${ic('star')}Tips</div><ul class="mat-list">${g.tips.map(t => `<li>• ${esc(t)}</li>`).join('')}</ul>` : ''}
     ${g.credit ? `<p class="muted game-credit">Galing kay <a href="${esc(g.credit.url)}" target="_blank" rel="noopener noreferrer">${esc(g.credit.by)}</a> (@digthegames sa TikTok). Nandun ang original na video.</p>` : ''}
-    <div class="sheet-actions">${/henyo|charades/.test(id) ? `<button class="btn btn--chili" onclick="closeSheet();henyoShow()">🧠 Bunot ng salita</button>` : ''}<button class="btn btn--magenta" onclick="addGameToProgram('${id}')">${ic('plus')}Idagdag sa activities</button></div>`);
+    <div class="sheet-actions">${/henyo|charades/.test(id) ? `<button class="btn btn--chili" onclick="closeSheet();henyoShow()">🧠 Bunot ng word</button>` : ''}<button class="btn btn--magenta" onclick="addGameToProgram('${id}')">${ic('plus')}Add sa activities</button></div>`);
   watchScenes($('#sheet'));
 }
 function playSteps() {
@@ -1148,7 +1148,7 @@ function addGameToProgram(id) {
   let at = BIDA.program.findIndex(s => s.kind === 'closing' || s.kind === 'videoke' || s.kind === 'photo');
   if (at < 0) at = BIDA.program.length;
   BIDA.program.splice(at, 0, { id: BIDA.nextId++, kind: 'game', title: g.name, min: Math.max(m, 10), game: id });
-  saveState(); closeSheet(); toast(`${g.name} — nadagdag sa activities!`);
+  saveState(); closeSheet(); toast(`${g.name} — added sa activities!`);
 }
 
 
@@ -1185,8 +1185,9 @@ let DB;
 function db() {
   if (DB) return Promise.resolve(DB);
   return new Promise((res, rej) => {
-    const r = indexedDB.open('bidavibe_media', 3);
+    const r = indexedDB.open('bidavibe_media', 4);
     r.onupgradeneeded = () => {
+      if (!r.result.objectStoreNames.contains('music')) r.result.createObjectStore('music', { keyPath: 'id' });     // own music files (this device only)
       if (!r.result.objectStoreNames.contains('sounds')) r.result.createObjectStore('sounds', { keyPath: 'id' });
       if (!r.result.objectStoreNames.contains('padcache')) r.result.createObjectStore('padcache', { keyPath: 'id' });
       if (!r.result.objectStoreNames.contains('images')) r.result.createObjectStore('images', { keyPath: 'id' });   // card background (this device only)
@@ -1340,7 +1341,7 @@ function playSound(id, padEl) {
   if (padEl) { padEl.classList.add('hit'); setTimeout(() => padEl.classList.remove('hit'), 120); }
   if (BUF_CACHE[id]) { playBuffer(BUF_CACHE[id]); return; }    // the normal, instant path
   decodePad(id).then(playBuffer).catch(e => {
-    if (e.code === 403) openPremium('Sound pads'); else toast('Hindi ma-play ang sound na ito');
+    if (e.code === 403) openPremium('Sound pads'); else toast("Ayaw mag-play ng sound na 'to");
   });
 }
 function padList() {
@@ -1365,7 +1366,7 @@ function renderSounds() {
   $('#panel-sounds').innerHTML = `
     <div class="panel-head"><div><h2>Sound pads</h2>
       <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : `Libre ang ${freeN ? freeN + ' sound pads' : 'mga libreng pads'} at ${BIDA_CONFIG.freeUploads} sariling upload.`}</p></div>
-      ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}I-unlock lahat</button>`}</div>
+      ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}Unlock all</button>`}</div>
     <div class="pads" id="pads">${padsHTML()}
       <button class="pad pad--add" onclick="addSoundClick()">${ic('upload')}<span class="pad-name">Upload</span>
         <small>${leftLabel(uploadsLeft(), 'max 3 seg')}</small></button></div>
@@ -1381,8 +1382,8 @@ async function checkSoundFile(f) {
   if (f.size > MAX_SOUND_BYTES) throw new Error(`${f.name}: masyadong malaki — max 500 KB`);
   let buf;
   try { buf = trimSilence(await ac().decodeAudioData(await f.arrayBuffer())); }
-  catch (e) { throw new Error(`${f.name}: hindi ma-play ang file na ito`); }
-  if (buf.duration > MAX_SOUND_SEC + 0.05) throw new Error(`${f.name}: ${buf.duration.toFixed(1)} segundo — hanggang ${MAX_SOUND_SEC} segundo lang`);
+  catch (e) { throw new Error(`${f.name}: ayaw mag-play ng file na 'to`); }
+  if (buf.duration > MAX_SOUND_SEC + 0.05) throw new Error(`${f.name}: ${buf.duration.toFixed(1)} sec — hanggang ${MAX_SOUND_SEC} sec lang`);
   return buf;
 }
 // The user's own sounds are saved ONLY on this device (browser storage / IndexedDB) — never uploaded anywhere.
@@ -1395,10 +1396,10 @@ async function uploadSounds(files) {
     const s = { id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: f.name.replace(/\.[^.]+$/, '').slice(0, 20), blob: f, c: ['magenta', 'turq', 'gold', 'leaf', 'chili'][CUSTOM.length % 5], created: Date.now() };
     await dbPut(s); CUSTOM.push(s); BUF_CACHE[s.id] = buf; added++;
   }
-  renderSounds(); if (added) toast(added > 1 ? `${added} sounds nadagdag!` : 'Nadagdag ang sound!');
+  renderSounds(); if (added) toast(added > 1 ? `${added} sounds added!` : 'Sound added!');
 }
 async function delSound(id) {
-  if (!await askConfirm('Tanggalin ang sound na ito?', 'Tanggalin')) return;
+  if (!await askConfirm("Delete ang sound na 'to?", 'Delete')) return;
   await dbDel(id); CUSTOM = CUSTOM.filter(s => s.id !== id); delete BUF_CACHE[id]; renderSounds();
 }
 
@@ -1489,7 +1490,7 @@ const GH_ERR = { gh_token: 'Hindi tanggap ng GitHub ang token (expired o mali). 
 async function ghWork(fn, okMsg) {
   if (GH.busy) return; GH.busy = true; renderSounds();
   try { await fn(); await ghRefresh(); preloadPads(); if (okMsg) toast(okMsg); }
-  catch (e) { toast(GH_ERR[e.message] || 'Hindi natuloy — subukan ulit'); if (e.message === 'gh_token') { GH.token = null; GH.state = 'bad-token'; } }
+  catch (e) { toast(GH_ERR[e.message] || 'Hindi natuloy — try ulit'); if (e.message === 'gh_token') { GH.token = null; GH.state = 'bad-token'; } }
   finally { GH.busy = false; renderSounds(); }
 }
 function ghUpload(files) {
@@ -1559,7 +1560,7 @@ function adminGitHubHTML() {
         <button class="icon-btn icon-btn--plain" onclick="ghRename(${i})" aria-label="Palitan ang pangalan" ${GH.busy ? 'disabled' : ''}>${ic('edit')}</button>
         <button class="icon-btn icon-btn--plain" onclick="ghDelete(${i})" aria-label="Tanggalin" ${GH.busy ? 'disabled' : ''}>${ic('trash')}</button></span></li>`).join('')}</ul>` : '<p class="muted" style="margin-top:12px">Wala pang naka-upload.</p>'}
     <p class="muted" style="margin-top:10px">Makikita ng lahat in 1–2 minutes. <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="ghChangeToken()">Palitan ang token</button></p>`;
-  else body = `<p class="note" style="margin-top:12px">May problema: ${esc(GH.msg || '')}. <button class="btn btn--ghost btn--sm" onclick="GH_retry()">Subukan ulit</button></p>`;
+  else body = `<p class="note" style="margin-top:12px">May problema: ${esc(GH.msg || '')}. <button class="btn btn--ghost btn--sm" onclick="GH_retry()">Try ulit</button></p>`;
   return `<div class="card admin-card" style="margin-top:20px">${head}${body}</div>`;
 }
 function GH_retry() { GH.state = ''; adminInit(); }
@@ -1595,7 +1596,7 @@ async function adminReq(path, method, body, type) {
   if (!r.ok) throw new Error(j.error || 'http_' + r.status);
   return j;
 }
-const adminFail = e => toast(ADMIN_ERR[e.message] || 'Hindi natuloy — subukan ulit');
+const adminFail = e => toast(ADMIN_ERR[e.message] || 'Hindi natuloy — try ulit');
 function adminTier(t) { ADMIN_TIER = t; renderSounds(); }
 async function adminUpload(files) {
   let ok = 0;
@@ -1634,42 +1635,42 @@ function micHelp(err, retry, perm) {
   const iosOther = ios && /CriOS|FxiOS|EdgiOS|Brave/i.test(ua);
   const android = /Android/i.test(ua), brave = !!navigator.brave;
   const name = err && err.name;
-  let why = 'Naka-block ang mic para sa Bida-Vibe sa browser na ito.', steps = [];
+  let why = "Naka-block ang mic ng Bida-Vibe sa browser na 'to.", steps = [];
   if (!window.isSecureContext) why = 'Gumagana lang ang mic sa https:// na link.';
-  else if (name === 'NotFoundError') why = 'Walang nakitang mic sa device na ito.';
-  else if (name === 'NotReadableError') why = 'Ginagamit ng ibang app ang mic (hal. tawag o video call). Isara muna iyon.';
+  else if (name === 'NotFoundError') why = "Walang mic na nakita sa device na 'to.";
+  else if (name === 'NotReadableError') why = "May ibang app na gumagamit ng mic (hal. call o video call). I-close muna 'yon.";
   if (inApp) {
-    why = 'Binuksan mo ang Bida-Vibe sa loob ng Facebook, Messenger, TikTok o ibang app — hindi nila pinapayagan ang mic.';
-    steps = ['I-tap ang ⋮ o … sa itaas na kanan.', `Piliin ang "Open in browser" / "Buksan sa ${ios ? 'Safari' : 'Chrome'}".`, 'Doon subukan ulit.'];
+    why = 'Nakabukas ang Bida-Vibe sa loob ng Facebook, Messenger, TikTok o ibang app — bawal doon ang mic.';
+    steps = ['I-tap ang ⋮ o … sa upper right.', `I-tap ang "Open in browser" / "Buksan sa ${ios ? 'Safari' : 'Chrome'}".`, 'Doon i-try ulit.'];
   } else if (ios && !iosOther) {
-    steps = ['I-tap ang "aA" sa address bar ng Safari.', 'Piliin ang "Website Settings".', 'Microphone → Allow.', 'Bumalik dito at pindutin ang "Subukan ulit".',
+    steps = ['I-tap ang "aA" sa address bar ng Safari.', 'I-tap ang "Website Settings".', 'Microphone → Allow.', 'Balik dito, tapos i-tap ang "Try ulit".',
       'Kung wala: buksan ang Settings app → Safari (o Apps → Safari) → Microphone → Ask o Allow.'];
   } else if (ios) {
-    steps = ['Buksan ang Settings app ng iPhone.', `Hanapin ang ${brave ? 'Brave' : 'browser mo (hal. Chrome)'} → i-ON ang Microphone.`, 'Bumalik dito, i-reload ang page, at subukan ulit.'];
+    steps = ['Buksan ang Settings app ng iPhone.', `Hanapin ang ${brave ? 'Brave' : 'browser mo (hal. Chrome)'} → i-ON ang Microphone.`, 'Balik dito, i-reload ang page, tapos try ulit.'];
   } else if (android) {
-    steps = ['I-tap ang icon sa kaliwa ng address bar (lock o settings icon).', `Piliin ang "Permissions" o "Site settings".`, 'Microphone → Allow.', 'Pindutin ang "Subukan ulit".',
+    steps = ['I-tap ang icon sa kaliwa ng address bar (lock o settings icon).', `I-tap ang "Permissions" o "Site settings".`, 'Microphone → Allow.', 'I-tap ang "Try ulit".',
       `Kung naka-block pa rin: Settings ng phone → Apps → ${brave ? 'Brave' : 'Chrome'} → Permissions → Microphone → Allow.`];
   } else {
-    steps = ['I-click ang icon sa kaliwa ng address bar.', 'Microphone → Allow.', 'I-reload ang page kung kailangan, tapos pindutin ang "Subukan ulit".'];
+    steps = ['I-click ang icon sa kaliwa ng address bar.', 'Microphone → Allow.', 'I-reload ang page kung kailangan, tapos i-tap ang "Try ulit".'];
   }
   // The website IS allowed, but the phone/computer itself blocks the browser from the mic
   if (!inApp && name === 'NotAllowedError' && perm === 'granted') {
-    why = 'Naka-allow na ang mic sa Bida-Vibe, pero naka-block pa ito sa mismong phone o computer para sa browser mo.';
+    why = 'Naka-allow na ang mic sa Bida-Vibe, pero naka-block pa sa settings ng phone o computer mo.';
     const mac = /Macintosh/.test(ua) && !ios, win = /Windows/.test(ua), bname = brave ? 'Brave' : /Edg\//.test(ua) ? 'Edge' : /Firefox/.test(ua) ? 'Firefox' : ios && !iosOther ? 'Safari' : 'Chrome';
-    steps = android ? [`Buksan ang Settings ng phone → Apps → ${bname}.`, 'Permissions → Microphone → Allow.', 'Bumalik dito at pindutin ang "Subukan ulit".']
-      : ios ? [`Buksan ang Settings app → ${bname === 'Safari' ? 'Apps → Safari' : bname} → Microphone → i-ON.`, 'I-reload ang page, tapos "Subukan ulit".']
-      : mac ? ['System Settings → Privacy & Security → Microphone.', `I-ON ang ${bname}.`, `I-quit at buksan ulit ang ${bname}, tapos "Subukan ulit".`]
-      : win ? ['Windows Settings → Privacy & security → Microphone.', 'I-ON ang "Microphone access" at "Let desktop apps access your microphone".', `I-restart ang ${bname}, tapos "Subukan ulit".`]
-      : ['Payagan ang browser na gumamit ng mic sa settings ng device.', 'I-restart ang browser, tapos "Subukan ulit".'];
+    steps = android ? [`Buksan ang Settings ng phone → Apps → ${bname}.`, 'Permissions → Microphone → Allow.', 'Balik dito, tapos i-tap ang "Try ulit".']
+      : ios ? [`Buksan ang Settings app → ${bname === 'Safari' ? 'Apps → Safari' : bname} → Microphone → i-ON.`, 'I-reload ang page, tapos "Try ulit".']
+      : mac ? ['System Settings → Privacy & Security → Microphone.', `I-ON ang ${bname}.`, `I-quit at buksan ulit ang ${bname}, tapos "Try ulit".`]
+      : win ? ['Windows Settings → Privacy & security → Microphone.', 'I-ON ang "Microphone access" at "Let desktop apps access your microphone".', `I-restart ang ${bname}, tapos "Try ulit".`]
+      : ['Sa settings ng device, i-allow ang mic para sa browser.', 'I-restart ang browser, tapos "Try ulit".'];
   }
   openSheet(`
     <div class="sheet-head"><h3>Kailangan ng mic</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="card"><p style="font-weight:700">${esc(why)}</p>
       ${steps.length ? `<span class="field-label" style="display:block;margin-top:14px">Paano i-on</span><ol class="mic-steps">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
-      <p class="muted" style="margin-top:12px;font-size:12px;word-break:break-word">Detalye (para sa support): ${esc(detail)}</p></div>
+      <p class="muted" style="margin-top:12px;font-size:12px;word-break:break-word">Details (para sa support): ${esc(detail)}</p></div>
     <div class="sheet-actions">
-      <button class="btn btn--ghost" onclick="closeSheet()">Isara</button>
-      ${micRetry ? `<button class="btn btn--ink" onclick="closeSheet();micRetryNow()">${ic('mic')}Subukan ulit</button>` : ''}
+      <button class="btn btn--ghost" onclick="closeSheet()">Close</button>
+      ${micRetry ? `<button class="btn btn--ink" onclick="closeSheet();micRetryNow()">${ic('mic')}Try ulit</button>` : ''}
     </div>`);
 }
 function micRetryNow() { const f = micRetry; micRetry = null; f?.(); }
@@ -1705,7 +1706,7 @@ function needSource() {
   if (M.kind) return false;
   if (ytLinks().length) { playYouTube(Math.max(0, BIDA.music.ytIdx)); return true; }   // play the saved list
   goTab('music'); if (!$('#live').hidden) closeLive();
-  toast('Pumili muna ng music dito'); return true;
+  toast('Pili ka muna ng music dito'); return true;
 }
 /* Talk = quick duck while speaking */
 function duckDown() {
@@ -1765,13 +1766,13 @@ function setDuck(v) {
 function talkControls(where) {
   const m = BIDA.music;
   return `
-    <div class="slider-row"><label for="duck-${where}">Hihina ang volume hanggang</label><output class="o-duck">${Math.round(m.duck * 100)}%</output>
+    <div class="slider-row"><label for="duck-${where}">Hina ng music pag Talk</label><output class="o-duck">${Math.round(m.duck * 100)}%</output>
       <input type="range" class="duck-r" id="duck-${where}" min="0" max="0.6" step="0.01" value="${m.duck}" oninput="setDuck(+this.value)"></div>
-    <div class="slider-row"><label for="spd-${where}">Bilis ng paghina</label><output class="o-spd">${(m.fade / 1000).toFixed(1)}s</output>
+    <div class="slider-row"><label for="spd-${where}">Fade speed</label><output class="o-spd">${(m.fade / 1000).toFixed(1)}s</output>
       <input type="range" class="spd-r" id="spd-${where}" min="100" max="3000" step="100" value="${m.fade}" oninput="setTalkSpeed(+this.value)"></div>
     <label class="toggle"><input type="checkbox" class="ar-cb" ${m.mode === 'hold' ? 'checked' : ''} onchange="setAutoReturn(this.checked)">
-      Babalik ang music pagkatapos magsalita</label>
-    <p class="muted ar-hint">${m.mode === 'hold' ? 'I-hold ang Talk habang nagsasalita, babalik ang music pag binitawan.' : 'I-tap ang Talk para humina, i-tap ulit para bumalik.'} Same bilis pababa at pabalik.</p>`;
+      Babalik ang music pag binitawan ang Talk</label>
+    <p class="muted ar-hint">${m.mode === 'hold' ? 'I-hold ang Talk habang nagsasalita. Pag binitawan, balik ang music.' : 'I-tap ang Talk para humina, tap ulit para bumalik.'} Same speed pahina at pabalik.</p>`;
 }
 function setTalkSpeed(ms) {
   BIDA.music.fade = ms; saveState();
@@ -1782,7 +1783,7 @@ function setAutoReturn(on) {
   BIDA.music.mode = on ? 'hold' : 'toggle'; saveState();
   if (on && M.ducked) duckUp();
   $$('input.ar-cb').forEach(c => c.checked = on);
-  $$('.ar-hint').forEach(p => p.textContent = (on ? 'I-hold ang Talk habang nagsasalita, babalik ang music pag binitawan.' : 'I-tap ang Talk para humina, i-tap ulit para bumalik.') + ' Same bilis pababa at pabalik.');
+  $$('.ar-hint').forEach(p => p.textContent = (on ? 'I-hold ang Talk habang nagsasalita. Pag binitawan, balik ang music.' : 'I-tap ang Talk para humina, tap ulit para bumalik.') + ' Same speed pahina at pabalik.');
 }
 
 /* ---- YouTube (IFrame API: full volume control) ---- */
@@ -1816,7 +1817,7 @@ async function addYouTube() {
   const links = ytLinks();
   const dup = links.findIndex(l => l.v === p.id && l.list === p.list);
   if (dup >= 0) { inp.value = ''; playYouTube(dup); return; }
-  if (!BIDA.premium && links.length >= BIDA_CONFIG.freeYtLinks) { openPremium(`Higit sa ${BIDA_CONFIG.freeYtLinks} YouTube links`); return; }
+  if (!BIDA.premium && links.length >= BIDA_CONFIG.freeYtLinks) { openPremium(`Lagpas ${BIDA_CONFIG.freeYtLinks} YouTube links`); return; }
   const link = { v: p.id, list: p.list, title: '', thumb: p.id ? `https://i.ytimg.com/vi/${p.id}/mqdefault.jpg` : '' };
   links.push(link); inp.value = ''; saveState();
   fetchYtInfo(link);
@@ -1844,7 +1845,7 @@ async function delYouTube(i) {
 }
 async function playYouTube(i) {
   const l = ytLinks()[i]; if (!l) return;
-  if (!ytCanUse(i)) { openPremium(`Higit sa ${BIDA_CONFIG.freeYtLinks} YouTube links`); return; }
+  if (!ytCanUse(i)) { openPremium(`Lagpas ${BIDA_CONFIG.freeYtLinks} YouTube links`); return; }
   BIDA.music.ytIdx = i; saveState();
   stopOtherSources('youtube');
   await ytApi();
@@ -1915,14 +1916,76 @@ function togglePlaylist(force) {
 }
 
 /* ---- Local files (Web Audio gain) ---- */
-function loadLocal(files) {
-  if (needPro('Music player')) return;
+/* Own music files are saved in this browser's storage (IndexedDB) on THIS device only.
+   They're never uploaded anywhere. Free: 5 files. Premium: no limit. */
+const FREE_MUSIC_FILES = 5;
+let MFILES = [];          // [{id,name,blob,created}]
+async function loadMusicFiles() {
+  try {
+    MFILES = ((await idb('music', 'readonly', s => s.getAll())) || []).filter(f => /^m[a-z0-9]{4,30}$/.test(String(f.id)) && f.blob instanceof Blob)
+      .map(f => ({ ...f, name: String(f.name || 'Song').slice(0, 80) })).sort((a, b) => (a.created || 0) - (b.created || 0));
+  } catch (e) { MFILES = []; }
+}
+const musicFilesOk = () => BIDA.premium ? MFILES : MFILES.slice(0, FREE_MUSIC_FILES);
+function musicPut(o) {   // resolves true/false (false = device storage full or blocked)
+  return db().then(d => new Promise(res => {
+    const tx = d.transaction('music', 'readwrite'); tx.objectStore('music').put(o);
+    tx.oncomplete = () => res(true); tx.onerror = tx.onabort = () => res(false);
+  })).catch(() => false);
+}
+async function loadLocal(files) {
   const arr = Array.from(files).filter(f => /^audio\//.test(f.type) || /\.(mp3|m4a|wav|ogg|aac|flac)$/i.test(f.name));
   if (!arr.length) return;
+  const room = BIDA.premium ? Infinity : FREE_MUSIC_FILES - MFILES.length;
+  if (room <= 0) { openPremium('Music files'); return; }
+  const take = arr.slice(0, room), first = MFILES.length;
+  try { navigator.storage?.persist?.(); } catch (e) { }      // ask the browser not to auto-clear them
+  let saved = 0;
+  for (const f of take) {
+    const ok = await musicPut({ id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), name: f.name.replace(/\.[^.]+$/, '').slice(0, 80), blob: f, created: Date.now() + saved });
+    if (!ok) { toast('Puno na ang storage ng device. Mag-delete muna ng ibang files.'); break; }
+    saved++;
+  }
+  await loadMusicFiles();
+  if (BIDA.tab === 'music') renderMusic();
+  if (!saved) return;
+  toast(arr.length > take.length ? `${saved} lang ang na-save. Hanggang ${FREE_MUSIC_FILES} files ang libre.` : `Saved: ${saved} file${saved > 1 ? 's' : ''}`);
+  playMusicFile(first);
+}
+function playMusicFile(i) {
+  const list = musicFilesOk(); if (!list[i]) return;
   stopOtherSources('local');
   M.queue.forEach(q => URL.revokeObjectURL(q.url));
-  M.queue = arr.map(f => ({ name: f.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(f) }));
-  M.kind = 'local'; M.faded = false; playLocal(0);
+  M.queue = list.map(f => ({ id: f.id, name: f.name, url: URL.createObjectURL(f.blob) }));
+  M.kind = 'local'; M.faded = false; playLocal(i);
+  if (BIDA.tab === 'music') setTimeout(renderMusic, 50);
+}
+async function delMusicFile(id) {
+  const f = MFILES.find(x => x.id === id); if (!f) return;
+  if (!confirm(`Tanggalin ang "${f.name}" sa device na 'to?`)) return;
+  await idb('music', 'readwrite', s => s.delete(id));
+  const playing = M.kind === 'local' && M.queue[M.qi]?.id === id;
+  await loadMusicFiles();
+  if (M.kind === 'local') {
+    if (playing && M.audio) { M.audio.pause(); M.audio.removeAttribute('src'); }
+    M.queue = M.queue.filter(q => { if (q.id === id) URL.revokeObjectURL(q.url); return q.id !== id; });
+    if (!M.queue.length) { M.kind = ''; M.title = ''; M.playing = false; updateBar(); }
+    else if (playing) playLocal(Math.min(M.qi, M.queue.length - 1));
+  }
+  renderMusic();
+}
+function musicFilesHTML() {
+  const ok = musicFilesOk();
+  if (!MFILES.length) return '<p class="muted" style="margin-top:10px">Wala pang naka-save.</p>';
+  return `<ul class="yt-list" style="margin-top:10px">${MFILES.map((f, i) => {
+    const can = i < ok.length, now = can && M.kind === 'local' && M.queue[M.qi]?.id === f.id;
+    return `<li class="${now ? 'now' : ''} ${can ? '' : 'locked'}">
+      <button class="yt-play" onclick="${can ? `playMusicFile(${i})` : `openPremium('Music files')`}" aria-label="Play ${esc(f.name)}">
+        <span class="yt-ph">${ic('music')}</span>
+        <span class="yt-t"><b>${esc(f.name)}</b><small>${(f.blob.size / 1048576).toFixed(1)} MB${now ? (M.playing ? ' · playing' : ' · paused') : ''}${can ? '' : ' · Premium'}</small></span>
+        ${can ? ic(now && M.playing ? 'pause' : 'play') : ic('lock')}</button>
+      <button class="icon-btn icon-btn--plain yt-del" onclick="delMusicFile('${f.id}')" aria-label="Tanggalin">${ic('trash')}</button></li>`;
+  }).join('')}</ul>`;
 }
 function ensureAudio() {
   if (M.audio) return M.audio;
@@ -1972,7 +2035,7 @@ async function spHandleRedirect() {
     const j = await r.json(); if (!j.access_token) throw new Error(j.error || 'token');
     localStorage.setItem('bidavibe_sp', JSON.stringify({ at: j.access_token, exp: Date.now() + j.expires_in * 1000 }));
     BIDA.music.src = 'spotify'; saveState(); toast('Connected sa Spotify!');
-  } catch (e) { toast('Hindi naka-connect sa Spotify'); }
+  } catch (e) { toast('Hindi ma-connect sa Spotify'); }
 }
 function spApi(path, opts = {}) {
   const t = spToken(); if (!t) return Promise.reject(new Error('no token'));
@@ -2019,7 +2082,7 @@ async function spPlay() {
       // Mobile: control the Spotify app that's already open on this phone (Spotify Connect)
       M.spMode = 'connect';
       const r = await spApi('/me/player/play', { method: 'PUT', body: JSON.stringify(body) });
-      if (r.status === 404) { toast('Buksan muna ang Spotify app at mag-play ng kahit ano, tapos subukan ulit'); return; }
+      if (r.status === 404) { toast('Open muna ang Spotify app, mag-play ng kahit ano, tapos try ulit'); return; }
       M.playing = true; M.title = 'Spotify';
     }
     M.wantPlay = true; updateBar('Spotify');
@@ -2099,8 +2162,8 @@ function updateBar(src) {
   if (src) barSrc = src;
   rmtPublish();
   const has = !!M.kind;
-  $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang tumutugtog';
-  $('#mb-sub').textContent = has ? [barSrc, M.pos, M.faded ? 'faded out' : ''].filter(Boolean).join(' · ') : (ytLinks().length ? 'Tap para i-play ang naka-save' : 'Tap para pumili ng music');
+  $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang naka-play';
+  $('#mb-sub').textContent = has ? [barSrc, M.pos, M.faded ? 'faded out' : ''].filter(Boolean).join(' · ') : (ytLinks().length ? 'Tap para i-play ang naka-save' : 'Tap para mag-set ng music');
   $$('.mb-play-ic').forEach(u => u.setAttribute('href', M.playing ? '#i-pause' : '#i-play'));
   $$('.mb-fade').forEach(b => { b.classList.toggle('on', M.faded); b.querySelector('span').textContent = M.faded || (has && !M.playing) ? 'Fade in' : 'Fade out'; });
   $$('.mb-vol').forEach(r => r.value = BIDA.music.master);
@@ -2110,7 +2173,7 @@ function updateBar(src) {
     ? (M.kind === 'local' ? M.queue.map((t, i) => `<li class="${i === M.qi ? 'now' : ''}" onclick="playLocal(${i})">${ic(i === M.qi && M.playing ? 'pause' : 'play')}<span>${esc(t.name)}</span></li>`).join('')
       : M.upNext.length ? M.upNext.map(n => `<li>${ic('next')}<span>${esc(n)}</span></li>`).join('')
         : `<li class="empty">${M.pos ? 'Playlist: ' + esc(M.pos) : 'Isang track lang ang naka-load'}</li>`)
-    : `<li class="empty"><button class="btn btn--sm btn--ink" onclick="goTab('music');toggleBar(false)">Pumili ng music</button></li>`;
+    : `<li class="empty"><button class="btn btn--sm btn--ink" onclick="goTab('music');toggleBar(false)">Pili ng music</button></li>`;
   $('#mbar').classList.toggle('has-music', has);
   $('#mbar').classList.toggle('playing', M.playing);
 }
@@ -2245,16 +2308,16 @@ function renderMusic() {
   if (!['youtube', 'spotify', 'local'].includes(m.src)) m.src = 'youtube';   // the old "link only" option is gone
   $('#panel-music').innerHTML = `
     <div class="panel-head"><div><h2>Music setup</h2>
-      <p>Dito ka pipili ng music. Yung play, next, fade at Talk, nasa music bar sa baba kahit anong tab ka.</p></div></div>
+      <p>Dito i-set ang music. Yung play, next, fade at Talk, nasa music bar sa baba kahit anong tab ka.</p></div></div>
     <div class="src-tabs" role="tablist">
-      ${[['youtube', 'YouTube', BIDA.premium ? 'Walang limit' : `${BIDA_CONFIG.freeYtLinks} libre`], ['spotify', 'Spotify', 'Premium'], ['local', 'Sariling files', 'Premium']].map(([id, l, s]) =>
+      ${[['youtube', 'YouTube', BIDA.premium ? 'Walang limit' : `${BIDA_CONFIG.freeYtLinks} libre`], ['spotify', 'Spotify', 'Premium'], ['local', 'Sariling files', BIDA.premium ? 'Walang limit' : `${FREE_MUSIC_FILES} libre`]].map(([id, l, s]) =>
         `<button class="src-tab ${m.src === id ? 'on' : ''}" role="tab" aria-selected="${m.src === id}" onclick="setMusicSrc('${id}')">${l}<small>${s}</small></button>`).join('')}
     </div>
     <div class="card stack">
       <div ${m.src === 'youtube' ? '' : 'hidden'}>
         <div class="field"><label for="yt-url">YouTube o YouTube Music link (video o playlist)</label>
           <div class="yt-add"><input class="input" id="yt-url" placeholder="https://www.youtube.com/…" onkeydown="if(event.key==='Enter')addYouTube()">
-          <button class="btn btn--chili" onclick="addYouTube()">${ic('plus')}Idagdag</button></div></div>
+          <button class="btn btn--chili" onclick="addYouTube()">${ic('plus')}Add</button></div></div>
         <div class="yt-head"><span class="field-label">Naka-save</span><small class="muted">${m.ytLinks.length}${BIDA.premium ? '' : ` / ${BIDA_CONFIG.freeYtLinks} libre`}</small></div>
         ${ytListHTML()}
         ${braveTipHTML()}
@@ -2263,14 +2326,16 @@ function renderMusic() {
         ${BIDA_CONFIG.spotifyClientId ? `
         <div class="field"><label for="sp-url">Spotify playlist / album link</label>
           <input class="input" id="sp-url" placeholder="https://open.spotify.com/playlist/…" value="${esc(m.spUrl)}"></div>
-        <button class="btn btn--leaf btn--block" style="margin-top:12px" onclick="spPlay()">${ic('play')}${spToken() ? 'I-load' : 'Connect at i-load'}</button>
-        <p class="note" style="margin-top:12px">Kailangan ng <b>Spotify Premium</b>. ${isMobileUA ? 'Sa phone o tablet, buksan muna ang Spotify app. Yun ang kokontrolin, pati fade.' : 'Sa computer, dito mismo tutugtog.'}</p>` : `
+        <button class="btn btn--leaf btn--block" style="margin-top:12px" onclick="spPlay()">${ic('play')}${spToken() ? 'Load' : 'Connect at load'}</button>
+        <p class="note" style="margin-top:12px">Kailangan ng <b>Spotify Premium</b>. ${isMobileUA ? 'Sa phone o tablet, open muna ang Spotify app. Yun ang ico-control natin, pati fade.' : 'Sa computer, dito mismo magpe-play.'}</p>` : `
         <p class="note">Hindi pa naka-setup ang Spotify (kailangan ng Client ID ng developer).</p>`}
       </div>
       <div ${m.src === 'local' ? '' : 'hidden'}>
-        <button class="btn btn--turq btn--block" onclick="${BIDA.premium ? `$('#local-files').click()` : `openPremium('Music player')`}">${ic('upload')}Pumili ng music files</button>
+        <button class="btn btn--turq btn--block" onclick="${BIDA.premium || MFILES.length < FREE_MUSIC_FILES ? `$('#local-files').click()` : `openPremium('Music files')`}">${ic('upload')}Add music files</button>
         <input type="file" id="local-files" accept="audio/*" multiple hidden onchange="loadLocal(this.files);this.value=''">
-        <p class="muted" style="margin-top:8px">Mp3 o m4a galing sa device mo. Hindi 'to ina-upload kahit saan.</p>
+        <div class="yt-head" style="margin-top:12px"><span class="field-label">Naka-save sa device na 'to</span><small class="muted">${MFILES.length}${BIDA.premium ? '' : ` / ${FREE_MUSIC_FILES} libre`}</small></div>
+        ${musicFilesHTML()}
+        <p class="note" style="margin-top:10px">${ic('check')}<span>Mp3 o m4a galing sa phone o laptop mo. Naka-save lang sa browser ng device na 'to, <b>hindi ina-upload</b> sa amin o kahit saan. Kapag nag-clear ka ng browser data, mabubura rin sila.</span></p>
       </div>
     </div>
     <div class="card stack">
@@ -2307,7 +2372,6 @@ function vkState() {
     queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)).slice(0, 12), c: q.c, singer: String(q.singer || '').slice(0, 30),
       av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', mo: vkMouthOk(q.mo) ? q.mo : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
-    freeKey: String(v.freeKey || '').slice(0, 200), freeUsed: clamp(parseInt(v.freeUsed, 10) || 0, 0, 99),
     score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30), lastAv: /^[a-z]{2,10}$/.test(v.lastAv) ? v.lastAv : '',
     room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
       ? { id: v.room.id, owner: v.room.owner.slice(0, 128), exp: +v.room.exp } : null
@@ -2338,7 +2402,9 @@ function vkSearch() {
   if (VK.letter) list = list.filter(s => vkFirst(s.t) === VK.letter);
   if (VK.artist) list = list.filter(s => vkNorm(s.a) === VK.artist);
   if (q) list = list.filter(s => String(s.c).startsWith(q) || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q));
-  return list.sort((a, b) => vkNorm(a.t).localeCompare(vkNorm(b.t)) || a.c - b.c);
+  if (!BIDA.premium && VK.freeOnly) list = list.filter(s => vkIsFree(s.c));
+  // free users see the free songs first, then the locked ones
+  return list.sort((a, b) => (BIDA.premium ? 0 : vkIsFree(b.c) - vkIsFree(a.c)) || vkNorm(a.t).localeCompare(vkNorm(b.t)) || a.c - b.c);
 }
 
 /* ---- Videoke tab ---- */
@@ -2354,8 +2420,8 @@ function renderVideoke() {
   const now = VK.cur && vkSong(VK.cur.c);
   $('#panel-videoke').innerHTML = `
     <div class="panel-head"><div><h2>Videoke</h2>
-      <p>Hanapin ang kanta, i-reserve, tapos kanta na. ${vkAll().length} songs sa library.</p></div>
-      <button class="btn btn--chili" onclick="vkStart()" ${v.queue.length || VK.cur ? '' : 'disabled'}>${ic('play')}${VK.cur ? 'Buksan ang screen' : 'Simulan'}</button></div>
+      <p>Search ng song, i-reserve, tapos kanta na! ${vkAll().length} songs sa library.</p></div>
+      <button class="btn btn--chili" onclick="vkStart()" ${v.queue.length || VK.cur ? '' : 'disabled'}>${ic('play')}${VK.cur ? 'Open screen' : 'Start'}</button></div>
     <div class="card vk-queue">
       <div class="vk-qhead"><h3>Nakapila <small class="muted">(${v.queue.length})</small></h3>
         ${now ? `<span class="vk-nowtag">${ic('mic')}<b>${esc(VK.cur.singer || 'Bisita')}</b> · ${esc(now.t)}</span>` : ''}</div>
@@ -2364,21 +2430,21 @@ function renderVideoke() {
         <div><b>${esc(q.singer || 'Bisita')}</b><small>${esc(s ? s.t : 'Kanta')}${q.src === 'guest' ? ' · via link' : ''}</small></div>
         <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkQMove(${i},-1)" ${i ? '' : 'disabled'} aria-label="Taas">${ic('up')}</button>
         <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
-        : '<p class="muted" style="margin-top:6px">Wala pang nakapila. Pumili ng kanta sa baba.</p>'}
+        : '<p class="muted" style="margin-top:6px">Wala pang nakapila. Pili ng song sa baba.</p>'}
     </div>
     ${BIDA.premium ? '' : vkFreeHTML()}
     ${BIDA.premium ? vkRoomHTML() : ''}
     ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
       <div class="vk-search">
-        <div class="vk-find"><input class="input" id="vk-q" placeholder="Hanapin: kanta o artist" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
-          <button class="vk-find-x" id="vk-q-x" ${VK.q ? '' : 'hidden'} onclick="vkFind('');$('#vk-q').value='';$('#vk-q').focus()" aria-label="Burahin ang search">${ic('x')}</button></div>
+        <div class="vk-find"><input class="input" id="vk-q" placeholder="Search song o artist" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
+          <button class="vk-find-x" id="vk-q-x" ${VK.q ? '' : 'hidden'} onclick="vkFind('');$('#vk-q').value='';$('#vk-q').focus()" aria-label="Clear search">${ic('x')}</button></div>
         <button class="vk-art-btn ${VK.artist ? 'on' : ''}" onclick="vkPickArtist()" aria-haspopup="dialog">${ic('people')}<span>${VK.artist ? esc((artists.find(([k]) => k === VK.artist) || [, 'Artist'])[1]) : 'Artist'}</span>${ic('down')}</button>
         <label class="toggle" style="margin:0"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
       ${letters.length > 1 ? `<div class="vk-letters" role="group" aria-label="Unang letra ng kanta">${letters.map(l => `<button class="${VK.letter === l ? 'on' : ''}" aria-pressed="${VK.letter === l}" onclick="vkSetLetter('${l}')">${l}</button>`).join('')}</div>` : ''}
       <div id="vk-fbar">${vkFilterBar(res.length)}</div>
       <div id="vk-results">${vkResultsHTML(shown, res.length)}</div>
-      <button class="btn btn--ghost btn--sm" style="margin-top:12px" onclick="vkAddMine()">${ic('plus')}Idagdag ang sariling kanta (YouTube link)</button>
+      <button class="btn btn--ghost btn--sm" style="margin-top:12px" onclick="vkAddMine()">${ic('plus')}Add ng sariling song (YouTube link)</button>
     </div>
     ${isAdmin() ? vkAdminHTML() : ''}`;
 }
@@ -2393,44 +2459,39 @@ function renderVideokeTV() {
       ${q.length ? `<ol class="tvl-q">${q.slice(0, 8).map((it, i) => { const s = vkSong(it.c); return `<li><span class="n">${i + 1}</span>${face(it, 44)}<div><b>${esc(it.singer || 'Bisita')}</b><em>${esc(s ? s.t : '')}</em></div></li>`; }).join('')}</ol>
         ${q.length > 8 ? `<p class="tvl-more">+${q.length - 8} pa</p>` : ''}` : '<p class="tvl-empty">Wala pang nakapila. Ikaw na mauna!</p>'}
     </div>
-    <div class="tvl-qr" id="tvl-qr">${BIDA.premium ? '<p class="tvl-empty">Inihahanda ang QR…</p>' : ''}</div></div>`;
+    <div class="tvl-qr" id="tvl-qr">${BIDA.premium ? '<p class="tvl-empty">Loading ang QR…</p>' : ''}</div></div>`;
   if (!BIDA.premium) return;
   const paint = () => qrCanvas(vkRoomUrl(BIDA.vk.room.id), 640).then(c => { const b = $('#tvl-qr'); if (!b) return; b.innerHTML = '<b>Gusto mong kumanta?</b><small>I-scan para pumili ng kanta</small>'; b.prepend(c); }).catch(() => { });
   if (vkRoomValid()) paint();
   else if (AUTH.user) vkMakeRoom(true);              // makes the link, then this screen redraws with the QR
 }
 // The family link card in the Videoke tab
-/* ---- Free taste: 3 songs per event, then Premium ----
-   (Counted when a song actually starts. A new event — different type, name or date — gets 3 again.) */
-const VK_FREE_SONGS = 3;
-const vkFreeKey = () => [BIDA.event.type, BIDA.event.name, BIDA.event.date].join('|');
-function vkFreeLeft() {
-  if (BIDA.premium) return Infinity;
-  const v = vkState(); if (v.freeKey !== vkFreeKey()) { v.freeKey = vkFreeKey(); v.freeUsed = 0; }
-  return Math.max(0, VK_FREE_SONGS - v.freeUsed);
-}
-// can one more song be reserved? (songs waiting in line count against what's left)
-function vkCanReserve() { return BIDA.premium || vkState().queue.length < vkFreeLeft(); }
+/* ---- Free songs: these 20 can be sung as many times as you like. Everything else = Premium. ---- */
+const VK_FREE_CODES = new Set([10637, 10667, 10672, 10684, 11066, 10669, 10587, 10655, 10631, 10682,
+  10686, 10630, 10377, 10678, 10675, 10698, 10835, 10825, 10895, 11595]);
+const vkIsFree = c => VK_FREE_CODES.has(c);
+const vkCanSing = c => BIDA.premium || vkIsFree(c);
 function vkFreeHTML() {
-  const left = vkFreeLeft();
-  return `<div class="card vk-free ${left ? '' : 'done'}">${ic('mic')}<div>
-      <h3>${left ? `Libreng subok: ${left} sa ${VK_FREE_SONGS} kanta pa` : 'Tapos na ang 3 libreng kanta'}</h3>
-      <p class="muted">${left ? 'Subukan ang videoke ngayong event.' : 'I-unlock para tuloy-tuloy ang kantahan.'} Sa Premium: walang limit na kanta, QR para makapag-reserve ang mga bisita sa phone nila, at sariling kanta.</p>
-      <button class="btn btn--magenta btn--sm" style="margin-top:10px" onclick="openPremium('Videoke')">${ic('star')}I-unlock ang Premium</button></div></div>`;
+  return `<div class="card vk-free">${ic('mic')}<div>
+      <h3>${VK_FREE_CODES.size} songs na libre, kantahin kahit ilang beses</h3>
+      <p class="muted">Gusto mo ng lahat ng ${VK.lib.length ? VK.lib.length.toLocaleString() + ' ' : ''}songs? Sa Premium, unlocked lahat, pati QR para makapag-reserve ang guests sa phone nila at sariling YouTube songs.</p>
+      <div class="vk-free-btns"><button class="btn btn--ink btn--sm" onclick="vkFreeOnly(${!VK.freeOnly})">${VK.freeOnly ? 'Show all songs' : 'Libreng songs lang'}</button>
+      <button class="btn btn--magenta btn--sm" onclick="openPremium('Videoke')">${ic('star')}Unlock all · ${esc(BIDA_CONFIG.price)}</button></div></div></div>`;
 }
+function vkFreeOnly(on) { VK.freeOnly = on; renderVideoke(); }
 function vkRoomHTML() {
   const on = vkRoomValid();
   const left = on ? Math.max(1, Math.round((BIDA.vk.room.exp - Date.now()) / 36e5)) : 0;
   return `<div class="card vk-room" style="margin-top:16px">
     <div class="vk-room-ic">${ic('share')}</div>
     <div class="vk-room-tx"><h3>Link para sa mga gustong kumanta</h3>
-      <p class="muted">${on ? `Bukas pa ng ${left} oras. Ilalagay lang nila ang pangalan nila, pili ng avatar, tapos pili ng kanta. Diretso na sa pila.`
-        : 'Gawa ka ng link para sa event na \'to at i-send sa GC. Pang-reserve lang ng kanta ang makikita nila, wala nang iba.'}</p></div>
+      <p class="muted">${on ? `Open pa for ${left} hours. Type lang nila ang name, pili ng avatar, tapos pili ng song. Diretso na sa pila.`
+        : 'Gawa ka ng link para sa event na \'to, tapos i-send sa GC. Song reservation lang ang makikita nila, wala nang iba.'}</p></div>
     <div class="vk-room-btns">${on
       ? `<button class="btn btn--chili btn--sm" onclick="vkShowQR()">${ic('qr')}QR code</button>
-         <button class="btn btn--ink btn--sm" onclick="vkShareRoom()">${ic('share')}I-share ang link</button>
-         <button class="btn btn--ghost btn--sm" onclick="vkCloseRoom()">Isara ang link</button>`
-      : `<button class="btn btn--chili btn--sm" onclick="vkMakeRoom()">${ic('plus')}${AUTH.user ? 'Gawa ng link' : 'Mag-sign in para makagawa ng link'}</button>`}</div>
+         <button class="btn btn--ink btn--sm" onclick="vkShareRoom()">${ic('share')}Share link</button>
+         <button class="btn btn--ghost btn--sm" onclick="vkCloseRoom()">Close link</button>`
+      : `<button class="btn btn--chili btn--sm" onclick="vkMakeRoom()">${ic('plus')}${AUTH.user ? 'Create link' : 'Sign in para maka-create ng link'}</button>`}</div>
   </div>`;
 }
 // Brave blocks YouTube ads with Shields on. Shown in Videoke and Music.
@@ -2439,11 +2500,11 @@ function braveTipHTML() {
   return `<p class="note brave-tip" style="margin-top:16px"><span><b>Ayaw ng ads habang kumakanta?</b> Gamitin ang <a href="https://brave.com/download/" target="_blank" rel="noopener noreferrer">Brave browser</a>, auto-block ang YouTube ads. Kung may YouTube Premium ka, dapat naka-sign in yun sa YouTube sa parehong browser at device.</span></p>`;
 }
 function vkResultsHTML(shown, total) {
-  if (!vkAll().length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang kanta sa library.' : 'Kinukuha ang library…'}</p>`;
-  if (!shown.length) return '<p class="muted" style="margin-top:12px">Walang nahanap.</p>';
-  return `<ul class="vk-list">${shown.map(s => `<li><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.c >= 90000 ? ' · sarili mo' : ''}</small></div>
-    <button class="vk-add" onclick="vkReserve(${s.c})" aria-label="Reserve ${esc(s.t)}" title="Reserve">${ic('plus')}</button></li>`).join('')}</ul>
-    ${total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa. Mag-type o gamitin ang filter para lumiit.</p>` : ''}`;
+  if (!vkAll().length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang songs sa library.' : 'Loading ang library…'}</p>`;
+  if (!shown.length) return '<p class="muted" style="margin-top:12px">Walang lumabas.</p>';
+  return `<ul class="vk-list">${shown.map(s => { const ok = vkCanSing(s.c); return `<li class="${ok ? '' : 'locked'}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.c >= 90000 ? ' · sarili mo' : ''}${!BIDA.premium && vkIsFree(s.c) ? ' · <em class="vk-freetag">Libre</em>' : ''}</small></div>
+    <button class="vk-add" onclick="vkReserve(${s.c})" aria-label="${ok ? 'Reserve' : 'Premium song'}: ${esc(s.t)}" title="${ok ? 'Reserve' : 'Premium'}">${ic(ok ? 'plus' : 'lock')}</button></li>`; }).join('')}</ul>
+    ${total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa. I-type ang hinahanap o gamitin ang filter.</p>` : ''}`;
 }
 function vkFind(q) {
   VK.q = q; const res = vkSearch();
@@ -2456,7 +2517,7 @@ function vkFilterBar(n) {
   if (!VK.q && !VK.letter && !VK.artist) return '';
   const art = VK.artist && (vkArtists().find(([k]) => k === VK.artist) || [, ''])[1];
   const tags = [VK.letter && `Letra ${VK.letter}`, art, VK.q && `“${VK.q}”`].filter(Boolean).map(s => `<span class="vk-tag">${esc(s)}</span>`).join('');
-  return `<div class="vk-fbar"><span class="vk-fcount"><b>${n}</b> kanta</span>${tags}<button class="btn btn--ghost btn--sm vk-clear" onclick="vkClearFilter()">${ic('x')}Clear filter</button></div>`;
+  return `<div class="vk-fbar"><span class="vk-fcount"><b>${n}</b> songs</span>${tags}<button class="btn btn--ghost btn--sm vk-clear" onclick="vkClearFilter()">${ic('x')}Clear filter</button></div>`;
 }
 function vkSetLetter(l) { VK.letter = VK.letter === l ? '' : l; renderVideoke(); }       // tap again to turn it off
 function vkSetArtist(a) { VK.artist = a; if (a) VK.letter = ''; closeSheet(); renderVideoke(); }   // letter + artist together is usually 0 songs
@@ -2466,41 +2527,41 @@ function vkPickArtist() {
   const counts = new Map(); vkAll().forEach(s => { const k = vkNorm(s.a); if (k) counts.set(k, (counts.get(k) || 0) + 1); });
   VK.artistList = vkArtists().map(([k, name]) => ({ k, name, n: counts.get(k) || 0 }));
   openSheet(`<div class="sheet-head"><h3>Pili ng artist</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-    <input class="input" id="art-q" placeholder="Hanapin ang artist" autocomplete="off" oninput="vkArtistList(this.value)">
+    <input class="input" id="art-q" placeholder="Search artist" autocomplete="off" oninput="vkArtistList(this.value)">
     <ul class="art-list" id="art-list"></ul>`);
   vkArtistList('');
   setTimeout(() => $('#art-q')?.focus(), 50);
 }
 function vkArtistList(q) {
   const k = vkNorm(q), list = VK.artistList.map((a, i) => ({ ...a, i })).filter(a => !k || vkNorm(a.name).includes(k));
-  $('#art-list').innerHTML = `${!k ? `<li><button class="${VK.artist ? '' : 'on'}" onclick="vkSetArtist('')"><b>Lahat ng artist</b></button></li>` : ''}`
-    + list.map(a => `<li><button class="${VK.artist === a.k ? 'on' : ''}" onclick="vkSetArtistIdx(${a.i})"><b>${esc(a.name)}</b><small>${a.n} kanta</small></button></li>`).join('')
+  $('#art-list').innerHTML = `${!k ? `<li><button class="${VK.artist ? '' : 'on'}" onclick="vkSetArtist('')"><b>All artists</b></button></li>` : ''}`
+    + list.map(a => `<li><button class="${VK.artist === a.k ? 'on' : ''}" onclick="vkSetArtistIdx(${a.i})"><b>${esc(a.name)}</b><small>${a.n} songs</small></button></li>`).join('')
     + (list.length ? '' : '<li class="muted" style="padding:12px 4px">Walang ganyang artist.</li>');
 }
 function vkSetArtistIdx(i) { const a = VK.artistList[i]; if (a) vkSetArtist(a.k); }
 // Host reserves for someone: their name, plus an avatar or a photo (camera with the mouth guide)
 const VKP = { c: 0, av: '', ph: '', mo: '' };
 function vkReserve(c) {
-  if (!vkCanReserve()) { openPremium('Videoke'); return; }
+  if (!vkCanSing(c)) { openPremium('Videoke'); return; }
   const s = vkSong(c); if (!s) return;
   const v = vkState();
   Object.assign(VKP, { c, av: '', ph: '', mo: '' });      // nothing picked = the singer's own default avatar
-  openSheet(`<div class="sheet-head"><div><span class="kicker">I-reserve</span><h3>${esc(s.t)}</h3></div><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+  openSheet(`<div class="sheet-head"><div><span class="kicker">Reserve</span><h3>${esc(s.t)}</h3></div><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="field"><label for="rv-name">Sino ang kakanta?</label>
       <input class="input" id="rv-name" maxlength="24" value="${esc(v.lastSinger || '')}" placeholder="hal. Tita Baby" autocomplete="off" onkeydown="if(event.key==='Enter')vkReserveGo()"></div>
     <span class="field-label" style="display:block;margin-top:12px">Picture o avatar</span>
     <div class="rv-avs" id="rv-avs">${vkPickHTML()}</div>
-    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="vkReserveGo()">${ic('mic')}I-reserve</button>`);
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="vkReserveGo()">${ic('mic')}Reserve</button>`);
   setTimeout(() => { const i = $('#rv-name'); if (i) { i.focus(); i.select(); } }, 60);
 }
 function vkPickHTML() {
-  return `<button type="button" class="rv-cam ${VKP.ph ? 'on' : ''}" onclick="vkPickCam()" aria-label="Kunan ng picture">${VKP.ph ? vkFace({ ph: VKP.ph }, 44) : '<span>📷</span>'}</button>`
+  return `<button type="button" class="rv-cam ${VKP.ph ? 'on' : ''}" onclick="vkPickCam()" aria-label="Take a photo">${VKP.ph ? vkFace({ ph: VKP.ph }, 44) : '<span>📷</span>'}</button>`
     + VK_AVATARS.map(a => `<button type="button" class="${!VKP.ph && VKP.av === a.id ? 'on' : ''}" onclick="vkPickAv('${a.id}')" aria-label="${esc(a.name)}">${a.svg(44)}</button>`).join('');
 }
 function vkPickAv(id) { VKP.av = id; VKP.ph = ''; VKP.mo = ''; const b = $('#rv-avs'); if (b) b.innerHTML = vkPickHTML(); }
 function vkPickCam() { vkCamera((p, m) => { VKP.ph = p; VKP.mo = m; const b = $('#rv-avs'); if (b) b.innerHTML = vkPickHTML(); }); }
 function vkReserveGo() {
-  const s = vkSong(VKP.c); if (!s) return;
+  const s = vkSong(VKP.c); if (!s || !vkCanSing(s.c)) return;
   const v = vkState(), singer = (($('#rv-name') || {}).value || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
   v.queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av: VKP.av || (singer === v.lastSinger && v.lastAv) || vkAvatarFor(singer), ph: vkPhotoOk(VKP.ph) ? VKP.ph : '', mo: vkMouthOk(VKP.mo) ? VKP.mo : '', src: '' });
   v.lastSinger = singer; v.lastAv = v.queue[v.queue.length - 1].av;
@@ -2515,7 +2576,6 @@ function vkScoreToggle(on) { vkState().score = on; saveState(); }
 
 /* ---- The big screen (cast / connect this to the TV) ---- */
 async function vkStart() {
-  if (!BIDA.premium && !vkFreeLeft() && !VK.cur) { openPremium('Videoke'); return; }
   const stage = $('#vk-stage');
   stage.hidden = false; document.body.classList.add('in-vk'); document.body.style.overflow = 'hidden';
   vkDressStage();
@@ -2533,18 +2593,13 @@ function vkClose() {
   VK.lock?.release?.(); VK.lock = null;
   if (BIDA.tab === 'videoke') renderVideoke();
 }
-function vkFullscreen() { const s = $('#vk-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser na ito ang full screen')); }
+function vkFullscreen() { const s = $('#vk-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast("Walang full screen sa browser na 'to")); }
 async function vkNext() {
   clearTimeout(VK.scoreT); clearTimeout(VK.introT); $('#vk-score').hidden = true; $('#vk-intro').hidden = true;
   const q = vkState().queue;
   if (!q.length) { VK.cur = null; saveState(); vkStageInfo(); vkPublish(); try { VK.yt?.stopVideo(); } catch (e) { } return; }
-  if (!BIDA.premium && !vkFreeLeft()) {
-    VK.cur = null; q.length = 0; saveState(); vkClose(); openPremium('Videoke'); return;
-  }
-  VK.cur = q.shift();
-  if (!BIDA.premium) vkState().freeUsed++;
-  saveState();
-  const s = vkSong(VK.cur.c); if (!s) { vkNext(); return; }
+  VK.cur = q.shift(); saveState();
+  const s = vkSong(VK.cur.c); if (!s || !vkCanSing(s.c)) { vkNext(); return; }   // skip anything that isn't unlocked
   vkStageInfo(); vkPublish();
   await ytApi();
   VK.introDone = false; VK.ready2play = false;
@@ -2569,7 +2624,7 @@ async function vkNext() {
 function vkStageInfo() {
   const cur = VK.cur && vkSong(VK.cur.c), q = vkState().queue;
   $('#vk-now').innerHTML = cur ? `<div><b>${esc(cur.t)}</b><small>${esc(cur.a)}</small></div>`
-    : '<div><b>Wala pang nakapila</b><small>Mag-reserve sa Videoke tab o sa link</small></div>';
+    : '<div><b>Wala pang nakapila</b><small>Reserve sa Videoke tab o sa link</small></div>';
   const box = (it, s, i, now) => `<li class="vk-box ${now ? 'now' : ''}" style="--i:${i}">
       <span class="vk-av">${vkFace({ av: it.av || vkAvatarFor(it.singer), ph: it.ph }, now ? 58 : 44)}</span>
       <span class="vk-bt"><small>${now ? 'Kumakanta' : 'Next'}</small><b>${esc(it.singer || 'Bisita')}</b><em>${esc(s ? s.t : 'Code ' + it.c)}</em></span></li>`;
@@ -2633,7 +2688,7 @@ function vkRoomValid() {
 }
 async function vkMakeRoom(silent) {
   if (!BIDA.premium) { if (!silent) needPro('Videoke'); return; }
-  if (!authReady()) { if (!silent) toast('Hindi pa bukas ang sign-in'); return; }
+  if (!authReady()) { if (!silent) toast('Hindi pa ready ang sign-in'); return; }
   if (!AUTH.user) { if (silent) return; await signIn(); if (!AUTH.user) return; }
   const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang link. I-refresh mo.'); return; }
   const old = BIDA.vk.room;
@@ -2650,9 +2705,9 @@ async function vkMakeRoom(silent) {
 }
 async function vkShareRoom() {
   if (!vkRoomValid()) return;
-  const url = vkRoomUrl(BIDA.vk.room.id), text = `Pili na ng kakantahin mo sa videoke ng ${BIDA.event.name || eventType().label}!`;
+  const url = vkRoomUrl(BIDA.vk.room.id), text = `Pili ka na ng song mo sa videoke ng ${BIDA.event.name || eventType().label}!`;
   try { if (navigator.share) { await navigator.share({ title: 'Bida-Vibe Videoke', text, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
-  try { await navigator.clipboard.writeText(url); toast('Na-copy na. I-paste mo sa GC.'); } catch (e) { askText('I-copy ang link na ito', url, 600); }
+  try { await navigator.clipboard.writeText(url); toast('Na-copy na. I-paste mo sa GC.'); } catch (e) { askText("Copy mo 'tong link", url, 600); }
 }
 /* ---- QR code for the link (scan from the TV or from the host's phone) ----
    qrcode-generator is loaded only when needed, pinned with SRI like the Firebase scripts. */
@@ -2681,9 +2736,9 @@ async function vkShowQR() {
   const url = vkRoomUrl(BIDA.vk.room.id);
   openSheet(`<div class="sheet-head"><h3>I-scan para kumanta</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="qr-box" id="qr-box"><p class="muted">Ginagawa ang QR…</p></div>
-    <p class="muted qr-note">Ipa-scan sa camera ng phone nila. Diretso na sa page kung saan sila pipili ng kanta.</p>
-    <div class="qr-btns"><button class="btn btn--chili" onclick="vkShareRoom()">${ic('share')}I-share ang link</button>
-      <button class="btn btn--ghost" onclick="vkDownloadQR()">${ic('upload')}I-download ang QR</button></div>`);
+    <p class="muted qr-note">Ipa-scan sa phone camera nila. Diretso na sila sa song list.</p>
+    <div class="qr-btns"><button class="btn btn--chili" onclick="vkShareRoom()">${ic('share')}Share link</button>
+      <button class="btn btn--ghost" onclick="vkDownloadQR()">${ic('upload')}Download QR</button></div>`);
   try { const c = await qrCanvas(url, 520); c.className = 'qr-img'; c.setAttribute('role', 'img'); c.setAttribute('aria-label', 'QR code ng videoke link'); const b = $('#qr-box'); if (b) { b.innerHTML = ''; b.appendChild(c); } }
   catch (e) { const b = $('#qr-box'); if (b) b.innerHTML = '<p class="muted">Hindi ma-load ang QR. I-check ang internet, o i-share na lang ang link.</p>'; }
 }
@@ -2703,7 +2758,7 @@ async function vkDownloadQR() {
   const qs = 640; x.drawImage(qr, (W - qs) / 2, 270, qs, qs);
   x.strokeStyle = '#1E1A16'; x.lineWidth = 6; x.strokeRect((W - qs) / 2, 270, qs, qs);
   x.fillStyle = '#1E1A16'; x.font = '800 44px "Bricolage Grotesque", sans-serif'; x.fillText('I-scan para kumanta!', W / 2, 950);
-  x.font = '700 28px Nunito, sans-serif'; x.fillStyle = '#7A7067'; x.fillText('Ilagay ang pangalan, pili ng kanta, tapos hintayin ang turn mo.', W / 2, 1020);
+  x.font = '700 28px Nunito, sans-serif'; x.fillStyle = '#7A7067'; x.fillText('Type ang name mo, pili ng song, tapos hintayin ang turn mo.', W / 2, 1020);
   c.toBlob(b => {
     if (!b) { toast('Hindi ma-save ang QR'); return; }
     const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'videoke-qr.png';
@@ -2716,12 +2771,12 @@ async function vkStageQR() {
   if (!vkRoomValid()) { el.hidden = true; el.innerHTML = ''; return; }
   const url = vkRoomUrl(BIDA.vk.room.id);
   if (el.dataset.url === url && !el.hidden) return;
-  try { const c = await qrCanvas(url, 360); el.innerHTML = '<b>Gusto mong kumanta?</b><small>I-scan para mag-add ng kanta</small>'; el.prepend(c); el.dataset.url = url; el.hidden = false; }
+  try { const c = await qrCanvas(url, 360); el.innerHTML = '<b>Gusto mong kumanta?</b><small>I-scan para mag-add ng song</small>'; el.prepend(c); el.dataset.url = url; el.hidden = false; }
   catch (e) { el.hidden = true; }
 }
 async function vkCloseRoom() {
   if (!BIDA.vk.room) return;
-  if (!await askConfirm('Isara ang link? Hindi na sila makakapag-reserve.', 'Isara')) return;
+  if (!await askConfirm('Close ang link? Hindi na sila makaka-reserve.', 'Close')) return;
   const fs = vkFs(); if (fs && vkRoomValid()) fs.collection('vk_rooms').doc(BIDA.vk.room.id).update({ open: false }).catch(() => { });
   VKR.unsub?.(); VKR.unsub = null; BIDA.vk.room = null; saveState(); renderVideoke(); vkStageQR();
 }
@@ -2881,18 +2936,18 @@ function sbState() {
 function sbSetup() {
   const sb = sbState();
   openSheet(`<div class="sheet-head"><h3>Scoreboard</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-    <p class="muted">Pili ng format, ilagay ang mga pangalan, tapos ipakita sa TV.</p>
+    <p class="muted">Pili ng format, type ang names, tapos show sa TV.</p>
     <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Format" style="margin-top:12px">
       ${Object.entries(SB_MODES).map(([k, l]) => `<button class="${sb.mode === k ? 'on' : ''}" onclick="sbMode('${k}')">${l}</button>`).join('')}</div>
-    <div class="field" style="margin-top:12px"><label for="sb-title">Pangalan ng laro (optional)</label>
+    <div class="field" style="margin-top:12px"><label for="sb-title">Game name (optional)</label>
       <input class="input" id="sb-title" maxlength="60" placeholder="hal. Trip to Jerusalem" value="${esc(sb.title)}" oninput="sbTitle(this.value)"></div>
     <ul class="sb-setup">${sb.teams.map((t, i) => `<li>
-      <button class="sb-dot" style="background:${t.c}" onclick="sbColor(${i})" aria-label="Palitan ang kulay"></button>
+      <button class="sb-dot" style="background:${t.c}" onclick="sbColor(${i})" aria-label="Change color"></button>
       <input class="input" maxlength="24" value="${esc(t.n)}" aria-label="Pangalan ${i + 1}" oninput="sbName(${i}, this.value)">
       ${sb.mode === 'custom' && sb.teams.length > 2 ? `<button class="icon-btn icon-btn--plain" onclick="sbDel(${i})" aria-label="Alisin">${ic('trash')}</button>` : ''}</li>`).join('')}</ul>
     ${sb.mode === 'custom' && sb.teams.length < 8 ? `<button class="btn btn--ghost btn--sm" style="margin-top:8px" onclick="sbAddTeam()">${ic('plus')}Magdagdag</button>` : ''}
-    <div class="qr-btns" style="margin-top:16px"><button class="btn btn--chili" onclick="sbShow()">${ic('play')}Ipakita sa TV</button>
-      <button class="btn btn--ghost" onclick="sbReset()">I-reset ang score</button></div>`);
+    <div class="qr-btns" style="margin-top:16px"><button class="btn btn--chili" onclick="sbShow()">${ic('play')}Show sa TV</button>
+      <button class="btn btn--ghost" onclick="sbReset()">Reset score</button></div>`);
 }
 function sbMode(m) { if (!SB_MODES[m]) return; const sb = sbState(); if (sb.mode !== m) { sb.mode = m; sb.teams = SB_PRESET[m](); saveState(); } sbSetup(); }
 function sbTitle(v) { sbState().title = String(v).slice(0, 60); saveState(); }
@@ -2901,7 +2956,7 @@ function sbColor(i) { const t = sbState().teams[i]; if (!t) return; t.c = SB_COL
 function sbAddTeam() { const sb = sbState(); if (sb.teams.length >= 8) return; const i = sb.teams.length; sb.teams.push({ n: `Grupo ${i + 1}`, c: SB_COLORS[i % SB_COLORS.length], s: 0 }); saveState(); sbSetup(); }
 function sbDel(i) { const sb = sbState(); if (sb.teams.length <= 2) return; sb.teams.splice(i, 1); saveState(); sbSetup(); }
 async function sbReset(fromRemote) {
-  if (!fromRemote && !await askConfirm('Ibalik sa 0 ang lahat ng score?', 'I-reset')) return;
+  if (!fromRemote && !await askConfirm('Ibalik sa 0 lahat ng score?', 'Reset')) return;
   sbState().teams.forEach(t => t.s = 0); saveState();
   if (!$('#sb-stage').hidden) sbRender(); else toast('Na-reset ang score');
 }
@@ -2947,10 +3002,10 @@ function sbWinner() {
   el.innerHTML = `<div class="vki-rays"></div><div class="vki-conf">${conf}</div><div class="sb-win-card">
     <div class="vki-tag">${top.length > 1 ? 'Tabla!' : 'Panalo!'}</div>
     <div class="sb-win-name">${top.map(x => `<span style="color:${x.c}">${esc(x.n)}</span>`).join(' &amp; ')}</div>
-    <div class="sb-win-score">${max} puntos</div><small>I-tap para isara</small></div>`;
+    <div class="sb-win-score">${max} points</div><small>Tap para i-close</small></div>`;
   el.hidden = false; vkPlayPad(/palakpak|applause|clap|ta-?da/i);
 }
-function sbFull() { const s = $('#sb-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser ang full screen')); }
+function sbFull() { const s = $('#sb-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast("Walang full screen sa browser na 'to")); }
 addEventListener('keydown', e => {
   if ($('#sb-stage').hidden || e.target.closest('input, textarea')) return;
   const k = e.code.match(/^Digit([1-8])$/);
@@ -3007,14 +3062,14 @@ function tlClose() {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
   rmtPublish();
 }
-function tlFull() { const s = $('#tl-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast('Hindi suportado ng browser ang full screen')); }
+function tlFull() { const s = $('#tl-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast("Walang full screen sa browser na 'to")); }
 function tlSettings() { if (TL.kind === 'raffle') raffleSetup(); else if (TL.kind === 'dice') diceSetup(); else if (TL.kind === 'color') colorSetup(); else if (TL.kind === 'henyo') henyoSetup(); }
 function tlWinner(tag, name, sub, color) {
   const conf = [...Array(40)].map((_, i) => `<i style="--x:${(i * 37) % 100};--d:${(i % 9) * .12}s;--c:${SB_COLORS[i % 6]};--r:${(i * 53) % 360}deg"></i>`).join('');
   const el = $('#tl-win');
   el.innerHTML = `<div class="vki-rays"></div><div class="vki-conf">${conf}</div><div class="sb-win-card">
     <div class="vki-tag">${esc(tag)}</div><div class="sb-win-name" style="${color ? `color:${color}` : 'color:var(--chili)'}">${esc(name)}</div>
-    ${sub ? `<div class="sb-win-score">${esc(sub)}</div>` : ''}<small>I-tap para isara</small></div>`;
+    ${sub ? `<div class="sb-win-score">${esc(sub)}</div>` : ''}<small>Tap para i-close</small></div>`;
   el.hidden = false; vkSfx('go'); vkPlayPad(/palakpak|applause|clap|ta-?da/i);
 }
 function tlWinClose() { $('#tl-win').hidden = true; if (TL.kind === 'raffle') raffleShow(); }
@@ -3028,9 +3083,9 @@ function raffleSetup() {
     <span class="field-label" style="display:block;margin-top:12px">Paano bubunutin</span>
     <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">
       <button class="${t.rmode === 'wheel' ? 'on' : ''}" onclick="raffleMode('wheel')">Roleta</button>
-      <button class="${t.rmode === 'shuffle' ? 'on' : ''}" onclick="raffleMode('shuffle')">Pangalan na umiikot</button></div>
-    <label class="toggle" style="margin-top:12px"><input type="checkbox" ${t.remove ? 'checked' : ''} onchange="toolsState().remove=this.checked;saveState()">Alisin sa listahan ang nanalo</label>
-    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();raffleShow()">${ic('play')}Ipakita sa TV</button>`);
+      <button class="${t.rmode === 'shuffle' ? 'on' : ''}" onclick="raffleMode('shuffle')">Name shuffle</button></div>
+    <label class="toggle" style="margin-top:12px"><input type="checkbox" ${t.remove ? 'checked' : ''} onchange="toolsState().remove=this.checked;saveState()">Tanggalin sa list ang nanalo</label>
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();raffleShow()">${ic('play')}Show sa TV</button>`);
 }
 function raffleNames(v) {
   const t = toolsState(); t.names = v.split(/\n|,/).map(s => s.replace(/\s+/g, ' ').trim().slice(0, 30)).filter(Boolean).slice(0, 300); saveState();
@@ -3040,7 +3095,7 @@ function raffleNames(v) {
 function raffleMode(m) { toolsState().rmode = m; saveState(); raffleSetup(); if (!$('#tl-stage').hidden && TL.kind === 'raffle') raffleShow(); }
 function raffleShow() {
   const t = toolsState(), n = t.names.length;
-  const empty = n < 2 ? `<p class="tl-empty">Kailangan ng 2 o higit pang pangalan. Pindutin ang <b>Settings</b> para maglagay.</p>` : '';
+  const empty = n < 2 ? `<p class="tl-empty">Kailangan ng at least 2 names. I-tap ang <b>Settings</b> para mag-add.</p>` : '';
   const body = t.rmode === 'wheel'
     ? `<div class="rf-wheel-wrap"><canvas id="rf-wheel" width="900" height="900"></canvas><div class="rf-pointer"></div></div>`
     : `<div class="rf-shuffle" id="rf-name">${n ? esc(t.names[0]) : '—'}</div>`;
@@ -3103,7 +3158,7 @@ async function raffleGo() {
   }
   if (!TL.busy) return;
   TL.busy = false;
-  tlWinner('Panalo!', names[win], n > 2 && t.remove ? `${n - 1} pang natitira sa raffle` : '');
+  tlWinner('Panalo!', names[win], n > 2 && t.remove ? `${n - 1} pa ang natitira sa raffle` : '');
   if (t.remove) { t.names.splice(t.names.indexOf(names[win]), 1); saveState(); }
 }
 
@@ -3112,14 +3167,14 @@ const DICE_PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 
 function diceSetup() {
   const d = toolsState().dice;
   openSheet(`<div class="sheet-head"><h3>Dice</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-    <span class="field-label" style="display:block">Klase ng dice</span>
+    <span class="field-label" style="display:block">Type ng dice</span>
     <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">
       <button class="${d.kind === 'num' ? 'on' : ''}" onclick="diceSet('kind','num')">May numero (1–6)</button>
       <button class="${d.kind === 'color' ? 'on' : ''}" onclick="diceSet('kind','color')">May kulay</button></div>
     <span class="field-label" style="display:block;margin-top:14px">Ilang dice</span>
     <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">${[1, 2, 3, 4, 5, 6].map(k => `<button class="${d.n === k ? 'on' : ''}" onclick="diceSet('n',${k})">${k}</button>`).join('')}</div>
-    ${d.kind === 'color' ? '<p class="muted" style="margin-top:10px">Ang mga kulay ay galing sa Color randomizer settings.</p>' : ''}
-    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();diceShow()">${ic('play')}Ipakita sa TV</button>`);
+    ${d.kind === 'color' ? '<p class="muted" style="margin-top:10px">Yung colors, galing sa Color randomizer settings.</p>' : ''}
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();diceShow()">${ic('play')}Show sa TV</button>`);
 }
 function diceSet(k, v) { toolsState().dice[k] = v; saveState(); diceSetup(); if (!$('#tl-stage').hidden && TL.kind === 'dice') diceShow(); }
 // A real 3D cube: 6 faces placed around the centre; the roll spins it and lands the result on the front.
@@ -3173,13 +3228,13 @@ async function diceRoll() {
 function colorSetup() {
   const on = toolsState().colors;
   openSheet(`<div class="sheet-head"><h3>Color randomizer</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-    <span class="field-label" style="display:block">Mga kulay na kasali <small class="muted">(pili ng 2 o higit pa)</small></span>
+    <span class="field-label" style="display:block">Colors na kasali <small class="muted">(at least 2)</small></span>
     <div class="cl-chips">${TOOL_COLORS.map(([nm, hex], i) => `<button class="${on.includes(i) ? 'on' : ''}" onclick="colorToggle(${i})"><span style="background:${hex}"></span>${nm}</button>`).join('')}</div>
-    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();colorShow()">${ic('play')}Ipakita sa TV</button>`);
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();colorShow()">${ic('play')}Show sa TV</button>`);
 }
 function colorToggle(i) {
   const t = toolsState(), k = t.colors.indexOf(i);
-  if (k >= 0) { if (t.colors.length <= 2) { toast('Kailangan ng 2 o higit pang kulay'); return; } t.colors.splice(k, 1); } else t.colors.push(i);
+  if (k >= 0) { if (t.colors.length <= 2) { toast('Kailangan ng at least 2 colors'); return; } t.colors.splice(k, 1); } else t.colors.push(i);
   t.colors.sort((a, b) => a - b); saveState(); colorSetup();
   if (!$('#tl-stage').hidden && TL.kind === 'color') colorShow();
 }
@@ -3188,7 +3243,7 @@ function colorShow() {
   if ($('#tl-stage').hidden || TL.kind !== 'color') tlOpen('color', 'Color randomizer', '');
   $('#tl-body').innerHTML = `<div class="cl-big" id="cl-big"><span>?</span></div>
     <div class="cl-mini">${t.colors.map(i => `<span style="background:${TOOL_COLORS[i][1]}" title="${TOOL_COLORS[i][0]}"></span>`).join('')}</div>
-    <div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="colorGo()">I-random!</button><span class="tl-note">${t.colors.length} kulay</span></div>`;
+    <div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="colorGo()">I-random!</button><span class="tl-note">${t.colors.length} colors</span></div>`;
 }
 async function colorGo() {
   const t = toolsState(); if (TL.busy) return; TL.busy = true;
@@ -3207,16 +3262,16 @@ async function colorGo() {
 const HY = { used: {}, word: '', cat: '', hidden: false };
 function henyoSetup() {
   const t = toolsState();
-  openSheet(`<div class="sheet-head"><div><span class="kicker">Pinoy Henyo · Charades</span><h3>Bunot ng salita</h3></div><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-    <span class="field-label" style="display:block">Mga category <small class="muted">(random kung alin ang lalabas)</small></span>
+  openSheet(`<div class="sheet-head"><div><span class="kicker">Pinoy Henyo · Charades</span><h3>Bunot ng word</h3></div><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <span class="field-label" style="display:block">Categories <small class="muted">(random kung alin ang lalabas)</small></span>
     <div class="cl-chips">${BIDA_WORD_CATS.map(([k, l]) => `<button class="${t.hcats.includes(k) ? 'on' : ''}" onclick="henyoCat('${k}')">${l} <small class="muted">${BIDA_WORDS[k].length}</small></button>`).join('')}</div>
     <span class="field-label" style="display:block;margin-top:14px">Oras bawat round</span>
     <div class="seg-ctrl seg-ctrl--light" role="group" style="margin-top:6px">${[[60, '1 min'], [120, '2 min'], [180, '3 min']].map(([s, l]) => `<button class="${t.hsec === s ? 'on' : ''}" onclick="toolsState().hsec=${s};saveState();henyoSetup()">${l}</button>`).join('')}</div>
-    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();henyoShow()">${ic('play')}Ipakita sa TV</button>`);
+    <button class="btn btn--chili btn--block" style="margin-top:14px" onclick="closeSheet();henyoShow()">${ic('play')}Show sa TV</button>`);
 }
 function henyoCat(k) {
   const t = toolsState(), i = t.hcats.indexOf(k);
-  if (i >= 0) { if (t.hcats.length <= 1) { toast('Kailangan ng kahit isang category'); return; } t.hcats.splice(i, 1); } else t.hcats.push(k);
+  if (i >= 0) { if (t.hcats.length <= 1) { toast('Kailangan ng at least 1 category'); return; } t.hcats.splice(i, 1); } else t.hcats.push(k);
   saveState(); henyoSetup();
 }
 function henyoShow() {
@@ -3224,12 +3279,12 @@ function henyoShow() {
   const t = toolsState(), left = t.hcats.reduce((n, k) => n + BIDA_WORDS[k].length - (HY.used[k] || []).length, 0);
   $('#tl-body').innerHTML = `<div class="hy-card ${HY.hidden ? 'hid' : ''}" id="hy-card">
       <div class="hy-cat" id="hy-cat">${HY.cat ? esc(BIDA_WORD_CATS.find(c => c[0] === HY.cat)[1]) : 'Category'}</div>
-      <div class="hy-word" id="hy-word">${HY.word ? esc(HY.word) : 'Pindutin ang "Bunot!"'}</div>
-      <div class="hy-cover" onclick="henyoHide()">Nakatago · I-tap para ipakita</div></div>
+      <div class="hy-word" id="hy-word">${HY.word ? esc(HY.word) : 'I-tap ang "Bunot!"'}</div>
+      <div class="hy-cover" onclick="henyoHide()">Hidden · Tap para makita</div></div>
     <div class="tl-actions"><button class="btn btn--gold btn--lg tl-go" onclick="henyoNext()">Bunot!</button>
       <button class="btn btn--ghost btn--lg sb-light" onclick="henyoHide()">${HY.hidden ? 'Ipakita' : 'Itago'}</button>
       <button class="btn btn--ghost btn--lg sb-light" onclick="henyoTimer()">⏱️ ${tmFmt(t.hsec)}</button>
-      <span class="tl-note">${left} salita pa</span></div>`;
+      <span class="tl-note">${left} words pa</span></div>`;
 }
 async function henyoNext() {
   const t = toolsState(); if (TL.busy) return; TL.busy = true;
@@ -3264,8 +3319,8 @@ function timerRender() {
   const left = Math.ceil(TM.left), done = left <= 0;
   el.className = 'gtimer' + (TM.big ? ' big' : '') + (done ? ' done' : left <= 10 && TM.running ? ' warn' : '');
   el.innerHTML = `<div class="gt-head"><span class="gt-grip" title="I-drag">⋮⋮</span><b>Timer</b>
-      <button onclick="timerBig()" aria-label="${TM.big ? 'Paliitin' : 'Palakihin'}">${TM.big ? '−' : '⤢'}</button><button onclick="timerClose()" aria-label="Isara">${ic('x')}</button></div>
-    <button class="gt-time" onclick="timerEdit()" title="I-tap para palitan ang oras">${done ? 'Time!' : tmFmt(left)}</button>
+      <button onclick="timerBig()" aria-label="${TM.big ? 'Smaller' : 'Bigger'}">${TM.big ? '−' : '⤢'}</button><button onclick="timerClose()" aria-label="Close">${ic('x')}</button></div>
+    <button class="gt-time" onclick="timerEdit()" title="Tap para palitan ang time">${done ? 'Time!' : tmFmt(left)}</button>
     <div class="gt-btns"><button onclick="timerAdd(-10)" aria-label="Bawas 10 segundo">−10</button>
       <button class="gt-play" onclick="timerToggle()">${TM.running ? 'Pause' : done ? 'Ulit' : 'Start'}</button>
       <button onclick="timerAdd(10)" aria-label="Dagdag 10 segundo">+10</button><button onclick="timerReset()" aria-label="Reset">↺</button></div>
@@ -3293,10 +3348,10 @@ function timerAdd(sec) {
 }
 function timerReset() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; timerRender(); }
 async function timerEdit() {
-  const v = await askText('Ilang oras? (hal. 1:30 o 90 para 90 segundo, o 5m)', tmFmt(TM.total), 8); if (v === null) return;
+  const v = await askText('Gaano katagal? (hal. 1:30, 90 para 90 sec, o 5m)', tmFmt(TM.total), 8); if (v === null) return;
   const s = String(v).trim().toLowerCase();
   let sec = /^\d+:\d{1,2}$/.test(s) ? s.split(':').reduce((m, x) => m * 60 + (+x), 0) : /^\d+(\.\d+)?m$/.test(s) ? Math.round(parseFloat(s) * 60) : parseInt(s, 10);
-  if (!(sec >= 3 && sec <= 5999)) { toast('Ilagay ang oras: 0:03 hanggang 99:59'); return; }
+  if (!(sec >= 3 && sec <= 5999)) { toast('Time: 0:03 hanggang 99:59 lang'); return; }
   clearInterval(TM.iv); TM.running = false; TM.total = TM.left = sec; toolsState().timer = sec; saveState(); timerRender();
 }
 function timerPreset(sec) { clearInterval(TM.iv); TM.running = false; TM.total = TM.left = sec; toolsState().timer = sec; saveState(); timerRender(); }
@@ -3331,18 +3386,18 @@ function rmtUrl() { return new URL('remote.html?k=' + BIDA.remote.id, location.h
 function rmtSheet() {
   const on = rmtValid();
   openSheet(`<div class="sheet-head"><h3>Remote para sa host</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-    <p class="muted">Naka-connect ba sa TV ang laptop o tablet na 'to? I-scan ang QR gamit ang phone mo para ma-control ang sounds, videoke, music at makita ang plan nang hindi hinahawakan ang device na 'to.</p>
+    <p class="muted">Naka-connect ba sa TV 'tong laptop o tablet? I-scan ang QR sa phone mo para ma-control ang sounds, videoke, music at plan, kahit malayo ka sa TV.</p>
     ${on ? `<div class="qr-box" id="rmt-qr"><p class="muted">Ginagawa ang QR…</p></div>
-      <p class="note" style="margin-top:12px"><b>Para sa co-host lang 'to.</b> Kahit sino ang may hawak ng link, pwedeng mag-control. Huwag i-send sa GC. Mag-e-expire in ${Math.max(1, Math.round((BIDA.remote.exp - Date.now()) / 36e5))} oras.</p>
-      <div class="qr-btns"><button class="btn btn--ink" onclick="rmtCopy()">${ic('share')}I-copy ang link</button>
-        <button class="btn btn--ghost" onclick="rmtStop()">Isara ang remote</button></div>
-      <p class="muted" style="margin-top:12px;text-align:center">Tip: mag-tap muna kahit isang beses sa device na 'to para payagan ng browser ang sounds. Huwag i-minimize ang app sa TV.</p>`
-    : `<button class="btn btn--chili btn--block" style="margin-top:14px" onclick="rmtStart()">${ic('qr')}${AUTH.user ? 'Gawa ng remote link' : 'Mag-sign in para makagawa'}</button>`}`);
+      <p class="note" style="margin-top:12px"><b>Para sa co-host lang 'to.</b> Kahit sino ang may link, pwedeng mag-control, kaya 'wag i-send sa GC. Mag-e-expire in ${Math.max(1, Math.round((BIDA.remote.exp - Date.now()) / 36e5))} hours.</p>
+      <div class="qr-btns"><button class="btn btn--ink" onclick="rmtCopy()">${ic('share')}Copy link</button>
+        <button class="btn btn--ghost" onclick="rmtStop()">Close remote</button></div>
+      <p class="muted" style="margin-top:12px;text-align:center">Tip: mag-tap muna kahit once sa device na 'to para gumana ang sounds. 'Wag i-minimize ang app sa TV.</p>`
+    : `<button class="btn btn--chili btn--block" style="margin-top:14px" onclick="rmtStart()">${ic('qr')}${AUTH.user ? 'Create remote link' : 'Sign in para maka-create'}</button>`}`);
   if (on) qrCanvas(rmtUrl(), 520).then(c => { c.className = 'qr-img'; const b = $('#rmt-qr'); if (b) { b.innerHTML = ''; b.appendChild(c); } })
     .catch(() => { const b = $('#rmt-qr'); if (b) b.innerHTML = '<p class="muted">Hindi ma-load ang QR. I-copy na lang ang link.</p>'; });
 }
 async function rmtStart() {
-  if (!authReady()) { toast('Hindi pa bukas ang sign-in'); return; }
+  if (!authReady()) { toast('Hindi pa ready ang sign-in'); return; }
   if (!AUTH.user) { await signIn(); if (!AUTH.user) return; }
   const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang remote. I-refresh mo.'); return; }
   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -3357,12 +3412,12 @@ async function rmtStart() {
 }
 async function rmtCopy() {
   if (!rmtValid()) return;
-  try { await navigator.clipboard.writeText(rmtUrl()); toast('Na-copy ang remote link'); } catch (e) { askText('I-copy ang link na ito', rmtUrl(), 600); }
+  try { await navigator.clipboard.writeText(rmtUrl()); toast('Na-copy ang remote link'); } catch (e) { askText("Copy mo 'tong link", rmtUrl(), 600); }
 }
 async function rmtStop() {
-  if (!await askConfirm('Isara ang remote? Hindi na gagana ang link sa phone.', 'Isara')) return;
+  if (!await askConfirm('Close ang remote? Hindi na gagana ang link sa phone.', 'Close')) return;
   const fs = vkFs(); if (fs && rmtValid()) fs.collection('vk_remotes').doc(BIDA.remote.id).update({ open: false }).catch(() => { });
-  RMT.unsub?.(); RMT.unsub = null; BIDA.remote = null; saveState(); closeSheet(); toast('Sarado na ang remote');
+  RMT.unsub?.(); RMT.unsub = null; BIDA.remote = null; saveState(); closeSheet(); toast('Closed na ang remote');
 }
 // What the phone sees. Names and titles only: no account details, no links.
 function rmtState() {
@@ -3373,7 +3428,7 @@ function rmtState() {
     plan: BIDA.program.slice(0, 60).map((p, i) => ({ id: p.id, t: String(p.title || '').slice(0, 80), min: p.min, done: !!p.done, next: i === nxt, note: String(p.note || '').slice(0, 200) })),
     pads: padList().filter(p => canPlaySound(p.id)).slice(0, 40).map(p => ({ id: p.id, n: p.name.slice(0, 24), c: p.c })),
     music: { has: !!M.kind, on: !!M.playing, t: String(M.title || '').slice(0, 90), duck: !!M.ducked, faded: !!M.faded, pro: !!BIDA.premium },
-    vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song) },
+    vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song), free: BIDA.premium ? null : [...VK_FREE_CODES] },
     tv: { view: BIDA.view, screen: tvScreen(), pro: !!BIDA.premium },
     sb: (s => ({ on: !$('#sb-stage').hidden, title: s.title, mode: s.mode, teams: s.teams.map(x => ({ n: x.n, c: x.c, s: x.s })) }))(sbState())
   };
@@ -3433,7 +3488,7 @@ function rmtRun(d) {
       else if (v === 'close') { if (!$('#vk-stage').hidden) vkClose(); }
       else if (v === 'skip') { if (!$('#vk-stage').hidden) vkNext(); }
       else if (v === 'reserve') {
-        const s = vkSong(n); if (!s || !vkCanReserve()) break;
+        const s = vkSong(n); if (!s || !vkCanSing(s.c)) break;
         const singer = String(d.s || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
         const av = VK_AVATARS.some(a => a.id === d.av) ? d.av : vkAvatarFor(singer);
         vkState().queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av, ph: vkPhotoOk(d.ph) ? d.ph : '', mo: vkMouthOk(d.mo) ? d.mo : '', src: '' });
@@ -3469,8 +3524,8 @@ async function vkAddMine() {
   if (needPro('Sariling kanta sa videoke')) return;
   const link = await askText('I-paste ang YouTube karaoke link', '', 600); if (!link) return;
   const p = parseYouTube(link); if (!p || !p.id) { toast('Hindi valid ang YouTube video link'); return; }
-  let info; try { info = await vkOembed(p.id); } catch (e) { toast(e.message === 'no_embed' ? 'Hindi pwedeng i-play sa ibang site ang video na ito — pumili ng iba' : 'Hindi mahanap ang video'); return; }
-  const v = vkState(); if (vkAll().some(s => s.y === p.id)) { toast('Nasa library na ito'); return; }
+  let info; try { info = await vkOembed(p.id); } catch (e) { toast(e.message === 'no_embed' ? "Bawal i-play ang video na 'to sa ibang site — pili ng iba" : 'Hindi mahanap ang video'); return; }
+  const v = vkState(); if (vkAll().some(s => s.y === p.id)) { toast("Nasa library na 'to"); return; }
   const parsed = vkParseTitle(info.title);
   const c = Math.max(90000, ...v.mine.map(s => s.c)) + 1;
   v.mine.push({ c, y: p.id, t: parsed.t, a: parsed.a || String(info.author_name || '').slice(0, 60), g: 'Sarili' });
@@ -3569,7 +3624,7 @@ const VK_ERR = {
   gh_perm: 'Walang permiso ang token na mag-edit ng repo.',
   rules: 'Hindi pa naka-publish ang Firestore rules.',
   admin_only: 'Admin lang pwede dito.',
-  lib_read: 'Hindi mabasa nang buo ang library sa GitHub kaya hindi muna ni-save, para walang mabura. Subukan ulit mamaya.',
+  lib_read: 'Hindi mabasa nang buo ang library sa GitHub kaya hindi muna ni-save, para walang mabura. Try ulit mamaya.',
   lib_full: 'Puno na ang library (3,000 kanta). Magbura muna bago magdagdag.'
 };
 async function vkAdminWork(fn) {
@@ -3757,27 +3812,27 @@ function rerenderPremiumViews() {
   renderHead(); updateBar();
 }
 async function signIn() {
-  if (!authReady()) { toast('Hindi pa bukas ang sign-in'); return; }
+  if (!authReady()) { toast('Hindi pa ready ang sign-in'); return; }
   const p = new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' });
   try { await firebase.auth().signInWithPopup(p); }
   catch (e) {
     if (/popup-blocked|operation-not-supported/.test(e.code || '')) firebase.auth().signInWithRedirect(p);
-    else if (!/popup-closed|cancelled-popup/.test(e.code || '')) toast('Hindi naka-sign in — subukan ulit');
+    else if (!/popup-closed|cancelled-popup/.test(e.code || '')) toast('Hindi naka-sign in — try ulit');
   }
 }
-function signOut() { firebase.auth().signOut(); toast('Naka-sign out na'); }
+function signOut() { firebase.auth().signOut(); toast('Signed out na'); }
 async function startCheckout() {
   if (!AUTH.user) { await signIn(); return; }       // sign-in is required before paying
-  if (!paymentsReady()) { toast('Hindi pa bukas ang payments — malapit na!'); return; }
+  if (!paymentsReady()) { toast('Hindi pa ready ang payments — soon!'); return; }
   if (AUTH.busy) return; AUTH.busy = true;
-  const b = $('#pay-btn'); if (b) { b.disabled = true; b.querySelector('span').textContent = 'Binubuksan ang PayMongo…'; }
+  const b = $('#pay-btn'); if (b) { b.disabled = true; b.querySelector('span').textContent = 'Opening PayMongo…'; }
   try {
     const j = await workerFetch('/checkout', { method: 'POST', body: '{}' });
-    if (j.already) { await refreshPremium(); closeSheet(); toast(j.admin ? 'Admin account — lahat naka-unlock' : 'Bayad ka na. Naka-unlock na ang Premium.'); return; }
+    if (j.already) { await refreshPremium(); closeSheet(); toast(j.admin ? 'Admin account — lahat naka-unlock' : 'Bayad ka na. Unlocked na ang Premium.'); return; }
     saveState();
     location.href = j.url;
   } catch (e) {
-    toast('Hindi mabuksan ang bayaran — subukan ulit');
+    toast('Ayaw bumukas ng checkout — try ulit');
     if (b) { b.disabled = false; b.querySelector('span').textContent = 'Bayaran'; }
   } finally { AUTH.busy = false; }
 }
@@ -3785,15 +3840,15 @@ async function handlePaidReturn() {
   const p = new URLSearchParams(location.search).get('paid');
   if (p == null) return;
   history.replaceState(null, '', location.pathname);
-  if (p !== '1') { toast('Hindi natuloy ang bayad — pwede mong subukan ulit'); return; }
-  toast('Kinukumpirma ang bayad…');
+  if (p !== '1') { toast('Hindi natuloy ang payment — pwede mong i-try ulit'); return; }
+  toast('Checking ang payment…');
   const before = BIDA.premiumUntil;
   for (let i = 0; i < 30 && !AUTH.ready; i++) await new Promise(r => setTimeout(r, 300));
   for (let i = 0; i < 15; i++) {
     if (AUTH.user) { await refreshPremium(); if (BIDA.premiumUntil > before) { toast(isLifetime() ? 'Unlocked na ang Premium, for good. Party na!' : `Premium hanggang ${fmtDay(BIDA.premiumUntil)}. Party na!`); return; } }
     await new Promise(r => setTimeout(r, 2000));
   }
-  toast('Natanggap na ang bayad pero hindi pa nag-a-unlock. I-refresh ang page mamaya.');
+  toast('Received na ang payment pero hindi pa nag-u-unlock. I-refresh mamaya.');
 }
 
 // One-time Premium is stored as an end date far in the future (year 9999); older 30-day passes keep their real date
@@ -3803,7 +3858,7 @@ function passLine() {
   if (isAdmin()) return '<span class="badge-pro">Admin</span> Test account — lahat naka-unlock';
   if (passActive() && isLifetime()) return '<span class="badge-pro">Premium</span> Bayad na. Sa\'yo na \'to for good.';
   if (passActive()) return `<span class="badge-pro">Premium</span> Hanggang <b>${esc(fmtDay(BIDA.premiumUntil))}</b>`;
-  if (BIDA.premiumUntil) return `Natapos ang Premium noong ${esc(fmtDay(BIDA.premiumUntil))}`;
+  if (BIDA.premiumUntil) return `Nag-expire ang Premium noong ${esc(fmtDay(BIDA.premiumUntil))}`;
   return '';
 }
 let PRO_FEATURE = '';
@@ -3812,7 +3867,7 @@ function openPremium(feature) {
   const u = AUTH.user, admin = isAdmin();
   let action;
   if (admin || (u && passActive() && isLifetime())) action = `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`;
-  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google para ma-unlock</button>
+  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Sign in with Google para ma-unlock</button>
       <p class="muted" style="margin-top:10px;text-align:center">Naka-save ang Premium sa Google account mo, kaya gagana sa phone, tablet o computer.</p>`;
   else action = `${passActive() ? `<div class="note" style="background:var(--leaf-soft);margin-bottom:12px">${passLine()}</div>` : ''}
       <button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>${passActive() ? 'Gawing for good' : 'Bayaran'} · ${esc(BIDA_CONFIG.price)}</span>${ic('arrow')}</button>
@@ -3821,15 +3876,16 @@ function openPremium(feature) {
     <div class="sheet-head"><h3>Bida-Vibe Premium</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="pro-hero">
       ${PRO_FEATURE ? `<span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE)}</span>` : ''}
-      <h4>Isang bayad lang, para sa lahat ng handaan mo.</h4>
+      <h4>One-time payment, unlocked lahat ng features.</h4>
       <ul class="pro-list">
-        <li>${ic('star')}Lahat ng sound pads + walang limit na sariling upload</li>
-        <li>${ic('star')}Walang limit na YouTube links, Spotify at sariling music files</li>
+        <li>${ic('star')}Videoke: lahat ng ${VK.lib.length ? VK.lib.length.toLocaleString() + ' ' : ''}songs, QR para sa guests, sariling YouTube songs</li>
+        <li>${ic('star')}Lahat ng sound pads + unlimited sariling sounds</li>
+        <li>${ic('star')}Unlimited YouTube links, Spotify at music files</li>
         <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
-        <li>${ic('star')}Videoke na walang limit: QR para sa mga bisita, sariling kanta, TV screen</li>
       </ul>
       <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">one-time · walang monthly, walang auto-charge</small></p>
     </div>
+    <p class="note pro-dev" style="margin-top:14px">${ic('heart')}<span>Isang developer lang ang gumawa ng Bida-Vibe. Yung ${esc(BIDA_CONFIG.price)} mo, pang-unlock ng lahat ng features <b>at</b> tulong para ma-improve ko pa ang app: more songs, more games, more updates. Salamat sa support!</span></p>
     <div style="margin-top:18px">${action}</div>
     ${u ? `<p class="muted" style="margin-top:14px;text-align:center">Naka-sign in: ${esc(u.email || '')} · <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="signOut()">Sign out</button></p>` : ''}
     ${IS_LOCAL && !BIDA.premium ? `<div class="field" style="margin-top:20px"><label for="pro-code">Test code (localhost lang)</label>
@@ -3843,10 +3899,10 @@ function openAccount() {
     <div class="card stack">
       ${u ? `<div><b>${esc(u.displayName || u.email)}</b><p class="muted">${esc(u.email || '')}</p></div>` : ''}
       ${u && line ? `<p>${line}</p>` : ''}
-      ${!authReady() ? '<p class="note">Hindi pa bukas ang Google sign-in — malapit na!</p>'
+      ${!authReady() ? '<p class="note">Hindi pa ready ang Google sign-in — soon!</p>'
         : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
-          : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Mag-sign in with Google</button>`}
-      ${!isAdmin() && !(passActive() && isLifetime()) ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">I-unlock ang Premium · ${esc(BIDA_CONFIG.price)} one-time</button>` : ''}
+          : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Sign in with Google</button>`}
+      ${!isAdmin() && !(passActive() && isLifetime()) ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">Unlock Premium · ${esc(BIDA_CONFIG.price)} one-time</button>` : ''}
     </div>`);
 }
 function googleG() {
@@ -3857,7 +3913,7 @@ function redeem() {
   if (IS_LOCAL && c && c === BIDA_CONFIG.devUnlockCode) {
     BIDA.premium = true; BIDA.devPro = true; saveState(); closeSheet(); toast('Premium unlocked (test)!');
     rerenderPremiumViews();
-  } else toast('Hindi tama ang code');
+  } else toast('Mali ang code');
 }
 
 /* ============================================================
@@ -3884,7 +3940,7 @@ function renderLive() {
   $('#live-now').className = 'live-now ks-' + k.color;
   $('#live-now').innerHTML = `<div class="ln-kind">${esc(k.label)} · ${fmtTime(times[i])}</div><h2>${esc(s.title)}</h2>
     <div class="ln-meta"><span class="ln-timer" id="ln-timer">${s.min}:00</span><span class="pill">${s.min} min</span>
-      <button class="pill ${s.done ? 'pill--done' : ''}" onclick="toggleDone(${s.id});renderLive()">${s.done ? ic('check') + 'Tapos na' : 'Markahang tapos'}</button></div>
+      <button class="pill ${s.done ? 'pill--done' : ''}" onclick="toggleDone(${s.id});renderLive()">${s.done ? ic('check') + 'Done' : 'Mark as done'}</button></div>
     ${s.note ? `<p class="ln-note">${ic('edit')}${esc(s.note)}</p>` : ''}`;
   const upcoming = BIDA.program.slice(i + 1, i + 4);
   $('#live-script').innerHTML = (g ? `
@@ -3894,7 +3950,7 @@ function renderLive() {
     <div class="sec-title">${ic('program')}Paano laruin</div>
     <ol class="gd-steps">${g.steps.map(t => `<li>${esc(t)}</li>`).join('')}</ol>` : '') + `
     <div class="sec-title" ${g ? '' : 'style="margin-top:0"'}>${ic('clock')}Susunod</div>
-    ${upcoming.length ? `<ol class="up-list">${upcoming.map((u, j) => `<li><span>${fmtTime(times[i + 1 + j])}</span><b>${esc(u.title)}</b><small>${u.min} min</small></li>`).join('')}</ol>` : '<p class="muted">Huling activity na — palakpakan!</p>'}`;
+    ${upcoming.length ? `<ol class="up-list">${upcoming.map((u, j) => `<li><span>${fmtTime(times[i + 1 + j])}</span><b>${esc(u.title)}</b><small>${u.min} min</small></li>`).join('')}</ol>` : '<p class="muted">Last activity na — palakpakan!</p>'}`;
   $('#live-pads').innerHTML = `<div class="sec-title" style="margin-top:0">${ic('sound')}Sound pads</div><div class="pads">${padsHTML()}</div>`;
   LIVE.running = false; LIVE.elapsed = 0; updateTimerBtn();
 }
@@ -3984,6 +4040,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   handlePaidReturn();
   await spHandleRedirect();
   await loadCustom();
+  loadMusicFiles().then(() => { if (BIDA.tab === 'music') renderMusic(); });
   const probing = loadPads().then(() => { preloadPads(); return null; }).then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
   const startTab = new URLSearchParams(location.search).get('tab');
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
@@ -4003,7 +4060,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
-  addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
+  addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, playMusicFile, delMusicFile, vkFreeOnly,spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
   toggleBar, barInfoClick, setTalkSpeed, setAutoReturn, setAutoDuck, setMusicSrc,
   openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
   openSheet, closeSheet, saveState

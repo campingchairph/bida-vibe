@@ -805,8 +805,10 @@ body.tv-mode .head-event b { font-size: 1.15em; }
 .vk-lock, .vk-free { display: flex; gap: 16px; align-items: flex-start; }
 .vk-free { margin-top: 16px; background: #FFF6E5; }
 .vk-free > .ic { flex: none; width: 40px; height: 40px; padding: 9px; border-radius: 12px; background: var(--gold); color: var(--ink); border: 2px solid var(--ink); }
-.vk-free.done { background: #FCE3DE; }
-.vk-free.done > .ic { background: var(--magenta); color: #fff; }
+.vk-free-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.vk-list li.locked b, .vk-list li.locked small { opacity: .55; }
+.vk-list li.locked .vk-add { background: var(--gold-soft); color: var(--ink); }
+.vk-freetag { font-style: normal; font-weight: 800; color: var(--leaf); }
 .vk-lock > .ic { flex: none; width: 44px; height: 44px; padding: 10px; border-radius: 14px; background: var(--magenta); color: #fff; border: 2px solid var(--ink); }
 
 /* Floating game timer */
@@ -845,6 +847,10 @@ body.in-vk .gtimer, body.in-sb .gtimer { bottom: 14px; }
 .brave-tip { display: flex; gap: 8px; align-items: flex-start; }
 .brave-tip .ic { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--leaf); }
 .brave-tip a { color: inherit; font-weight: 800; }
+.note:has(> .ic:first-child) { display: flex; gap: 8px; align-items: flex-start; }
+.note > .ic:first-child { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--leaf); }
+.pro-dev { background: var(--magenta-soft); }
+.pro-dev > .ic:first-child { color: var(--magenta); }
 .vk-score { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; background: rgba(0,0,0,.78); }
 .vk-score small { font: 800 18px/1 var(--f); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
 .vk-score b { font: 800 clamp(120px, 28vw, 260px)/1 var(--f2); color: #fff; font-variant-numeric: tabular-nums; }

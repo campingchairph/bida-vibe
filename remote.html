@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261115y">
+<link rel="stylesheet" href="bida.css?v=20261115z">
 <style>
   body { background: var(--cream); min-height: 100vh; padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   /* Floating "Sa TV" navigator: pick what the TV shows */
@@ -103,7 +103,7 @@
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M12 14v4M8 21h8M9 18h6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
 </svg>
-<main class="rm" id="rm"><p class="muted" style="padding:40px 0;text-align:center">Kumokonekta sa TV…</p></main>
+<main class="rm" id="rm"><p class="muted" style="padding:40px 0;text-align:center">Connecting sa TV…</p></main>
 <div class="rm-tv" id="rm-tv" hidden role="group" aria-label="Ano ang nasa TV"></div>
 <nav class="rm-tabs" id="rm-tabs" hidden></nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -111,7 +111,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261115y"></script>
+<script src="vk-avatars.js?v=20261115z"></script>
 <script>
 /* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
    Reads the snapshot the TV app keeps in vk_remotes/{id} and sends small commands back.
@@ -135,7 +135,7 @@
 
   function closed(msg) {
     $('#rm-tabs').hidden = true;
-    $('#rm').innerHTML = `<div class="card rm-closed">${vkAvatar('dj', 90)}<h2>${esc(msg)}</h2><p class="muted" style="margin-top:8px">Gumawa ng bagong remote link sa app na naka-connect sa TV.</p></div>`;
+    $('#rm').innerHTML = `<div class="card rm-closed">${vkAvatar('dj', 90)}<h2>${esc(msg)}</h2><p class="muted" style="margin-top:8px">Gawa ng bagong remote link sa app na naka-connect sa TV.</p></div>`;
   }
   if (!/^[A-Za-z0-9]{24}$/.test(key)) { closed('Mali ang remote link'); return; }
 
@@ -157,7 +157,7 @@
     vk(v) { send('vk', v); },
     del(i) { send('vk', 'del', i); },
     show(v) { S.sending = 0; send('show', v); if (navigator.vibrate) navigator.vibrate(12); },
-    score(v, n = -1) { if (v === 'reset' && !confirm('Ibalik sa 0 ang lahat ng score?')) return; S.sending = 0; send('score', v, n); if (navigator.vibrate) navigator.vibrate(10); },
+    score(v, n = -1) { if (v === 'reset' && !confirm('Ibalik sa 0 lahat ng score?')) return; S.sending = 0; send('score', v, n); if (navigator.vibrate) navigator.vibrate(10); },
     find(q) { S.q = q; songs(); },
     name(v) { S.who.name = v.replace(/\s+/g, ' ').slice(0, 24); store.set('bv_rm_who', S.who); },
     av(id) { S.who.av = id; S.who.ph = ''; S.who.mo = ''; store.set('bv_rm_who', S.who); render(); },
@@ -172,7 +172,7 @@
   const TABS = [['plan', 'Plan', 'list'], ['sounds', 'Sounds', 'sound'], ['videoke', 'Videoke', 'mic'], ['music', 'Music', 'music'], ['score', 'Score', 'trophy']];
   // Which screen is on the TV, and buttons to switch it. TV view = only the audience sees it.
   const TV_SCREENS = [['card', '💌', 'Card'], ['videoke', '🎤', 'Videoke'], ['stage', '📺', 'Kanta'], ['games', '🎲', 'Laro'], ['score', '🏆', 'Score'],
-    ['raffle', '🎟️', 'Raffle'], ['dice', '🎲', 'Dice'], ['color', '🎨', 'Kulay'], ['henyo', '🧠', 'Henyo'], ['timer', '⏱️', 'Timer'], ['close', '✕', 'Isara']];
+    ['raffle', '🎟️', 'Raffle'], ['dice', '🎲', 'Dice'], ['color', '🎨', 'Color'], ['henyo', '🧠', 'Henyo'], ['timer', '⏱️', 'Timer'], ['close', '✕', 'Close']];
   function tvBar(st) {
     const tv = st.tv; const bar = $('#rm-tv');
     if (!tv) { bar.hidden = true; return; }
@@ -203,52 +203,56 @@
     const pads = st.pads || [];
     return `<div class="rm-sec"><h3>Sound pads</h3>${pads.length ? `<div class="rm-pads">${pads.map(p => `<button class="rm-pad" style="background:${PAD_BG[p.c] || '#fff'}" data-id="${esc(p.id)}" onclick="RM.pad(this.dataset.id)">${esc(p.n)}</button>`).join('')}</div>
       <div class="rm-row" style="margin-top:12px"><button class="btn btn--ghost" onclick="RM.stop()">${ic('x')}Stop sound</button></div>
-      <p class="rm-hint">Walang tunog? Mag-tap muna kahit isang beses sa device na naka-connect sa TV.</p>` : '<p class="muted">Wala pang sound pads sa app.</p>'}</div>`;
+      <p class="rm-hint">Walang sound? Mag-tap muna kahit once sa device na naka-connect sa TV.</p>` : '<p class="muted">Wala pang sound pads sa app.</p>'}</div>`;
   }
   function musicHTML(st) {
     const m = st.music || {};
-    if (!m.has) return '<div class="rm-sec"><h3>Music</h3><p class="muted">Wala pang music na naka-set sa app. Pumili muna sa Music tab ng TV device.</p></div>';
+    if (!m.has) return '<div class="rm-sec"><h3>Music</h3><p class="muted">Wala pang music na naka-set. Pili muna sa Music tab ng device sa TV.</p></div>';
     return `<div class="rm-sec"><h3>Music</h3><p style="font-weight:800;margin-bottom:10px">${m.on ? 'Tumutugtog: ' : 'Naka-pause: '}${esc(m.t || 'Music')}</p>
       <div class="rm-big"><button class="btn btn--ghost" onclick="RM.music('prev')">Prev</button>
         <button class="btn ${m.on ? 'btn--ink' : 'btn--chili'}" onclick="RM.music('toggle')">${m.on ? 'Pause' : 'Play'}</button>
         <button class="btn btn--ghost" onclick="RM.music('next')">Next</button></div>
       ${m.pro ? `<div class="rm-row" style="margin-top:12px">
-        <button class="btn ${m.duck ? 'btn--magenta' : 'btn--ghost'}" onclick="RM.music('talk')">${ic('mic')}${m.duck ? 'Ibalik ang music' : 'Talk (hinaan)'}</button>
+        <button class="btn ${m.duck ? 'btn--magenta' : 'btn--ghost'}" onclick="RM.music('talk')">${ic('mic')}${m.duck ? 'Balik music' : 'Talk (hinaan)'}</button>
         <button class="btn ${m.faded ? 'btn--magenta' : 'btn--ghost'}" onclick="RM.music('fade')">${m.faded ? 'Fade in' : 'Fade out'}</button></div>` : ''}</div>`;
   }
   function scoreHTML(st) {
     const sb = st.sb;
     if (!sb) return '<div class="rm-sec"><p class="muted">I-update ang app sa TV para magamit ang scoreboard.</p></div>';
     return `<div class="rm-sec"><h3>${esc(sb.title || 'Scoreboard')}</h3>
-      <div class="rm-row">${sb.on ? `<button class="btn btn--ghost" onclick="RM.score('hide')">Itago sa TV</button>` : `<button class="btn btn--chili" onclick="RM.score('show')">Ipakita sa TV</button>`}
+      <div class="rm-row">${sb.on ? `<button class="btn btn--ghost" onclick="RM.score('hide')">Hide sa TV</button>` : `<button class="btn btn--chili" onclick="RM.score('show')">Show sa TV</button>`}
         <button class="btn btn--gold" onclick="RM.score('win')">Panalo!</button></div>
       <ul class="rm-sb">${(sb.teams || []).map((t, i) => `<li style="--c:${/^#[0-9A-Fa-f]{6}$/.test(t.c) ? t.c : '#1E1A16'}"><b>${esc(t.n)}</b>
         <button onclick="RM.score('sub', ${i})" aria-label="Bawas">−</button><span>${Number(t.s) || 0}</span><button onclick="RM.score('add', ${i})" aria-label="Dagdag">+</button></li>`).join('')}</ul>
-      <div class="rm-row" style="margin-top:12px"><button class="btn btn--ghost" onclick="RM.score('reset')">I-reset ang score</button></div>
-      <p class="rm-hint">Palitan ang format at mga pangalan sa Games → Scoreboard ng app sa TV.</p></div>`;
+      <div class="rm-row" style="margin-top:12px"><button class="btn btn--ghost" onclick="RM.score('reset')">Reset score</button></div>
+      <p class="rm-hint">Palitan ang format at names sa Games → Scoreboard ng app sa TV.</p></div>`;
   }
   function vkHTML(st) {
     const v = st.vk || {}, q = v.q || [];
     return `<div class="rm-sec"><h3>Videoke</h3>
       ${v.now ? `<div class="rm-now">${vkFace(v.now, 52)}<div><small>Kumakanta</small><b>${esc(v.now.n)}</b><small>${esc(v.now.t)}</small></div></div>` : ''}
       <div class="rm-row" style="margin-top:10px">${v.stage
-        ? `<button class="btn btn--ink" onclick="RM.vk('skip')">Skip</button><button class="btn btn--ghost" onclick="RM.vk('close')">Isara ang screen</button>`
-        : `<button class="btn btn--chili" onclick="RM.vk('start')" ${q.length || v.now ? '' : 'disabled'}>Buksan ang videoke screen</button>`}</div>
+        ? `<button class="btn btn--ink" onclick="RM.vk('skip')">Skip</button><button class="btn btn--ghost" onclick="RM.vk('close')">Close screen</button>`
+        : `<button class="btn btn--chili" onclick="RM.vk('start')" ${q.length || v.now ? '' : 'disabled'}>Open videoke screen</button>`}</div>
       <h3 style="margin-top:16px">Pila (${q.length})</h3>
       ${q.length ? `<ol class="rm-q">${q.map((it, i) => `<li>${vkFace(it, 34)}<div><b>${esc(it.t)}</b><small>${i + 1}. ${esc(it.n)}${it.a ? ' · ' + esc(it.a) : ''}</small></div>
         <button class="rm-x" onclick="RM.del(${i})" aria-label="Alisin">${ic('x')}</button></li>`).join('')}</ol>` : '<p class="muted">Wala pang nakapila.</p>'}
     </div>
-    <div class="rm-sec card"><h3>Mag-reserve</h3>
+    <div class="rm-sec card"><h3>Reserve</h3>
       <div class="rm-who"><input class="input" placeholder="Sino ang kakanta?" maxlength="24" value="${esc(S.who.name)}" oninput="RM.name(this.value)" autocomplete="off"></div>
       <div class="rm-avs"><button class="rm-cam ${S.who.ph ? 'on' : ''}" onclick="RM.cam()" aria-label="Selfie">${S.who.ph ? vkFace(S.who, 40) : '<span>📷</span>'}</button>${VK_AVATARS.map(a => `<button class="${!S.who.ph && S.who.av === a.id ? 'on' : ''}" data-av="${a.id}" onclick="RM.av('${a.id}')" aria-label="${esc(a.name)}">${a.svg(40)}</button>`).join('')}</div>
-      <input class="input" style="margin-top:6px" placeholder="Hanapin: kanta o artist" value="${esc(S.q)}" oninput="RM.find(this.value)" autocomplete="off">
+      <input class="input" style="margin-top:6px" placeholder="Search song o artist" value="${esc(S.q)}" oninput="RM.find(this.value)" autocomplete="off">
       <ul class="rm-songs" id="rm-songs"></ul></div>`;
   }
   function songs() {
     const box = $('#rm-songs'); if (!box) return;
-    if (!S.lib.length) { box.innerHTML = '<li class="muted" style="border:0;background:none">Kinukuha ang library…</li>'; return; }
-    const q = norm(S.q), res = (q ? S.lib.filter(s => String(s.c).startsWith(q) || norm(s.t).includes(q) || norm(s.a).includes(q)) : S.lib).slice(0, 40);
-    box.innerHTML = res.length ? res.map(s => `<li><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div><button class="rm-add" onclick="RM.add(${s.c})" aria-label="Reserve">${ic('plus')}</button></li>`).join('')
+    if (!S.lib.length) { box.innerHTML = '<li class="muted" style="border:0;background:none">Loading ang library…</li>'; return; }
+    // without Premium on the TV, only the free songs can be sung: show those first, the rest locked
+    const vk = (S.st && S.st.vk) || {}, fr = Array.isArray(vk.free) ? new Set(vk.free) : null, ok = c => !fr || fr.has(c);
+    const q = norm(S.q), res = (q ? S.lib.filter(s => String(s.c).startsWith(q) || norm(s.t).includes(q) || norm(s.a).includes(q)) : S.lib.slice())
+      .sort((a, b) => ok(b.c) - ok(a.c)).slice(0, 40);
+    box.innerHTML = res.length ? res.map(s => `<li style="${ok(s.c) ? '' : 'opacity:.5'}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}${fr && ok(s.c) ? ' · Libre' : ''}</small></div>${ok(s.c)
+      ? `<button class="rm-add" onclick="RM.add(${s.c})" aria-label="Reserve">${ic('plus')}</button>` : '<small class="muted">Premium</small>'}</li>`).join('')
       : '<li class="muted" style="border:0;background:none">Walang lumabas.</li>';
   }
 
@@ -259,13 +263,13 @@
   db.collection('vk_remotes').doc(key).onSnapshot(d => {
     if (!d.exists) { closed('Walang ganitong remote'); return; }
     const data = d.data();
-    if (!data.open || !(data.expires && data.expires.toMillis() > Date.now())) { closed('Sarado na ang remote'); return; }
+    if (!data.open || !(data.expires && data.expires.toMillis() > Date.now())) { closed('Closed na ang remote'); return; }
     S.st = data.state || {};
     // don't wipe what the host is typing in the Videoke search box
     const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
     if (typing && S.tab === 'videoke') { const top = $('#rm .rm-sec'); if (top) { top.outerHTML = vkHTML(S.st).split('<div class="rm-sec card">')[0]; } return; }
     render();
-  }, () => closed('Hindi mabuksan ang remote. Baka sarado na.'));
+  }, () => closed('Ayaw bumukas ng remote. Baka closed na.'));
 })();
 </script>
 </body>

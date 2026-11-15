@@ -194,13 +194,13 @@ window.BIDA_GAMES = [
     anim: 'chairs',
     materials: ['Upuan (isang kulang sa bilang ng players)', 'Music player / speaker', 'Premyo para sa winner'],
     steps: [
-      'Ihilera ang mga upuan, magkakatalikod. Isang upuan ang kulang sa bilang ng players.',
-      'Paikutin ang mga players sa mga upuan habang tumutugtog ang music.',
-      'Biglang ihinto ang music — uupo ang lahat sa pinakamalapit na upuan.',
-      'Ang walang naupuan, out. Magtanggal ng isang upuan.',
-      'Ulitin hanggang dalawa na lang ang players at isang upuan — ang makaupo, panalo!'
+      'Ayusin ang mga upuan nang magkatalikod. Dapat kulang ng isa sa dami ng players.',
+      'Habang may music, iikot ang players sa mga upuan.',
+      'I-stop bigla ang music — upo agad sa pinakamalapit na upuan!',
+      'Ang walang naupuan, out. Bawas ng isang upuan.',
+      'Ulit lang hanggang 2 players at 1 upuan na lang — kung sino ang makaupo, panalo!'
     ],
-    tips: ['I-fade ang music, hindi i-stop agad — mas exciting.', 'Gamitin ang Talk button para ianunsyo kung sino ang out.']
+    tips: ['I-fade ang music imbes na i-stop agad — mas kabado sila.', 'Gamitin ang Talk button pag ia-announce kung sino ang out.']
   },
   {
     id: 'paperdance', name: 'Paper Dance', alias: 'Newspaper Dance',
@@ -208,11 +208,11 @@ window.BIDA_GAMES = [
     anim: 'paper',
     materials: ['Isang dyaryo bawat pares', 'Music', 'Premyo'],
     steps: [
-      'Bigyan ng isang buong dyaryo ang bawat pares.',
-      'Sumayaw sa ibabaw ng dyaryo habang may music.',
-      'Pag tumigil ang music, itiklop ang dyaryo sa kalahati.',
-      'Ulitin — pwedeng buhatin ang partner para magkasya!',
-      'Ang pares na lumabas sa dyaryo, out. Ang huling pares, panalo.'
+      'Bigyan ng isang buong dyaryo ang bawat pair.',
+      'Sayaw sa ibabaw ng dyaryo habang may music.',
+      'Pag huminto ang music, tupiin ang dyaryo sa kalahati.',
+      'Ulit — pwedeng buhatin ang partner para kumasya!',
+      'Ang pair na lumabas sa dyaryo, out. Huling pair na natira, panalo.'
     ],
     tips: ['Siguraduhing hindi madulas ang sahig.']
   },
@@ -222,13 +222,13 @@ window.BIDA_GAMES = [
     anim: 'henyo',
     materials: ['Papel / index cards na may salita', 'Tape o headband', 'Timer (2 minuto)'],
     steps: [
-      'Bawat team ay may isang manghuhula at isang sumasagot.',
-      'Idikit sa noo ng manghuhula ang salita — hindi niya ito nakikita.',
-      'Magtatanong siya; ang sagot lang ay “Oo”, “Hindi”, o “Pwede”.',
-      'May 2 minuto para mahulaan ang salita.',
+      'Bawat team: isang manghuhula at isang sasagot.',
+      'Idikit ang word sa noo ng manghuhula — hindi niya ito makikita.',
+      'Magtatanong siya; “Oo”, “Hindi” o “Pwede” lang ang pwedeng isagot.',
+      'May 2 minutes para mahulaan ang word.',
       'Pinakamaraming nahulaan o pinakamabilis — panalo!'
     ],
-    tips: ['Gumawa ng categories: tao, bagay, pagkain, lugar.', 'Gamitin ang Ding sa tamang sagot at Buzzer sa time’s up.']
+    tips: ['Gamitin ang Bunot ng word sa Games tab: tao, bagay, hayop, lugar, pagkain.', 'Ding pag tama, Buzzer pag time’s up.']
   },
   {
     id: 'bringme', name: 'Bring Me', alias: '',
@@ -236,13 +236,13 @@ window.BIDA_GAMES = [
     anim: 'bringme',
     materials: ['Listahan ng mga ipapadala (hal. tsinelas, ₱20, selfie with lola)', 'Table sa harap', 'Premyo'],
     steps: [
-      'Hatiin sa mga team at pumili ng runner bawat team.',
-      'Sasabihin ng host: “Bring me… isang pulang tsinelas!”',
-      'Uunahan ng mga runner na dalhin ito sa host.',
-      'Ang unang makapagdala, may 1 puntos.',
-      'Pinakamaraming puntos pagkatapos ng 10 rounds — panalo!'
+      'Hatiin sa teams, tapos pili ng runner bawat team.',
+      'Sisigaw ang host: “Bring me… pulang tsinelas!”',
+      'Unahan ang mga runner na madala ito sa host.',
+      'Unang makadala, 1 point.',
+      'Pinakamaraming points after 10 rounds — panalo!'
     ],
-    tips: ['Ihalo ang madali at mahirap na items.', 'Mag-ingat sa pagtakbo kapag may mga bata.']
+    tips: ['Haluin ang madali at mahirap na items.', 'Ingat sa takbuhan kapag may mga bata.']
   },
   {
     id: 'stopdance', name: 'Stop Dance', alias: 'Freeze Dance',
@@ -250,12 +250,12 @@ window.BIDA_GAMES = [
     anim: 'freeze',
     materials: ['Music', 'Premyo'],
     steps: [
-      'Sumayaw ang lahat habang may music.',
-      'Pag tumigil ang music — freeze! Bawal gumalaw.',
+      'Sayaw lahat habang may music.',
+      'Pag huminto ang music — freeze! Bawal gumalaw.',
       'Ang gumalaw, out.',
-      'Ulitin hanggang isa na lang ang natitira.'
+      'Ulit hanggang isa na lang ang natira.'
     ],
-    tips: ['Perfect gamitin ang mabilis na fade-out sa music panel.']
+    tips: ['Bagay dito ang mabilis na Fade out sa music bar.']
   },
   {
     id: 'relay', name: 'Calamansi Relay', alias: 'Spoon Relay',
@@ -263,13 +263,13 @@ window.BIDA_GAMES = [
     anim: 'relay',
     materials: ['Kutsara bawat team', 'Calamansi (o itlog kung matapang)', 'Marker para sa start at finish'],
     steps: [
-      'Pumila ang bawat team sa starting line.',
-      'Kagatin ang kutsara at ipatong ang calamansi.',
-      'Maglakad papunta sa marker at bumalik nang hindi nahuhulog ang calamansi.',
-      'Ipasa ang kutsara sa susunod — bawal hawakan ng kamay.',
-      'Ang unang team na matapos, panalo!'
+      'Pila ang bawat team sa starting line.',
+      'Kagatin ang kutsara, tapos ipatong ang calamansi.',
+      'Lakad papunta sa marker at balik nang hindi nahuhulog ang calamansi.',
+      'Ipasa ang kutsara sa kasunod — bawal gamitin ang kamay.',
+      'Unang team na matapos, panalo!'
     ],
-    tips: ['Gumamit ng hilaw na itlog para sa adult round — mas maraming tawanan.']
+    tips: ['Pang-adults round: hilaw na itlog imbes na calamansi. Mas maraming tawanan.']
   },
   {
     id: 'whisper', name: 'Pass the Message', alias: 'Telephone',
@@ -277,13 +277,13 @@ window.BIDA_GAMES = [
     anim: 'whisper',
     materials: ['Papel na may mga mensahe', 'Ballpen'],
     steps: [
-      'Pumila ang bawat team nang magkakasunod.',
-      'Ibulong ng host ang mensahe sa unang tao.',
-      'Ibubulong niya ito sa susunod — isang beses lang.',
-      'Isusulat o sasabihin ng huling tao ang narinig niya.',
+      'Pila ang bawat team, isa-isa.',
+      'Ibubulong ng host ang message sa unang tao.',
+      'Ibubulong niya sa kasunod — isang beses lang, walang ulit.',
+      'Sasabihin o isusulat ng huling tao ang narinig niya.',
       'Pinakamalapit sa original — panalo!'
     ],
-    tips: ['Gumamit ng tongue-twister: “Pitong puting pating”.']
+    tips: ['Try ng tongue-twister: “Pitong puting pating”.']
   },
   {
     id: 'charades', name: 'Pinoy Charades', alias: 'Act it out',
@@ -291,12 +291,12 @@ window.BIDA_GAMES = [
     anim: 'charades',
     materials: ['Mga card na may pelikula, kanta o salita', 'Timer (1 minuto)'],
     steps: [
-      'Hatiin sa dalawang team.',
-      'Isang miyembro ang bubunot ng card at i-aakto ito nang walang salita.',
-      'Huhulaan ng team niya sa loob ng 1 minuto.',
-      'Tamang hula = 1 puntos. Pinakamaraming puntos — panalo!'
+      'Hatiin sa 2 teams.',
+      'Isang member ang bubunot ng card, tapos i-a-act niya nang walang salita.',
+      'Huhulaan ng team niya within 1 minute.',
+      'Tamang hula = 1 point. Pinakamaraming points — panalo!'
     ],
-    tips: ['Gumamit ng Pinoy teleserye, OPM at pagkain bilang categories.']
+    tips: ['Bagay na categories: teleserye, OPM at pagkain.']
   },
   {
     id: 'hephep', name: 'Hep Hep Hooray', alias: '',
@@ -304,12 +304,12 @@ window.BIDA_GAMES = [
     anim: 'hephep',
     materials: ['Wala! Boses lang.'],
     steps: [
-      'Bumuo ng bilog. Ang host ang magtuturo kung kanino “Hep hep” at kanino “Hooray”.',
-      'Ang nasa kaliwa ay sisigaw ng “Hep hep!”, ang nasa kanan ay “Hooray!”.',
-      'Paiikutin ng host — kapag tinuro ka, sumagot agad nang tama.',
-      'Ang nagkamali o nabagal, out.'
+      'Bilog lahat. Ituturo ng host kung sino ang “Hep hep” at sino ang “Hooray”.',
+      'Ang nasa left mo, sisigaw ng “Hep hep!”; ang nasa right, “Hooray!”.',
+      'Iikot ang host — pag tinuro ka, sagot agad nang tama.',
+      'Ang nagkamali o mabagal, out.'
     ],
-    tips: ['Bilisan unti-unti para mas nakakatawa.']
+    tips: ['Pabilisin nang pabilisin para mas nakakatawa.']
   },
   {
     id: 'longestline', name: 'Longest Line', alias: '',
@@ -317,12 +317,12 @@ window.BIDA_GAMES = [
     anim: 'line',
     materials: ['Gamit ng mga players mismo (sinturon, sapatos, jacket…)', 'Timer (3 minuto)'],
     steps: [
-      'Bawat team ay may 3 minuto.',
-      'Gamit ang kahit anong dala nila, gumawa ng pinakamahabang linya sa sahig.',
+      'May 3 minutes ang bawat team.',
+      'Gamit ang kahit anong dala nila, gawa ng pinakamahabang line sa sahig.',
       'Bawal kumuha sa ibang team.',
-      'Pinakamahabang tuloy-tuloy na linya — panalo!'
+      'Pinakamahabang tuloy-tuloy na line — panalo!'
     ],
-    tips: ['Magtakda ng limitasyon kung hanggang saan ang pwedeng tanggalin.']
+    tips: ['Mag-set ng limit kung hanggang saan lang ang pwedeng hubarin.']
   },
   {
     id: 'balloon', name: 'Putok Lobo', alias: 'Balloon Stomp',
@@ -330,12 +330,12 @@ window.BIDA_GAMES = [
     anim: 'balloon',
     materials: ['Lobo bawat player', 'Tali o yarn'],
     steps: [
-      'Itali ang lobo sa bukong-bukong ng bawat player.',
-      'Sa hudyat, subukang putukin ang lobo ng iba gamit ang paa.',
-      'Protektahan ang sarili mong lobo!',
-      'Ang huling may buong lobo — panalo!'
+      'Itali ang lobo sa ankle ng bawat player.',
+      'Pag sinabing “Go!”, paputukin ang lobo ng iba gamit ang paa.',
+      'Bantayan ang sarili mong lobo!',
+      'Huling may buong lobo — panalo!'
     ],
-    tips: ['Paghiwalayin ang mga bata at matatanda.']
+    tips: ['Hiwalay ang round ng kids at adults.']
   },
   {
     id: 'jakenpoy', name: 'Bato Bato Pik Tournament', alias: 'Jack-en-poy',
@@ -343,12 +343,12 @@ window.BIDA_GAMES = [
     anim: 'jakenpoy',
     materials: ['Wala! Kamay lang.', 'Premyo para sa champion'],
     steps: [
-      'Magpares-pares ang lahat.',
-      'Maglaro ng Bato Bato Pik — best of 3.',
-      'Ang talo ay magiging cheerer ng nanalo at susunod sa kanya.',
-      'Paglaban-labanin ang mga nanalo hanggang dalawa na lang — final match!'
+      'Mag-pair up lahat.',
+      'Bato Bato Pik — best of 3.',
+      'Ang talo, magiging cheerer ng nanalo at susunod sa kanya.',
+      'Laban-laban ang mga nanalo hanggang 2 na lang — final match!'
     ],
-    tips: ['Ang “cheer train” ang pinakamasayang parte — hayaan silang mag-ingay.']
+    tips: ['Ang “cheer train” ang pinakamasayang part — hayaan silang mag-ingay.']
   },
   {
     id: 'survey', name: 'Survey Says: Pamilya Edition', alias: 'Top 5 Answers',
@@ -356,13 +356,13 @@ window.BIDA_GAMES = [
     anim: 'feud',
     materials: ['Mga tanong na may top 5 sagot (hal. “Ulam tuwing Pasko”)', 'Board o papel para sa score', 'Buzzer o bell'],
     steps: [
-      'Dalawang team, tig-isang representative sa harap.',
-      'Babasahin ng host ang tanong — ang unang pumindot ng buzzer ang sasagot.',
-      'Kung nasa top 5, may puntos ang team.',
-      'Tatlong mali — ang kabilang team ang may chance mag-steal.',
-      'Pinakamaraming puntos pagkatapos ng 5 tanong — panalo!'
+      '2 teams, tig-isang representative sa harap.',
+      'Babasahin ng host ang tanong — unang pumindot ng buzzer ang sasagot.',
+      'Pag nasa top 5 ang sagot, may points ang team.',
+      '3 mali — pwedeng mag-steal ang kabilang team.',
+      'Pinakamaraming points after 5 questions — panalo!'
     ],
-    tips: ['Gawin ang survey sa group chat bago ang event para totoo ang sagot.', 'Ding sa tama, Buzzer sa mali — nasa Sound Lab.']
+    tips: ['Mag-survey sa GC bago ang event para totoo ang mga sagot.', 'Ding pag tama, Buzzer pag mali — nasa Sounds tab.']
   },
   {
     id: 'hotpotato', name: 'Mainit na Patatas', alias: 'Hot Potato',
@@ -370,12 +370,12 @@ window.BIDA_GAMES = [
     anim: 'pass',
     materials: ['Bola, unan o kahit anong bagay', 'Music', 'Forfeit cards (opsyonal)'],
     steps: [
-      'Umupo o tumayo nang pabilog.',
+      'Upo o tayo nang pabilog.',
       'Ipasa ang bola habang may music.',
-      'Pag tumigil ang music, ang may hawak ng bola — out (o gagawa ng forfeit).',
-      'Ulitin hanggang isa na lang ang natitira.'
+      'Pag huminto ang music, kung sino ang may hawak ng bola — out (o may forfeit).',
+      'Ulit hanggang isa na lang ang natira.'
     ],
-    tips: ['Lagyan ng forfeit: kumanta, sumayaw, o mag-share ng embarrassing story.']
+    tips: ['Forfeit ideas: kumanta, sumayaw, o mag-share ng embarrassing story.']
   },
 
   /* ---------- From Dig the Games (@digthegames) — rules paraphrased, credited with a link ---------- */
@@ -384,12 +384,12 @@ window.BIDA_GAMES = [
     players: '5+', time: '5–10 min', age: 'Lahat', place: 'Kahit saan', energy: 3, anim: 'pass',
     materials: ['Paper plates (isang kulang sa bilang ng players)', 'Music'],
     steps: [
-      'Bilog ang lahat; bawat isa may plato, pero isang plato ang kulang.',
-      'Habang may music, ipasa ang mga plato — nakataas lang sa ulo.',
-      'Pag tumigil ang music, hinto ang pasahan. Ang walang platong nakataas, out.',
-      'Bawasan ng isang plato at ulitin hanggang isa na lang ang may plato.'
+      'Bilog lahat; bawat isa may plate, pero kulang ng isa.',
+      'Habang may music, ipasa ang mga plate — nakataas lang sa ulo.',
+      'Pag huminto ang music, stop ang pasahan. Ang walang plate sa ulo, out.',
+      'Bawas ng isang plate, tapos ulit hanggang isa na lang ang may plate.'
     ],
-    tips: ['Biglang ibaliktad ang direksyon ng pasa sa gitna ng kanta.', 'Kung napunit ang plato, out ang plato at ang may hawak.'],
+    tips: ['Biglang i-reverse ang pasahan sa gitna ng kanta.', 'Pag napunit ang plate, out ang plate at ang may hawak.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/musical-chairs-with-paper-plates' }
   },
   {
@@ -397,11 +397,11 @@ window.BIDA_GAMES = [
     players: '6+ (tig-3 bawat team)', time: '5–10 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'cupstack',
     materials: ['10 plastic cups bawat team', 'Duct tape o kumot para itali', 'Isang mesa bawat team'],
     steps: [
-      'Itali nang magkakatabi sa baywang ang bawat team na tatlo.',
+      'Itali nang magkakatabi sa bewang ang bawat team of 3.',
       'Sa malayong mesa ng bawat team, nakalatag ang 10 cups.',
-      'Sa hudyat, sabay-sabay na maglakad papunta sa mesa nang hindi natatanggal ang tali.',
-      'Salitan sa paglagay ng tig-isang cup hanggang mabuo ang pyramid na 4-3-2-1.',
-      'Ang unang team na makabalik sa start, panalo.'
+      'Pag sinabing “Go!”, sabay-sabay maglakad papunta sa mesa nang hindi natatanggal ang tali.',
+      'Salitan sa paglagay ng tig-isang cup hanggang mabuo ang 4-3-2-1 pyramid.',
+      'Unang team na makabalik sa start, panalo.'
     ],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/cup-stack-relay' }
   },
@@ -410,13 +410,13 @@ window.BIDA_GAMES = [
     players: '4+ (pares)', time: '5–8 min', age: '8+', place: 'Maluwag na sahig', energy: 3, anim: 'paper',
     materials: ['Banig, kumot o malaking tuwalya bawat pares', 'Start at finish line (20–30 talampakan ang layo)'],
     steps: [
-      'Isa ang nakatayo sa banig (jumper), isa ang humahawak sa harap na gilid (puller).',
+      'Isa ang nakatayo sa banig (jumper), isa ang may hawak sa harap na dulo (puller).',
       'Tatalon nang diretso pataas ang jumper.',
-      'Habang nasa ere siya, hihilahin ng puller ang banig nang isa o dalawang talampakan.',
-      'Dapat sa banig lumapag ang jumper — pag tumapak sa sahig, balik sa start.',
-      'Ang unang pares na makatawid sa finish line, panalo.'
+      'Habang nasa ere siya, hihilahin ng puller ang banig nang 1–2 feet.',
+      'Dapat sa banig lumapag ang jumper — pag sa sahig, balik sa start.',
+      'Unang pair na makatawid sa finish line, panalo.'
     ],
-    tips: ['Ibang bersyon ("Floor is lava"): lahat nakatayo sa upuan, unan o banig. Pag may music, lilipat-lipat sila nang hindi tumatapak sa sahig — ang tumapak, out. Ang huling natira, panalo.'],
+    tips: ['Ibang version (“Floor is lava”): lahat nakatayo sa upuan, unan o banig. Habang may music, palipat-lipat sila nang hindi tumatapak sa sahig — ang tumapak, out. Huling natira, panalo.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/cant-touch-the-floor' }
   },
   {
@@ -424,12 +424,12 @@ window.BIDA_GAMES = [
     players: '8+', time: '4–6 min', age: 'Lahat', place: 'Maluwag na lugar', energy: 3, anim: 'balloon',
     materials: ['Isang lobo bawat player', 'Masking tape o cones para sa start at finish'],
     steps: [
-      'Pumila ang lahat sa start, tig-isang lobo.',
-      'Bawal ang kamay — ulo, balikat, tuhod o paa lang ang pang-tulak sa lobo.',
-      'Sa hudyat, itulak ang lobo papunta sa finish line.',
-      'Ang unang makatawid kasama ang lobo niya, panalo.'
+      'Pila lahat sa start, tig-isang lobo.',
+      'Bawal ang kamay — ulo, balikat, tuhod o paa lang ang pantulak sa lobo.',
+      'Pag sinabing “Go!”, itulak ang lobo papunta sa finish line.',
+      'Unang makatawid kasama ang lobo niya, panalo.'
     ],
-    tips: ['Pwedeng gawing team relay o paikutin sa mga cone.'],
+    tips: ['Pwedeng gawing team relay o paikutin sa cones.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/balloon-herding' }
   },
   {
@@ -437,13 +437,13 @@ window.BIDA_GAMES = [
     players: '8+ (2 teams)', time: '5–8 min', age: 'Lahat', place: 'Kahit saan', energy: 3, anim: 'bringme',
     materials: ['Sapatos o tsinelas ng lahat', 'Konting maluwag na sahig'],
     steps: [
-      'Hubarin ng lahat ang sapatos at itambak sa gitna, tapos haluin.',
-      'Pumila ang dalawang team sa magkasinglayong pwesto mula sa tambak.',
-      'Sa hudyat, tatakbo ang una sa bawat team at hahanapin ang sarili niyang pares.',
-      'Isusuot, babalik, at ita-tag ang kasunod.',
-      'Ang unang team na naka-sapatos na lahat, panalo.'
+      'Hubarin lahat ang sapatos, itambak sa gitna, tapos haluin.',
+      'Pila ang 2 teams, pareho ang layo sa tambak.',
+      'Pag sinabing “Go!”, takbo ang una sa bawat team at hanapin ang sariling pares ng sapatos.',
+      'Isuot, balik, tapos i-tag ang kasunod.',
+      'Unang team na naka-sapatos lahat, panalo.'
     ],
-    tips: ['Mas mahirap: kailangang itali muna ang sintas bago bumalik.'],
+    tips: ['Mas mahirap: dapat nakatali muna ang sintas bago bumalik.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/find-your-shoes' }
   },
   {
@@ -452,10 +452,10 @@ window.BIDA_GAMES = [
     materials: ['Isang roll ng paper towel o tissue'],
     steps: [
       'Pumunit ng mahabang piraso.',
-      'Dalawang player, magkaharap, hawak ang magkabilang dulo.',
+      '2 players, magkaharap, hawak ang magkabilang dulo.',
       'Hilahan pabalik-balik nang hindi bumibitaw.',
-      'Pag napunit na, ang may hawak pa ng piraso niya ang panalo.',
-      'Palitan agad ng bagong challenger — mabilis na rounds.'
+      'Pag napunit na, kung sino ang may hawak pa ng piraso niya, panalo.',
+      'Palit agad ng bagong challenger — mabilis na rounds.'
     ],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/paper-towel-tug' }
   },
@@ -464,13 +464,13 @@ window.BIDA_GAMES = [
     players: '8+', time: '4–5 min', age: '10+', place: 'Indoor', energy: 2, anim: 'henyo',
     materials: ['Upuan para sa lahat maliban sa isa'],
     steps: [
-      'Ilabas sa kwarto ang isang player — siya ang "psychiatrist".',
-      'Magkasundo ang grupo sa isang nakakatawang "kondisyon" na aakto ng lahat (hal. lahat sumasagot na parang katabi nila sila).',
+      'Palabasin muna sa kwarto ang isang player — siya ang “psychiatrist”.',
+      'Pag-usapan ng grupo ang isang nakakatawang “kondisyon” na gagayahin ng lahat (hal. lahat sasagot na parang sila yung katabi nila).',
       'Pabalikin ang psychiatrist. Magtatanong siya sa iba-ibang tao — bawal sunod-sunod sa iisang tao.',
-      'Sasagot ang lahat ayon sa kondisyon hanggang mahulaan niya ito.',
-      'Pumili ng bagong psychiatrist at ulitin.'
+      'Sasagot lahat ayon sa kondisyon hanggang mahulaan niya.',
+      'Pili ng bagong psychiatrist, tapos ulit.'
     ],
-    tips: ['Lagyan ng limit: 10 tanong lang.'],
+    tips: ['Lagyan ng limit: 10 questions lang.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/psychiatrist' }
   },
   {
@@ -478,13 +478,13 @@ window.BIDA_GAMES = [
     players: '8+ (pares)', time: '3–5 min', age: 'Lahat', place: 'Kahit saan', energy: 3, anim: 'cupgrab',
     materials: ['Isang plastic cup bawat pares'],
     steps: [
-      'Magkaharap ang magkapares, may cup sa sahig sa gitna nila.',
-      'Sisigaw ang host ng parte ng katawan — hahawakan ito ng players.',
-      'Paiba-ibahin ang bilis at pagkakasunod ng utos.',
-      'Pag sinabing "CUP!", ang unang makadampot ng cup ang panalo sa round.',
-      'Ang mga nanalo, hahanap ng bagong kapares hanggang may isang champion.'
+      'Magkaharap ang pair, may cup sa sahig sa gitna nila.',
+      'Sisigaw ang host ng body part — hahawakan ito ng players.',
+      'Iba-ibahin ang bilis at order ng utos.',
+      'Pag sinabing “CUP!”, unang makadampot ng cup ang panalo sa round.',
+      'Ang mga nanalo, hahanap ng bagong ka-pair hanggang may isang champion.'
     ],
-    tips: ['Lokohin sila: ituro ang ilong pero "tuhod" ang sabihin.'],
+    tips: ['Lokohin sila: ituro ang ilong pero “tuhod” ang sabihin.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/head-shoulders-knees-cup' }
   },
   {
@@ -492,13 +492,13 @@ window.BIDA_GAMES = [
     players: '8+', time: '3–5 min', age: 'Lahat', place: 'Kahit saan', energy: 1, anim: 'coin',
     materials: ['Isang barya'],
     steps: [
-      'Lahat nakatayo at nakikita ang host.',
-      'Pipili ang bawat isa: kamay sa ulo = heads, kamay sa puwet = tails.',
-      'Ihahagis ng host ang barya at iaanunsyo ang lumabas.',
-      'Ang mali ang hula, uupo.',
-      'Ulitin hanggang isa o iilan na lang ang nakatayo.'
+      'Lahat nakatayo at kita ang host.',
+      'Pili bawat isa: kamay sa ulo = heads, kamay sa puwet = tails.',
+      'Ihahagis ng host ang barya, tapos ia-announce kung ano ang lumabas.',
+      'Ang mali ang hula, upo.',
+      'Ulit hanggang isa o iilan na lang ang nakatayo.'
     ],
-    tips: ['Magandang pang-bunot ng mananalo sa maliit na premyo.'],
+    tips: ['Magandang pang-bunot ng winner sa maliit na prize.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/heads-or-tails-icebreaker' }
   },
   {
@@ -506,13 +506,13 @@ window.BIDA_GAMES = [
     players: '6+ (teams)', time: '3–5 min', age: '7+', place: 'Kahit saan', energy: 2, anim: 'relay',
     materials: ['1–2 supot ng cotton balls', 'Dalawang mangkok bawat team', 'Isang kutsara bawat team', 'Blindfold'],
     steps: [
-      'Bawat team: mangkok na may bulak sa isang dulo, walang laman sa kabila.',
+      'Bawat team: bowl na may bulak sa isang dulo, empty bowl sa kabila.',
       'Piringan ang unang player at bigyan ng kutsara.',
-      'Sasalukin niya ang bulak at ililipat sa walang lamang mangkok — bawal hawakan.',
-      'Tanggalin ang piring at ipasa sa susunod.',
-      'Pagkatapos ng lahat, ang team na pinakamaraming nailipat ang panalo.'
+      'Sasalukin niya ang bulak at ililipat sa empty bowl — bawal hawakan.',
+      'Tanggalin ang piring, tapos pasa sa kasunod.',
+      'Pag tapos na lahat, ang team na pinakamaraming nailipat, panalo.'
     ],
-    tips: ['Lagyan ng 2 minutong time limit bawat team.'],
+    tips: ['Lagyan ng 2-minute time limit bawat team.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/cotton-ball-scoop' }
   },
   {
@@ -520,11 +520,11 @@ window.BIDA_GAMES = [
     players: '5+', time: '8–10 min', age: '8+', place: 'Mesa', energy: 2, anim: 'dice',
     materials: ['Isang papel bawat player', 'Isang ballpen', 'Dalawang dice'],
     steps: [
-      'Salitan sa pag-roll ng dalawang dice.',
-      'Ang unang maka-7, kukunin ang ballpen at magsusulat ng 1, 2, 3… hanggang 100 sa papel niya.',
+      'Salitan sa pag-roll ng 2 dice.',
+      'Unang maka-7, kukunin ang ballpen at magsusulat ng 1, 2, 3… hanggang 100 sa papel niya.',
       'Pag may ibang naka-7, aagawin niya ang ballpen at siya na ang magsusulat sa sarili niyang papel.',
-      'Pag may naka-doubles, ipapasa ng lahat ang papel sa kaliwa — itutuloy ng nagsusulat ang papel na hawak niya.',
-      'Ang unang papel na umabot sa 100, panalo.'
+      'Pag may naka-doubles, ipapasa ng lahat ang papel sa left — itutuloy ng nagsusulat ang papel na hawak niya.',
+      'Unang papel na umabot sa 100, panalo.'
     ],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/write-to-100' }
   },
@@ -533,13 +533,13 @@ window.BIDA_GAMES = [
     players: '6+', time: '3–5 min', age: 'Lahat', place: 'Kahit saan', energy: 2, anim: 'toss',
     materials: ['3x3 grid sa sahig (tape, chalk o paper plates)', 'Beanbag o tsinelas bawat player/team'],
     steps: [
-      'Gumawa ng tic-tac-toe grid sa sahig at linya ng hagisan 6–10 talampakan ang layo.',
+      'Gawa ng tic-tac-toe grid sa sahig at throw line na 6–10 feet ang layo.',
       'Salitan sa paghagis ng beanbag sa grid.',
-      'Markahan ng X o O ang kahon kung saan ito bumagsak.',
-      'Ang unang makatatlo nang diretso, panalo sa round.',
-      'I-reset ang grid at magbilang ng puntos.'
+      'Lagyan ng X o O ang box kung saan ito bumagsak.',
+      'Unang maka-3 in a row, panalo sa round.',
+      'I-reset ang grid at bilangin ang points.'
     ],
-    tips: ['Lagyan ng tanong ang bawat kahon na kailangang sagutin bago makuha.'],
+    tips: ['Lagyan ng tanong ang bawat box na kailangang masagot bago makuha.'],
     credit: { by: 'Dig the Games', url: 'https://digthegames.com/p/toss-boss' }
   },
 
@@ -549,11 +549,11 @@ window.BIDA_GAMES = [
     players: '2+ teams', time: '5–10 min', age: 'Lahat', place: 'Maluwag na lugar', energy: 3, anim: 'hoops',
     materials: ['Isang lobo bawat team', 'Hula hoops (isa bawat kasama sa linya)'],
     steps: [
-      'Pumila ang bawat team; bawat isa may hawak na hula hoop — ito ang "hurdles".',
-      'Isang player mula sa bawat team ang nasa simula ng linya, may lobo.',
+      'Pila ang bawat team; bawat isa may hawak na hula hoop — ito ang “hurdles”.',
+      'Isang player bawat team ang nasa simula ng line, may lobo.',
       'Tatapikin niya ang lobo (kamay o ulo lang) para dumaan sa bawat hoop, sunod-sunod.',
       'Bawal bumagsak ang lobo sa sahig — pag bumagsak, balik sa unang hoop.',
-      'Ang unang makapagdaan ng lobo sa huling hoop, panalo ang team.'
+      'Unang makapagdaan ng lobo sa huling hoop, panalo ang team.'
     ],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
@@ -562,12 +562,12 @@ window.BIDA_GAMES = [
     players: 'Pares (2+ pares)', time: '3–5 min', age: '7+', place: 'Mesa', energy: 2, anim: 'flatten',
     materials: ['Ilang nilukot na papel bawat pares (pareho ang bilang)', 'Garden gloves (opsyonal, pang-hirap)'],
     steps: [
-      'Magpares-pares. Ang isa, kanang kamay lang ang gamit; ang isa, kaliwang kamay lang.',
-      'Bawat pares may tambak ng nilukot na papel sa harap.',
-      'Sa hudyat, sabay nilang aayusin at papatagin ang bawat papel — parang iisang tao.',
-      'Ang unang pares na mapatag lahat ng papel, panalo.'
+      'Mag-pair up. Ang isa, right hand lang ang gamit; ang isa, left hand lang.',
+      'Bawat pair may tambak ng nilukot na papel sa harap.',
+      'Pag sinabing “Go!”, sabay nilang aayusin at papatagin ang bawat papel — parang iisang tao.',
+      'Unang pair na mapatag lahat ng papel, panalo.'
     ],
-    tips: ['Mas mahirap at mas nakakatawa: pagsuotin sila ng makapal na garden gloves.'],
+    tips: ['Mas mahirap at mas nakakatawa: pasuotin sila ng makapal na garden gloves.'],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
   {
@@ -575,12 +575,12 @@ window.BIDA_GAMES = [
     players: '2–6 sabay', time: '3–5 min', age: '8+', place: 'Kahit saan na may sabitan', energy: 2, anim: 'donut',
     materials: ['Donut bawat player', 'Tali o yarn', 'Bar o patpat sa itaas (hal. walis na nakapatong sa dalawang upuan)'],
     steps: [
-      'Itali ang donut sa dulo ng tali, isabit sa bar sa itaas, at itali ang kabilang dulo sa hinlalaki ng paa.',
+      'Itali ang donut sa dulo ng tali, isabit sa bar sa taas, tapos itali ang kabilang dulo sa hinlalaki ng paa.',
       'Iangat ang paa para bumaba ang donut papunta sa bibig.',
-      'Pag ibinaba ang paa, aangat ulit ang donut — kaya kailangang balanse!',
-      'Bawal ang kamay. Ang unang makaubos, panalo — o mag-timer at bilangin kung sino ang pinakamaraming nakagat.'
+      'Pag ibinaba ang paa, aangat ulit ang donut — kaya balance lang!',
+      'Bawal ang kamay. Unang makaubos, panalo — o mag-timer at bilangin kung sino ang pinakamaraming kagat.'
     ],
-    tips: ['Pwedeng pandesal o mamon ang gamitin.'],
+    tips: ['Pwede ring pandesal o mamon.'],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
   {
@@ -590,10 +590,10 @@ window.BIDA_GAMES = [
     steps: [
       'Ilagay ang bote sa likod ng player; nasa harap niya ang salamin o selfie camera.',
       'Hawak ang straw, ipapasok niya ito sa bote gamit lang ang nakikita sa salamin — bawal lumingon!',
-      'Pag pumasok, ang susunod na kakampi naman. Pag nahulog ang straw, tapos ang turn niya.',
-      'Pagkatapos ng 3–5 minuto, ang team na pinakamaraming naipasok, panalo.'
+      'Pag pumasok, next na kakampi naman. Pag nahulog ang straw, tapos ang turn niya.',
+      'After 3–5 minutes, ang team na pinakamaraming naipasok, panalo.'
     ],
-    tips: ['Mas mahirap: ilayo ang bote o pahabain ang straw.', 'Pwedeng i-coach ng kakampi (kung payag ang host).', 'Bawal lumingon — ang lumingon, sayang ang turn.'],
+    tips: ['Mas mahirap: ilayo ang bote o habaan ang straw.', 'Pwedeng i-coach ng kakampi (kung okay sa host).', 'Bawal lumingon — ang lumingon, sayang ang turn.'],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
   {
@@ -601,11 +601,11 @@ window.BIDA_GAMES = [
     players: '2+', time: '3–5 min', age: 'Lahat', place: 'Indoor (may pader)', energy: 2, anim: 'stick',
     materials: ['Maraming lobo', 'Makinis na pader o pinto'],
     steps: [
-      'Hipan ang mga lobo at hatiin sa mga players.',
+      'Hipan ang mga lobo at hatiin sa players.',
       'Ikiskis ang lobo sa buhok o damit para magka-static.',
-      'Idikit ang mga lobo sa pader sa loob ng takdang oras (hal. 1 minuto).',
-      'Pagkatapos ng oras, bilangin ang mga lobong nakadikit pa — bawal hawakan.',
-      'Pinakamarami, panalo. Pag tabla, isang mabilisang sudden-death round.'
+      'Idikit ang mga lobo sa pader within the time limit (hal. 1 minute).',
+      'Pag tapos ang oras, bilangin ang mga lobong nakadikit pa — bawal hawakan.',
+      'Pinakamarami, panalo. Pag tabla, mabilisang sudden-death round.'
     ],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
@@ -614,10 +614,10 @@ window.BIDA_GAMES = [
     players: '2–4 teams', time: '5–10 min', age: '5+', place: 'May pader o mesa', energy: 3, anim: 'numbers',
     materials: ['Malaking poster na puno ng numero', 'Marker na iba-iba ang kulay (isa bawat team)', 'Isang taga-tawag'],
     steps: [
-      'Bawat team may sariling kulay ng marker. Ilagay ang poster kung saan maaabot ng lahat.',
-      'Tatawag ang host ng isang numero.',
-      'Tig-isang player mula sa bawat team ang tatakbo at bibilugan ang numero gamit ang kulay nila.',
-      'Ang unang tamang bilog ang may puntos. Bumalik sa team at ulitin.',
+      'Bawat team may sariling kulay ng marker. Ilagay ang poster kung saan abot ng lahat.',
+      'Tatawag ang host ng isang number.',
+      'Tig-isang player bawat team ang tatakbo at bibilugan ang number gamit ang kulay nila.',
+      'Unang tamang bilog, may point. Balik sa team, tapos ulit.',
       'Sa dulo, bilangin ang bilog ng bawat kulay — pinakamarami, panalo.'
     ],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
@@ -627,12 +627,12 @@ window.BIDA_GAMES = [
     players: '2+ teams', time: '5–10 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'relay',
     materials: ['Dalawang hawakan ng walis o PVC pipe bawat team (higanteng chopsticks)', 'Isang bola bawat team', 'Marker ng start at balikan'],
     steps: [
-      'Bawat team, pumila sa start. Ang una ay may hawak na dalawang "chopsticks".',
-      'Iipitin ng chopsticks ang bola at dadalhin ito hanggang sa balikan at pabalik.',
+      'Pila ang bawat team sa start. Ang una may hawak na 2 “chopsticks”.',
+      'Iipitin ng chopsticks ang bola at dadalhin hanggang sa balikan, tapos pabalik.',
       'Pag nahulog ang bola, damputin ulit gamit lang ang chopsticks — bawal ang kamay.',
-      'Ipasa ang chopsticks at bola sa susunod. Ang unang team na matapos, panalo.'
+      'Ipasa ang chopsticks at bola sa kasunod. Unang team na matapos, panalo.'
     ],
-    tips: ['Pwedeng pares: tig-isang chopstick ang bawat isa.'],
+    tips: ['Pwedeng by pair: tig-isang chopstick bawat isa.'],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
   {
@@ -640,12 +640,12 @@ window.BIDA_GAMES = [
     players: '2 teams ng 3+', time: '5–10 min', age: 'Lahat', place: 'Maluwag na lugar', energy: 3, anim: 'toss',
     materials: ['3x3 grid sa sahig (tape o 9 na paper plates)', '3 piraso bawat team (hal. pulang tsinelas vs asul na tsinelas)'],
     steps: [
-      'Pumila ang dalawang team sa malayo, magkatapat sa grid.',
-      'Sa hudyat, tatakbo ang una sa bawat team at maglalagay ng isang piraso sa kahit anong kahon.',
-      'Babalik at magta-tag sa susunod. Pag naubos na ang 3 piraso, ang susunod ay maglilipat ng isa sa sariling piraso.',
-      'Ang unang team na makatatlo nang diretso (pahiga, patayo o pahilis), panalo.'
+      'Pila ang 2 teams sa malayo, magkatapat sa grid.',
+      'Pag sinabing “Go!”, takbo ang una sa bawat team at maglalagay ng isang piece sa kahit anong box.',
+      'Balik at i-tag ang kasunod. Pag naubos na ang 3 pieces, ang kasunod ay maglilipat ng isa sa sariling piece.',
+      'Unang team na maka-3 in a row (pahiga, patayo o pahilis), panalo.'
     ],
-    tips: ['Ito ang karaniwang bersyon ng "three in a row" relay — baguhin kung iba ang nakita mo sa video.'],
+    tips: ['Ito ang usual version ng “three in a row” relay — i-adjust kung iba ang napanood mo sa video.'],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
   {
@@ -653,11 +653,11 @@ window.BIDA_GAMES = [
     players: '5+', time: '5–10 min', age: 'Lahat', place: 'Kahit saan', energy: 3, anim: 'chairs',
     materials: ['Isang mesa', 'Maliliit na bagay (isang kulang sa bilang ng players)', 'Music'],
     steps: [
-      'Ilagay ang mga bagay sa mesa. Iikot ang players sa mesa habang may music.',
-      'Habang naglalakad, magbibigay ng utos ang host: "Bilisan!", "Pa-side step!", "Paatras!".',
-      'Pag tumigil ang music, kukuha ang bawat isa ng isang bagay sa mesa.',
-      'Ang walang nakuha o hindi sumunod sa utos, out. Bawasan ng isang bagay.',
-      'Ulitin hanggang isa na lang — siya ang panalo.'
+      'Ilagay ang mga gamit sa mesa. Iikot ang players sa mesa habang may music.',
+      'Habang naglalakad, may utos ang host: “Bilisan!”, “Side step!”, “Paatras!”.',
+      'Pag huminto ang music, kukuha bawat isa ng isang gamit sa mesa.',
+      'Ang walang nakuha o hindi sumunod sa utos, out. Bawas ng isang gamit.',
+      'Ulit hanggang isa na lang — siya ang panalo.'
     ],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
@@ -666,12 +666,12 @@ window.BIDA_GAMES = [
     players: '4+', time: '5–10 min', age: 'Lahat', place: 'Kahit saan', energy: 2, anim: 'charades',
     materials: ['Wala! (opsyonal: listahan ng mga sikat na tao o kamag-anak)'],
     steps: [
-      'Bilog ang lahat.',
-      'Ang isang player ay maglalarawan ng tao — kamag-anak, kaibigan o artista — nang hindi sinasabi ang pangalan.',
-      'Unahan ang iba sa pagsigaw ng tamang pangalan.',
-      'Ang pinakamabilis, may puntos. Ang mabagal, may maliit na parusa (hal. sumayaw ng 5 segundo).'
+      'Bilog lahat.',
+      'Ide-describe ng isang player ang isang tao — kamag-anak, friend o artista — nang hindi sinasabi ang pangalan.',
+      'Unahan sa pagsigaw ng tamang pangalan.',
+      'Pinakamabilis, may point. Ang mabagal, may maliit na parusa (hal. sayaw ng 5 seconds).'
     ],
-    tips: ['Perfect sa reunion: ilarawan ang mga tito at tita!'],
+    tips: ['Perfect sa reunion: i-describe ang mga tito at tita!'],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
   {
@@ -679,12 +679,12 @@ window.BIDA_GAMES = [
     players: '2 (one-on-one)', time: '3–5 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'duel',
     materials: ['Dalawang wig o kahit anong maisusuot sa ulo (hal. makukulay na plastic bag)'],
     steps: [
-      'Magkaharap ang dalawang player, may suot na "wig" sa ulo.',
-      'Sa hudyat, susubukan nilang agawin ang wig ng kalaban.',
-      'Protektahan ang sarili mong wig — bawal ang hawakan nang matagal o manulak.',
-      'Ang unang makaagaw, panalo. Palitan agad ng bagong challenger.'
+      'Magkaharap ang 2 players, may suot na “wig” sa ulo.',
+      'Pag sinabing “Go!”, aagawin nila ang wig ng kalaban.',
+      'Bantayan ang sarili mong wig — bawal humawak nang matagal o manulak.',
+      'Unang makaagaw, panalo. Palit agad ng bagong challenger.'
     ],
-    tips: ['Gumawa ng bracket para may champion sa dulo.'],
+    tips: ['Gawa ng bracket para may champion sa dulo.'],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
   {
@@ -694,8 +694,8 @@ window.BIDA_GAMES = [
     steps: [
       'Bawat player: isang noodle na may cup sa dulo, at isang noodle na pang-hampas.',
       'Hawakan nang patayo ang noodle na may cup — bawal hawakan ang cup.',
-      'Gamitin ang kabilang noodle para patumbahin ang cup ng iba, habang binabantayan ang sa iyo.',
-      'Pag nahulog ang cup mo, out ka. Ang huling may cup, panalo.'
+      'Gamitin ang kabilang noodle para patumbahin ang cup ng iba, habang binabantayan ang sa’yo.',
+      'Pag nahulog ang cup mo, out ka. Huling may cup, panalo.'
     ],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
@@ -704,13 +704,13 @@ window.BIDA_GAMES = [
     players: '6+', time: '5–10 min', age: '8+', place: 'Maluwag na lugar', energy: 3, anim: 'pass',
     materials: ['Malambot na bola', 'Maliliit na bagay na hawak ng mga nasa bilog (hal. panyo, tsinelas)'],
     steps: [
-      'Bilog ang lahat; isang player sa gitna.',
-      'Ihahagis ng mga nasa bilog ang bola papunta sa nasa gitna — iiwas siya.',
-      'Habang umiiwas, kukuha ang nasa gitna ng mga bagay na hawak ng mga nasa bilog.',
-      'Pag natamaan, tapos ang turn niya. Bilangin ang nakuha niyang bagay.',
-      'Paikutin hanggang lahat nakapasok sa gitna — pinakamaraming nakuha, panalo.'
+      'Bilog lahat; isang player sa gitna.',
+      'Ihahagis ng mga nasa bilog ang bola sa nasa gitna — iiwas siya.',
+      'Habang umiiwas, kukunin ng nasa gitna ang mga gamit na hawak ng mga nasa bilog.',
+      'Pag natamaan, tapos ang turn niya. Bilangin ang nakuha niya.',
+      'Ikot hanggang lahat nakapasok sa gitna — pinakamaraming nakuha, panalo.'
     ],
-    tips: ['Gumamit ng malambot na bola lang, at bawal tumama sa ulo.'],
+    tips: ['Malambot na bola lang, at bawal tumama sa ulo.'],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   },
   {
@@ -718,11 +718,11 @@ window.BIDA_GAMES = [
     players: '2 teams', time: '2–5 min', age: 'Lahat', place: 'Maluwag na sahig', energy: 3, anim: 'flip',
     materials: ['Maraming plastic cups (20+), nakakalat sa sahig — kalahati nakataob, kalahati nakatihaya'],
     steps: [
-      'Hatiin sa dalawang team: Team UP (itatayo ang cups) at Team DOWN (itataob ang cups).',
+      'Hatiin sa 2 teams: Team UP (itatayo ang cups) at Team DOWN (itataob ang cups).',
       'Ikalat ang mga cup sa sahig.',
-      'Sa hudyat: Team UP, itayo ang mga cup; Team DOWN, itaob — kahit ang kakabaligtad lang ng kalaban.',
-      'Pag tapos ang oras (hal. 1 minuto), bilangin: mas maraming cup na nakatayo o nakataob?',
-      'Ang team na may mas maraming cup sa posisyon nila, panalo.'
+      'Pag sinabing “Go!”: Team UP, itayo ang mga cup; Team DOWN, itaob — kahit yung kakabaligtad lang ng kalaban.',
+      'Pag tapos ang oras (hal. 1 minute), bilangin: mas marami ba ang nakatayo o nakataob?',
+      'Ang team na may mas maraming cup sa side nila, panalo.'
     ],
     credit: { by: 'Dig the Games', url: 'https://www.tiktok.com/@digthegames' }
   }

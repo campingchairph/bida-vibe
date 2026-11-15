@@ -89,16 +89,16 @@
     let mo = (() => { try { const m = localStorage.getItem('bv_mouth'); return window.vkMouthOk(m) ? m : 'lips'; } catch (e) { return 'lips'; } })();
     const wrap = document.createElement('div');
     wrap.className = 'cam-wrap';
-    wrap.innerHTML = `<div class="cam" role="dialog" aria-modal="true" aria-label="Kunan ng picture">
+    wrap.innerHTML = `<div class="cam" role="dialog" aria-modal="true" aria-label="Take a photo">
       <div class="cam-view"><video playsinline muted autoplay></video><img alt="" hidden>
         <svg class="cam-guide" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <ellipse cx="50" cy="46" rx="29" ry="37" fill="none" stroke="#fff" stroke-width="1.2" stroke-dasharray="3 2.5"/>
         </svg>
         <span class="cam-mouth" aria-hidden="true"><svg viewBox="0 0 60 36" overflow="visible">${mouthSvg(mo)}</svg></span>
-        <span class="cam-tip">Ilagay ang mukha sa bilog at ang bibig mo sa bibig na nasa screen</span>
-        <p class="cam-msg">Binubuksan ang camera…</p></div>
+        <span class="cam-tip">Mukha sa loob ng bilog, bibig mo tapat sa bibig sa screen</span>
+        <p class="cam-msg">Opening camera…</p></div>
       <div class="cam-mouths" role="radiogroup" aria-label="Itsura ng bibig">${window.VK_MOUTHS.map(m => `<button type="button" role="radio" data-mo="${m.id}" aria-checked="${m.id === mo}" class="${m.id === mo ? 'on' : ''}"><svg viewBox="0 0 60 36" overflow="visible">${m.svg}</svg><small>${m.name}</small></button>`).join('')}</div>
-      <div class="cam-btns"><button type="button" class="btn btn--ghost" data-a="no">Kanselahin</button><button type="button" class="btn btn--chili" data-a="snap" disabled>Kunan</button></div></div>`;
+      <div class="cam-btns"><button type="button" class="btn btn--ghost" data-a="no">Cancel</button><button type="button" class="btn btn--chili" data-a="snap" disabled>Snap</button></div></div>`;
     document.body.appendChild(wrap);
     const video = wrap.querySelector('video'), img = wrap.querySelector('img'), msg = wrap.querySelector('.cam-msg'), btns = wrap.querySelector('.cam-btns');
     const guide = wrap.querySelector('.cam-guide'), tip = wrap.querySelector('.cam-tip'), mouth = wrap.querySelector('.cam-mouth');
@@ -107,7 +107,7 @@
     const close = () => { stop(); wrap.remove(); };
     const live = () => {
       shot = ''; img.hidden = true; video.hidden = false; guide.style.display = ''; tip.hidden = false; mouth.classList.remove('talk');
-      btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="no">Kanselahin</button><button type="button" class="btn btn--chili" data-a="snap">Kunan</button>';
+      btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="no">Cancel</button><button type="button" class="btn btn--chili" data-a="snap">Snap</button>';
     };
     wrap.addEventListener('click', e => {
       const m = e.target.closest('[data-mo]');
@@ -126,16 +126,16 @@
         x.drawImage(video, (w - side) / 2, (h - side) / 2, side, side, 0, 0, 160, 160);
         let q = .75; shot = c.toDataURL('image/jpeg', q);
         while (shot.length > PH_MAX && q > .3) { q -= .1; shot = c.toDataURL('image/jpeg', q); }
-        if (!window.vkPhotoOk(shot)) { msg.hidden = false; msg.textContent = 'Hindi nakuha ang picture. Ulitin.'; return; }
+        if (!window.vkPhotoOk(shot)) { msg.hidden = false; msg.textContent = 'Hindi nakuha ang picture. Try ulit.'; return; }
         img.src = shot; img.hidden = false; video.hidden = true; guide.style.display = 'none'; tip.hidden = true;
         mouth.classList.add('talk');             // preview: the picked mouth talking on the photo
-        btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="again">Ulitin</button><button type="button" class="btn btn--chili" data-a="use">Gamitin</button>';
+        btns.innerHTML = '<button type="button" class="btn btn--ghost" data-a="again">Retake</button><button type="button" class="btn btn--chili" data-a="use">Use photo</button>';
       } else if (a.dataset.a === 'again') live();
       else if (a.dataset.a === 'use') { const p = shot; close(); onPhoto(p, mo); }
     });
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { msg.textContent = 'Walang camera sa browser na ito. Pumili na lang ng avatar.'; return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { msg.textContent = "Walang camera sa browser na 'to. Avatar na lang muna."; return; }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false })
       .then(s => { if (!wrap.isConnected) { s.getTracks().forEach(t => t.stop()); return; } stream = s; video.srcObject = s; msg.hidden = true; live(); })
-      .catch(e => { msg.textContent = e && e.name === 'NotAllowedError' ? 'Hindi pinayagan ang camera. Payagan sa settings ng browser, o pumili na lang ng avatar.' : 'Hindi mabuksan ang camera. Pumili na lang ng avatar.'; });
+      .catch(e => { msg.textContent = e && e.name === 'NotAllowedError' ? 'Naka-block ang camera. I-allow sa browser settings, o avatar na lang muna.' : 'Hindi mabuksan ang camera. Pili na lang ng avatar.'; });
   };
 })();
