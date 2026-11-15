@@ -496,6 +496,8 @@ body.in-live .pl-panel { bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)
 .vk-tool--ic { width: 44px; padding: 0; justify-content: center; }
 .vk-tool.on { background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
 .vk-scoretg { margin: 0 0 0 auto; }
+.ml-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin: 8px 0 10px; }
 .adm-chk { flex: none; width: 18px; height: 18px; accent-color: var(--magenta); margin: 0; }
 .adm-sel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; padding: 8px 10px; border-radius: 12px; background: var(--magenta-soft); border: 2px solid var(--ink); }
 .adm-sel b { font: 800 14px/1 var(--f); margin-right: auto; }

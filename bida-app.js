@@ -1880,11 +1880,15 @@ async function playYouTube(i) {
   if (BIDA.tab === 'music' && !$('#app').hidden) renderMusic();
 }
 // A single video ended (or a playlist finished): continue with the next saved link the user can use
+// Category of a saved song: the library's current one (so the admin can re-sort), else what it had when added
+function ytCat(l) { const s = l && l.v && ML.lib.find(x => x.y === l.v); return (s && s.g) || (l && l.g) || ''; }
+const plCat = () => typeof BIDA.music.plCat === 'string' ? BIDA.music.plCat : '';
+const plMatch = i => !plCat() || ytCat(ytLinks()[i]) === plCat();
 function ytAdvance(dir = 1) {
   const n = ytLinks().length; if (n < 2) return false;
   for (let s = 1; s < n; s++) {
     const j = (BIDA.music.ytIdx + dir * s + n) % n;
-    if (ytCanUse(j)) { playYouTube(j); return true; }
+    if (ytCanUse(j) && plMatch(j)) { playYouTube(j); return true; }       // stays inside the chosen category
   }
   return false;
 }
@@ -1892,15 +1896,30 @@ function ytListHTML() {
   const links = ytLinks();
   if (!links.length) return '<p class="muted">Wala pang songs. Pili ka sa baba.</p>';
   return `<ul class="yt-list">${links.map((l, i) => {
+    if (!plMatch(i)) return '';
     const now = i === BIDA.music.ytIdx && M.kind === 'youtube', ok = ytCanUse(i);
     return `<li class="${now ? 'now' : ''} ${ok ? '' : 'locked'}">
       <button class="yt-play" onclick="playYouTube(${i})" aria-label="I-play ${esc(ytLabel(l, i))}">
         ${l.thumb ? `<img src="${esc(l.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="yt-ph">${ic('music')}</span>`}
-        <span class="yt-t"><b>${esc(ytLabel(l, i))}</b><small>${l.list ? 'Playlist' : 'Video'}${now ? (M.playing ? ' · tumutugtog' : ' · naka-pause') : ''}${ok ? '' : ' · Premium'}</small></span>
+        <span class="yt-t"><b>${esc(ytLabel(l, i))}</b><small>${l.list ? 'Playlist' : (ytCat(l) || 'Song')}${now ? (M.playing ? ' · tumutugtog' : ' · naka-pause') : ''}${ok ? '' : ' · Premium'}</small></span>
         ${ok ? ic(now && M.playing ? 'pause' : 'play') : ic('lock')}
       </button>
       <button class="icon-btn icon-btn--plain yt-del" onclick="delYouTube(${i})" aria-label="Tanggalin">${ic('trash')}</button></li>`;
   }).join('')}</ul>`;
+}
+// Category chips above "Playlist mo": tap one to play only that category, or "Lahat" for every song
+function plBarHTML() {
+  const links = ytLinks(), cats = [...new Set(links.map(ytCat).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (plCat() && !cats.includes(plCat())) BIDA.music.plCat = '';
+  plBarHTML.cats = cats;
+  if (!links.length) return '';
+  return `<div class="pl-bar">${cats.length ? `<div class="ml-cats" role="group" aria-label="Category">${['', ...cats].map(c => `<button class="chip ${plCat() === c ? 'on' : ''}" aria-pressed="${plCat() === c}" onclick="plSetCat(${c ? cats.indexOf(c) : -1})">${c ? esc(c) : 'Lahat'}</button>`).join('')}</div>` : ''}
+    <button class="btn btn--chili btn--sm" onclick="plPlay()">${ic('play')}Play ${plCat() ? esc(plCat()) : 'lahat'}</button></div>`;
+}
+function plSetCat(i) { BIDA.music.plCat = i >= 0 ? (plBarHTML.cats || [])[i] || '' : ''; saveState(); renderMusic(); renderPlaylist(); }
+function plPlay() {
+  const i = ytLinks().findIndex((l, j) => ytCanUse(j) && plMatch(j));
+  if (i >= 0) playYouTube(i); else toast('Walang song na pwedeng i-play dito');
 }
 /* Floating playlist panel (shows when 2+ links are saved) */
 function renderPlaylist() {
@@ -2321,8 +2340,10 @@ function renderMusic() {
     <div class="card stack">
       <div ${m.src === 'youtube' ? '' : 'hidden'}>
         <div class="yt-head"><span class="field-label">Playlist mo</span></div>
+        ${plBarHTML()}
         ${ytListHTML()}
         <span class="field-label" style="display:block;margin-top:18px">Pili ng songs</span>
+        <div id="ml-catbar">${mlCatBarHTML()}</div>
         <div class="vk-find" style="margin-top:8px"><input class="input" id="ml-q" placeholder="Search song o artist" value="${esc(ML.q)}" oninput="mlFind(this.value)" autocomplete="off"></div>
         <div id="ml-res" style="margin-top:6px">${mlResultsHTML()}</div>
         ${braveTipHTML()}
@@ -2359,7 +2380,7 @@ function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
    music/library.json (up to 1,000 songs). Users pick songs into "Playlist mo"; without Premium
    they can keep 5 (BIDA_CONFIG.freeYtLinks), then Premium. No pasting of own YouTube links. ---- */
 const ML_PATH = 'music/library.json', ML_MAX = 1000, ML_PER = 60;
-const ML = { lib: [], loaded: false, q: '', page: 0, admin: { busy: false, msg: '', q: '', sel: new Set() } };
+const ML = { lib: [], loaded: false, q: '', cat: '', page: 0, admin: { busy: false, msg: '', q: '', sel: new Set() } };
 async function mlLoad() {
   try {
     const r = await fetch(ML_PATH + '?t=' + Math.floor(Date.now() / 6e5), { cache: 'no-cache' });
@@ -2373,12 +2394,12 @@ function mlAdd(c) {
   const s = ML.lib.find(x => x.c === c); if (!s) return;
   const i = mlInList(s.y); if (i >= 0) { playYouTube(i); return; }          // already in the playlist: just play it
   if (!BIDA.premium && ytLinks().length >= BIDA_CONFIG.freeYtLinks) { openPremium('Music library'); return; }
-  ytLinks().push({ v: s.y, list: '', title: (s.a ? s.a + ' – ' : '') + s.t, thumb: `https://i.ytimg.com/vi/${s.y}/mqdefault.jpg` });
+  ytLinks().push({ v: s.y, list: '', g: s.g || '', title: (s.a ? s.a + ' – ' : '') + s.t, thumb: `https://i.ytimg.com/vi/${s.y}/mqdefault.jpg` });
   saveState(); renderMusic(); renderPlaylist(); playYouTube(ytLinks().length - 1);
 }
 function mlSearch() {
   const q = vkNorm(ML.q);
-  return ML.lib.filter(s => !q || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q)).sort((a, b) => vkCmp(vkNorm(a.t), vkNorm(b.t)) || a.c - b.c);
+  return ML.lib.filter(s => (!ML.cat || s.g === ML.cat) && (!q || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q))).sort((a, b) => vkCmp(vkNorm(a.t), vkNorm(b.t)) || a.c - b.c);
 }
 function mlResultsHTML() {
   if (!ML.loaded) return '<p class="muted">Loading ang music library…</p>';
@@ -2387,11 +2408,26 @@ function mlResultsHTML() {
   ML.page = Math.min(ML.page, pages - 1);
   const page = res.slice(ML.page * ML_PER, ML.page * ML_PER + ML_PER);
   if (!page.length) return '<p class="muted">Walang lumabas.</p>';
-  return `<ul class="vk-list">${page.map(s => { const on = mlInList(s.y) >= 0; return `<li class="${on ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div>
+  return `<ul class="vk-list">${page.map(s => { const on = mlInList(s.y) >= 0; return `<li class="${on ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.g && !ML.cat ? ' · ' + esc(s.g) : ''}</small></div>
     <button class="vk-add ${on ? 'on' : ''}" onclick="mlAdd(${s.c})" aria-label="${on ? 'Play' : 'Add'}: ${esc(s.t)}" title="${on ? 'Nasa playlist mo na · Play' : 'Add sa playlist'}">${ic(on ? 'play' : 'plus')}</button></li>`; }).join('')}</ul>
     ${pages > 1 ? `<div class="admin-up" style="margin-top:10px"><button class="btn btn--ghost btn--sm" ${ML.page ? '' : 'disabled'} onclick="mlPage(-1)">Back</button><span class="muted">${ML.page + 1} / ${pages}</span><button class="btn btn--ghost btn--sm" ${ML.page + 1 < pages ? '' : 'disabled'} onclick="mlPage(1)">Next</button></div>` : ''}`;
 }
-function mlFind(q) { ML.q = q; ML.page = 0; const b = $('#ml-res'); if (b) b.innerHTML = mlResultsHTML(); }
+function mlFind(q) {
+  ML.q = q; ML.page = 0;
+  if (q && ML.cat) { ML.cat = ''; const c = $('#ml-catbar'); if (c) c.innerHTML = mlCatBarHTML(); }   // typing turns the category off
+  const b = $('#ml-res'); if (b) b.innerHTML = mlResultsHTML();
+}
+const mlCats = () => [...new Set(ML.lib.map(s => s.g).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+function mlCatBarHTML() {
+  const cats = mlCats(); ML.catList = cats;
+  if (!cats.length) return '';
+  return `<div class="ml-cats" role="group" aria-label="Category" style="margin-top:8px">${['', ...cats].map((c, i) => `<button class="chip ${ML.cat === c ? 'on' : ''}" aria-pressed="${ML.cat === c}" onclick="mlSetCat(${i - 1})">${c ? esc(c) : 'Lahat'}</button>`).join('')}</div>`;
+}
+function mlSetCat(i) {
+  ML.cat = i >= 0 ? (ML.catList[i] || '') : ''; ML.q = ''; ML.page = 0;          // picking a category clears the search
+  const q = $('#ml-q'); if (q) q.value = '';
+  $('#ml-catbar').innerHTML = mlCatBarHTML(); $('#ml-res').innerHTML = mlResultsHTML();
+}
 function mlPage(d) { ML.page = Math.max(0, ML.page + d); const b = $('#ml-res'); if (b) { b.innerHTML = mlResultsHTML(); b.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' }); } }
 
 /* ---- Admin, both libraries: tick songs and delete them together, or delete every song of one artist ---- */
@@ -2406,6 +2442,7 @@ function admSelBar(w, page) {
   return `<div class="adm-sel"><b>${sel.size} selected</b>
     <button class="btn btn--ghost btn--sm" onclick="admSelPage('${w}')">Select lahat ng nakikita</button>
     <button class="btn btn--ghost btn--sm" onclick="admSelClear('${w}')">Clear</button>
+    ${w === 'ml' ? `<button class="btn btn--ink btn--sm" ${A.a().busy ? 'disabled' : ''} onclick="mlSetCatSel()">Set category</button>` : ''}
     <button class="btn btn--chili btn--sm" ${A.a().busy ? 'disabled' : ''} onclick="admDelSel('${w}')">${ic('trash')}Delete ${sel.size}</button></div>`;
 }
 function admSel(w, c, on) { const s = ADM[w].a().sel; if (on) s.add(c); else s.delete(c); ADM[w].render(); }
@@ -2452,9 +2489,11 @@ function mlAdminHTML() {
   const list = ML.lib.filter(s => !q || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q)), shown = list.slice(0, 120);
   return `<div class="card admin-card" style="margin-top:20px">
     <div class="adm-head"><h3>${ic('lock')}Admin: Music library</h3><span class="adm-count ${full ? 'full' : ''}">${ML.lib.length} / ${ML_MAX}</span></div>
-    <p class="muted">Makikita 'to ng lahat ng users. Import ng YouTube playlist: hanggang 200 songs bawat import, ulitin lang para sa iba pang playlist.</p>
+    <p class="muted">Makikita 'to ng lahat ng users. Bawat song o playlist na idadagdag, pipili ka ng category (o gagawa ng bago). Playlist: hanggang 200 songs bawat import.</p>
+    ${mlCats().length ? `<p class="muted" style="margin-top:4px">Categories: ${mlCats().map(c => `<b>${esc(c)}</b> (${ML.lib.filter(s => s.g === c).length})`).join(' · ')}</p>` : ''}
     <div class="admin-up">
-      <button class="btn btn--ink btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="mlAdminImport()">${ic('upload')}Import playlist</button>
+      <button class="btn btn--ink btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="mlAdminAdd()">${ic('plus')}Add song link</button>
+      <button class="btn btn--ghost btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="mlAdminImport()">${ic('upload')}Import playlist</button>
       ${ML.lib.length ? `<button class="btn btn--ghost btn--sm" ${dis} onclick="admByArtist('ml')">${ic('people')}Delete by artist</button>` : ''}
       ${dups.size ? `<button class="btn btn--chili btn--sm" ${dis} onclick="mlAdminDedupe()">${ic('trash')}Remove duplicates (${vkDupCount(ML.lib)})</button>` : ''}
     </div>
@@ -2462,7 +2501,7 @@ function mlAdminHTML() {
     ${ML.lib.length ? `<input class="input adm-find" id="ml-adm-q" style="margin-top:12px" placeholder="Search title o artist" value="${esc(a.q)}" oninput="mlAdminFind(this.value)">
     ${admSelBar('ml', shown)}
     <ul class="adm-list">${shown.map(s => `<li class="${dups.has(s.c) ? 'dup' : ''}"><input type="checkbox" class="adm-chk" ${a.sel.has(s.c) ? 'checked' : ''} ${dis} onchange="admSel('ml',${s.c},this.checked)" aria-label="Piliin ang ${s.c}"><span class="adm-c">${s.c}</span>
-      <span class="adm-t"><b>${esc(s.t)}</b><small>${esc(s.a) || '—'}</small></span>
+      <span class="adm-t"><b>${esc(s.t)}</b><small>${esc(s.a) || '—'}${s.g ? ' · ' + esc(s.g) : ''}</small></span>
       <button class="adm-ic adm-del" onclick="mlAdminDelete(${s.c})" aria-label="Burahin ang ${s.c}" ${dis}>${ic('trash')}</button></li>`).join('')}</ul>
     ${list.length > shown.length ? `<p class="muted" style="margin-top:8px">+${list.length - shown.length} pa. Gamitin ang search.</p>` : ''}` : ''}
   </div>`;
@@ -2476,11 +2515,60 @@ async function mlAdminWork(fn) {
 const mlSave = (mutate, message, opt = {}) => vkSaveLib(mutate, message, { ...opt, path: ML_PATH, max: ML_MAX }).then(out => { ML.lib = out; ML.loaded = true; });
 // Music titles: drop the "(Official Music Video)" / "[Lyrics]" bits
 const mlCleanTitle = t => String(t || '').replace(/\s*[\(\[][^\)\]]*\b(official|video|audio|lyrics?|visuali[sz]er|mv|hd|4k|remaster(ed)?)\b[^\)\]]*[\)\]]/gi, '').replace(/\s{2,}/g, ' ').trim();
-async function mlAdminImport() {
+// Pick a category for new songs: tap an existing one or type a new one. Resolves null if cancelled.
+const mlCleanCat = v => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+function mlPickCat(title) {
+  return new Promise(res => {
+    ML.catRes = res; const cats = mlCats(); ML.pickList = cats;
+    openSheet(`<div class="sheet-head"><div><span class="kicker">Music library</span><h3>${esc(title)}</h3></div><button class="icon-btn" onclick="mlCatDone(null)" aria-label="Close">${ic('x')}</button></div>
+      ${cats.length ? `<span class="field-label">Pili ng category</span><div class="ml-cats" style="margin-top:8px">${cats.map((c, i) => `<button class="chip" onclick="mlCatDone(ML_PICK(${i}))">${esc(c)}</button>`).join('')}</div>` : ''}
+      <div class="field" style="margin-top:14px"><label for="ml-newcat">${cats.length ? 'O gumawa ng bagong category' : 'Gumawa ng category'}</label>
+        <div class="yt-add"><input class="input" id="ml-newcat" maxlength="20" placeholder="hal. OPM, Love songs, Party" autocomplete="off" onkeydown="if(event.key==='Enter')mlCatDone(this.value)">
+        <button class="btn btn--chili" onclick="mlCatDone($('#ml-newcat').value)">Gamitin</button></div></div>`);
+    setTimeout(() => { if (!cats.length) $('#ml-newcat')?.focus(); }, 60);
+  });
+}
+function ML_PICK(i) { return (ML.pickList || [])[i] || ''; }
+function mlCatDone(v) {
+  const r = ML.catRes; if (v !== null && !mlCleanCat(v)) { toast('Lagyan ng pangalan ang category'); return; }
+  ML.catRes = null; closeSheet(); if (r) r(v === null ? null : mlCleanCat(v));
+}
+async function mlAdminAdd() {
+  if (ML.lib.length >= ML_MAX) { toast('Puno na ang music library (1,000 songs).'); return; }
+  const link = await askText('I-paste ang YouTube link ng song', '', 600); if (!link) return;
+  const p = parseYouTube(link);
+  if (p && p.list && !p.id) { mlAdminImport(link); return; }            // it's a playlist: import it instead
+  if (!p || !p.id) { toast('Hindi YouTube link yan'); return; }
+  const same = ML.lib.find(s => s.y === p.id); if (same) { toast(`Nasa library na yan: ${same.t}`); return; }
+  let info; try { info = await vkOembed(p.id); } catch (e) { toast(e.message === 'no_embed' ? "Ayaw i-play ng YouTube ang video na 'to sa ibang site. Iba na lang." : 'Hindi mahanap ang video'); return; }
+  const pt = vkParseTitle(mlCleanTitle(info.title));
+  const cand = { y: p.id, t: mlCleanTitle(pt.t) || pt.t, a: pt.a || String(info.author_name || '').replace(/\s*-\s*Topic$/i, '').slice(0, 60), g: '' };
+  const twin = vkFindDup(ML.lib, cand);
+  if (twin && !await askConfirm(`Parang meron na nito: ${twin.t}${twin.a ? ' – ' + twin.a : ''}. Idagdag pa rin?`, 'Idagdag pa rin')) return;
+  const g = await mlPickCat(`Category ng "${cand.t}"`); if (g === null) return;
+  cand.g = g;
+  mlAdminWork(async () => {
+    await mlSave(songs => {
+      if (songs.some(s => s.y === p.id)) throw new Error('Nasa library na ang song na yan.');
+      songs.push({ c: vkNextCode(songs), ...cand }); return songs;
+    }, `Music: add ${cand.t}`);
+    ML.admin.msg = `Added: ${cand.t} · ${g}. Pakicheck kung tama ang title at artist.`;
+  });
+}
+async function mlSetCatSel() {
+  const sel = new Set(ML.admin.sel); if (!sel.size) return;
+  const g = await mlPickCat(`Category ng ${sel.size} song${sel.size === 1 ? '' : 's'}`); if (g === null) return;
+  mlAdminWork(async () => {
+    await mlSave(songs => songs.map(s => sel.has(s.c) ? { ...s, g } : s), `Music: set category ${g} on ${sel.size} songs`);
+    ML.admin.sel.clear(); ML.admin.msg = `Na-set ang category na "${g}" sa ${sel.size} song${sel.size === 1 ? '' : 's'}.`;
+  });
+}
+async function mlAdminImport(prefill) {
   const room = ML_MAX - ML.lib.length;
   if (room <= 0) { toast('Puno na ang music library (1,000 songs).'); return; }
-  const link = await askText(`I-paste ang YouTube playlist link (max ${Math.min(200, room)} songs bawat import)`, '', 600); if (!link) return;
+  const link = typeof prefill === 'string' ? prefill : await askText(`I-paste ang YouTube playlist link (max ${Math.min(200, room)} songs bawat import)`, '', 600); if (!link) return;
   const p = parseYouTube(link); if (!p || !p.list) { toast('Hindi playlist link yan'); return; }
+  const g = await mlPickCat('Category ng songs sa playlist na ’to'); if (g === null) return;
   mlAdminWork(async () => {
     const ids = (await vkPlaylistIds(p.list)).filter(id => /^[\w-]{11}$/.test(id)).slice(0, 200);
     const fresh = [], cap = Math.min(200, room);
@@ -2490,7 +2578,7 @@ async function mlAdminImport() {
       ML.admin.msg = `Binabasa ang songs… ${i + 1}/${ids.length}`; const m = $('#panel-music .adm-msg'); if (m) m.textContent = ML.admin.msg;
       try {
         const info = await vkOembed(ids[i]), pt = vkParseTitle(mlCleanTitle(info.title));
-        const cand = { y: ids[i], t: mlCleanTitle(pt.t) || pt.t, a: pt.a || String(info.author_name || '').replace(/\s*-\s*Topic$/i, '').slice(0, 60), g: '' };
+        const cand = { y: ids[i], t: mlCleanTitle(pt.t) || pt.t, a: pt.a || String(info.author_name || '').replace(/\s*-\s*Topic$/i, '').slice(0, 60), g };
         if (vkFindDup(ML.lib, cand) || vkFindDup(fresh, cand)) { doubles++; continue; }
         fresh.push(cand);
       } catch (e) { skipped++; }
@@ -2501,7 +2589,7 @@ async function mlAdminImport() {
       for (const f of fresh) { if (songs.length >= ML_MAX) break; if (vkFindDup(songs, f)) { doubles++; continue; } songs.push({ c: ++code, ...f }); added++; }
       return songs;
     }, `Music: import ${fresh.length} songs`);
-    ML.admin.msg = `Na-import: ${added} songs` + (doubles ? ` · ${doubles} hindi sinama kasi meron na` : '')
+    ML.admin.msg = `Na-import sa "${g}": ${added} songs` + (doubles ? ` · ${doubles} hindi sinama kasi meron na` : '')
       + (skipped ? ` · ${skipped} hindi pwede (private, wala na, o ayaw i-play sa ibang site)` : '') + '.';
   });
 }
@@ -4322,7 +4410,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
-  addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, playMusicFile, delMusicFile, mlAdd, mlFind, mlPage, mlAdminImport, mlAdminDelete, mlAdminFind, mlAdminDedupe, vkAdminDedupe, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
+  addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, playMusicFile, delMusicFile, mlAdd, mlFind, mlPage, mlAdminImport, mlAdminDelete, mlAdminFind, mlAdminAdd, mlSetCatSel, mlCatDone, ML_PICK, mlSetCat, plSetCat, plPlay, mlAdminDedupe, vkAdminDedupe, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
   toggleBar, barInfoClick, setTalkSpeed, setAutoReturn, setAutoDuck, setMusicSrc,
   openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
   openSheet, closeSheet, saveState
