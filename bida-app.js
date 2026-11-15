@@ -3733,7 +3733,7 @@ function rmtState() {
       files: musicFilesOk().slice(0, 100).map(f => f.name.slice(0, 60)) },
     tools: (t => ({ names: t.names, rmode: t.rmode, remove: t.remove, dice: t.dice, colors: t.colors, hcats: t.hcats, hsec: t.hsec,
       word: HY.word ? { w: HY.word, c: (BIDA_WORD_CATS.find(c => c[0] === HY.cat) || [, ''])[1], hid: HY.hidden } : null,
-      allColors: TOOL_COLORS, allCats: BIDA_WORD_CATS.map(([k, l]) => [k, l]) }))(toolsState()),
+      allColors: TOOL_COLORS.map(([n, h]) => ({ n, h })), allCats: BIDA_WORD_CATS.map(([k, l]) => ({ k, l })) }))(toolsState()),   // objects, not nested arrays (Firestore refuses those)
     timer: { on: !$('#gtimer').hidden, run: TM.running, left: Math.ceil(TM.running ? Math.max(0, (TM.endAt - Date.now()) / 1000) : TM.left), total: TM.total },
     vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song), free: BIDA.premium ? null : [...VK_FREE_CODES] },
     tv: { view: BIDA.view, screen: tvScreen(), pro: !!BIDA.premium },
@@ -3748,7 +3748,7 @@ function rmtPublish() {
     const fs = vkFs(); if (!fs || !rmtValid()) return;
     const st = rmtState(), key = JSON.stringify(st);
     if (key === RMT.last) return; RMT.last = key;
-    fs.collection('vk_remotes').doc(BIDA.remote.id).update({ state: st, updated: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => { });
+    fs.collection('vk_remotes').doc(BIDA.remote.id).update({ state: st, updated: firebase.firestore.FieldValue.serverTimestamp() }).catch(e => { RMT.last = ''; console.warn('Remote update failed', e && e.message); });
   }, 500);
 }
 function rmtListen() {
@@ -3787,7 +3787,7 @@ function rmtRun(d) {
       if (v === 'add' || v === 'sub') sbAdd(n, v === 'add' ? 1 : -1);
       else if (v === 'show') sbShow();
       else if (v === 'hide') { if (!$('#sb-stage').hidden) sbHide(); }
-      else if (v === 'win') sbWinner();
+      else if (v === 'win') { if (!$('#sb-stage').hidden) sbWinner(); }
       else if (v === 'reset') sbReset(true);
       break;
     case 'plan': if (v === 'done' && BIDA.program.some(p => p.id === n)) { toggleDone(n); if (BIDA.tab === 'plan') renderPlan(); } break;
@@ -3839,13 +3839,13 @@ function rmtTool(v, n, s) {
     case 'hy-cat': if (BIDA_WORDS[s]) { const k = t.hcats.indexOf(s); if (k >= 0) { if (t.hcats.length > 1) t.hcats.splice(k, 1); } else t.hcats.push(s); } break;
     case 'hy-sec': if ([60, 120, 180].includes(n)) t.hsec = n; break;
     case 'hy-hide': HY.hidden = !HY.hidden; if (tlOn('henyo')) henyoShow(); rmtPublish(); return true;
-    case 'hy-timer': henyoTimer(); rmtPublish(); return true;
+    case 'hy-timer': if (tlOn('henyo')) henyoTimer(); rmtPublish(); return true;
     case 'henyo-go': rmtGo('henyo'); return true;
     // Timer
-    case 'tm-preset': if (int && n >= 3 && n <= 5999) { if ($('#gtimer').hidden) timerOpen(); timerPreset(n); } rmtPublish(); return true;
-    case 'tm-toggle': if ($('#gtimer').hidden) timerOpen(); timerToggle(); rmtPublish(); return true;
+    case 'tm-preset': if (int && n >= 3 && n <= 5999) timerPreset(n); rmtPublish(); return true;
+    case 'tm-toggle': if (!$('#gtimer').hidden) timerToggle(); rmtPublish(); return true;      // the timer must be on the TV first
     case 'tm-reset': timerReset(); rmtPublish(); return true;
-    case 'tm-plus': case 'tm-minus': if ($('#gtimer').hidden) timerOpen(); timerAdd(v === 'tm-plus' ? 10 : -10); rmtPublish(); return true;
+    case 'tm-plus': case 'tm-minus': timerAdd(v === 'tm-plus' ? 10 : -10); rmtPublish(); return true;
     case 'tm-close': timerClose(); rmtPublish(); return true;
     default: return false;
   }
@@ -3862,8 +3862,7 @@ function rmtTool(v, n, s) {
 // "Spin / Roll / Random / Bunot" from the phone: put that game on the TV first if it isn't there yet
 function rmtGo(kind) {
   const go = { raffle: raffleGo, dice: diceRoll, color: colorGo, henyo: henyoNext }[kind];
-  if (tlOn(kind)) { go(); return; }
-  tvShow(kind); setTimeout(go, 400);
+  if (tlOn(kind)) go();                 // only the TV bar on the phone puts a game on the screen
 }
 // Phone remote → music: play a saved song, add one from the music library, play a category
 async function rmtMusic(v, n, s) {
