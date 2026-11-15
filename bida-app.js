@@ -1812,7 +1812,12 @@ function ytApi() {
 }
 /* Saved YouTube links: 5 free, more with Premium. With 2+ links a floating playlist panel appears. */
 function ytLinks() { return BIDA.music.ytLinks; }
-function ytCanUse(i) { return BIDA.premium || i < BIDA_CONFIG.freeYtLinks; }
+// Free: up to 5 single songs. Whole playlists (old saved playlist links) and playing by category are Premium.
+function ytCanUse(i) {
+  if (BIDA.premium) return true;
+  const links = ytLinks(), l = links[i]; if (!l || l.list) return false;
+  return links.slice(0, i).filter(x => !x.list).length < BIDA_CONFIG.freeYtLinks;
+}
 function ytLabel(l, i) { return l.title || (l.list ? `YouTube playlist ${i + 1}` : `YouTube video ${i + 1}`); }
 async function addYouTube() {
   const inp = $('#yt-url'), p = parseYouTube(inp.value || '');
@@ -1883,7 +1888,7 @@ async function playYouTube(i) {
 // Category of a saved song: the library's current one (so the admin can re-sort), else what it had when added
 function ytCat(l) { const s = l && l.v && ML.lib.find(x => x.y === l.v); return (s && s.g) || (l && l.g) || ''; }
 const plCat = () => typeof BIDA.music.plCat === 'string' ? BIDA.music.plCat : '';
-const plMatch = i => !plCat() || ytCat(ytLinks()[i]) === plCat();
+const plMatch = i => !BIDA.premium || !plCat() || ytCat(ytLinks()[i]) === plCat();
 function ytAdvance(dir = 1) {
   const n = ytLinks().length; if (n < 2) return false;
   for (let s = 1; s < n; s++) {
@@ -1912,7 +1917,7 @@ function plBarHTML() {
   const links = ytLinks(), cats = [...new Set(links.map(ytCat).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   if (plCat() && !cats.includes(plCat())) BIDA.music.plCat = '';
   plBarHTML.cats = cats;
-  if (!links.length) return '';
+  if (!links.length || !BIDA.premium) return '';          // playing by category is Premium; free = just their chosen songs
   return `<div class="pl-bar">${cats.length ? `<div class="ml-cats" role="group" aria-label="Category">${['', ...cats].map(c => `<button class="chip ${plCat() === c ? 'on' : ''}" aria-pressed="${plCat() === c}" onclick="plSetCat(${c ? cats.indexOf(c) : -1})">${c ? esc(c) : 'Lahat'}</button>`).join('')}</div>` : ''}
     <button class="btn btn--chili btn--sm" onclick="plPlay()">${ic('play')}Play ${plCat() ? esc(plCat()) : 'lahat'}</button></div>`;
 }
@@ -2339,7 +2344,7 @@ function renderMusic() {
     </div>
     <div class="card stack">
       <div ${m.src === 'youtube' ? '' : 'hidden'}>
-        <div class="yt-head"><span class="field-label">Playlist mo</span></div>
+        <div class="yt-head"><span class="field-label">${BIDA.premium ? 'Playlist mo' : 'Songs mo'}</span></div>
         ${plBarHTML()}
         ${ytListHTML()}
         <span class="field-label" style="display:block;margin-top:18px">Pili ng songs</span>
@@ -2393,7 +2398,7 @@ const mlInList = y => ytLinks().findIndex(l => l.v === y && !l.list);
 function mlAdd(c) {
   const s = ML.lib.find(x => x.c === c); if (!s) return;
   const i = mlInList(s.y); if (i >= 0) { playYouTube(i); return; }          // already in the playlist: just play it
-  if (!BIDA.premium && ytLinks().length >= BIDA_CONFIG.freeYtLinks) { openPremium('Music library'); return; }
+  if (!BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks) { openPremium('Music library'); return; }
   ytLinks().push({ v: s.y, list: '', g: s.g || '', title: (s.a ? s.a + ' – ' : '') + s.t, thumb: `https://i.ytimg.com/vi/${s.y}/mqdefault.jpg` });
   saveState(); renderMusic(); renderPlaylist(); playYouTube(ytLinks().length - 1);
 }
@@ -4227,7 +4232,7 @@ function openPremium(feature) {
       <ul class="pro-list">
         <li>${ic('star')}Videoke: lahat ng ${VK.lib.length ? VK.lib.length.toLocaleString() + ' ' : ''}songs, QR para sa guests, sariling YouTube songs</li>
         <li>${ic('star')}Lahat ng sound pads + unlimited sariling sounds</li>
-        <li>${ic('star')}Unlimited YouTube links, Spotify at music files</li>
+        <li>${ic('star')}Music: unlimited songs, playlist by category, Spotify at music files</li>
         <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
       </ul>
       <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">one-time · walang monthly, walang auto-charge</small></p>
