@@ -150,7 +150,13 @@
   async function send(k, v = '', n = -1, s = '', av = '', ph = '', mo = '') {
     const now = Date.now(); if (now - S.sending < 250) return; S.sending = now;
     try { await db.collection('vk_remotes').doc(key).collection('cmds').add({ k, v, n, s, av, ...(vkPhotoOk(ph) ? { ph, ...(vkMouthOk(mo) ? { mo } : {}) } : {}), at: firebase.firestore.FieldValue.serverTimestamp() }); }
-    catch (e) { toast('Hindi na-send. Baka sarado na ang remote.'); }
+    catch (e) {
+      // The remote is still open but Firebase refused this kind of button: the published rules are older than the app
+      const open = !!S.st;              // we only have state while the remote doc is open
+      toast(e && e.code === 'permission-denied' && open && k === 'show'
+        ? 'Hindi pa updated ang Firestore rules. I-publish ulit ang firestore.rules sa Firebase.'
+        : 'Hindi na-send. Baka sarado na ang remote.');
+    }
   }
   window.RM = {
     tab(t) { S.tab = t; store.set('bv_rm_tab', t); render(); },
