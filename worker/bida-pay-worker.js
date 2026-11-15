@@ -87,6 +87,8 @@ async function isAdmin(user, env) {
 
 async function handleCheckout(req, env, cors) {
   const user = await requireUser(req, env);
+  // Premium belongs to a Google account (never a device): only verified Google sign-ins can buy
+  if (user.provider !== 'google.com' || !user.emailVerified) throw err(403, 'google_only');
   if (await isAdmin(user, env)) return json({ already: true, admin: true }, 200, cors);
   // Already paid the one-time price: never charge twice
   const have = await env.PREMIUM.get('pro:' + user.uid, 'json');

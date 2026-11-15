@@ -4426,7 +4426,7 @@ async function startCheckout() {
     saveState();
     location.href = j.url;
   } catch (e) {
-    toast(e.message === 'slow_down' ? 'Sandali lang — try ulit after 1 minute.' : 'Ayaw bumukas ng checkout — try ulit');
+    toast(e.message === 'slow_down' ? 'Sandali lang — try ulit after 1 minute.' : e.message === 'google_only' ? 'Gmail account lang ang pwedeng mag-Premium. Mag-sign in with Google.' : 'Ayaw bumukas ng checkout — try ulit');
     if (b) { b.disabled = false; b.querySelector('span').textContent = 'Bayaran'; }
   } finally { AUTH.busy = false; }
 }
