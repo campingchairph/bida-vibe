@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116p">
+<link rel="stylesheet" href="bida.css?v=20261116q">
 <style>
   :root { --rs-h: calc(150px + env(safe-area-inset-bottom)); }
   html, body { overflow-x: hidden; }
@@ -50,6 +50,8 @@
   .rp-head h2 { font: 800 24px/1.1 var(--f2); flex: 1; min-width: 0; }
   .rp-back { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 2.5px solid var(--ink); background: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; font: 800 22px/1 var(--f); }
   .rp-tv { flex: none; font: 800 11px/1 var(--f); padding: 6px 10px; border-radius: 99px; background: var(--turq-soft); border: 2px solid var(--ink); }
+  .rp-show { flex: none; display: inline-flex; align-items: center; gap: 6px; font: 800 12.5px/1 var(--f); padding: 8px 12px; border-radius: 99px; background: var(--ink); color: #fff; border: 0; cursor: pointer; }
+  .rp-show .ic { width: 16px; height: 16px; color: var(--gold); }
   .rp-tv.off { background: #fff; color: var(--ink-3); border-color: rgba(30,26,22,.25); }
   .rp-hint { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--gold-soft); border: 2px dashed var(--ink); font: 700 13px/1.35 var(--f); }
   /* 2-column song grid that always fits the phone */
@@ -167,7 +169,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116p"></script>
+<script src="vk-avatars.js?v=20261116q"></script>
 <script>
 /* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
    Home = big category pads. Each game page puts that game on the TV and has its settings + a big trigger.
@@ -280,9 +282,9 @@
     if (S.page === 'videoke') songs();
     tick();
   }
-  const head = (title, id) => `<div class="rp-head"><button class="rp-back" onclick="RM.go('home')" aria-label="Back">‹</button><h2>${esc(title)}</h2>${id ? (onTV(id) ? '<span class="rp-tv">Nasa TV</span>' : '<span class="rp-tv off">Wala sa TV</span>') : ''}</div>`;
+  const head = (title, id) => `<div class="rp-head"><button class="rp-back" onclick="RM.go('home')" aria-label="Back">‹</button><h2>${esc(title)}</h2>${id ? (onTV(id) ? '<span class="rp-tv">Nasa TV</span>' : `<button class="rp-show" onclick="RM.tv('${id}')">${ic('tv')}I-display sa TV</button>`) : ''}</div>`;
   // Shown on a game page when that game isn't on the TV yet: the big button only works on what the guests can see
-  const needTV = (id, label) => onTV(id) ? '' : `<div class="rp-hint">Para gumana ang button, ilagay muna ang <b>${label}</b> sa TV gamit ang TV bar sa taas.</div>`;
+  const needTV = (id, label) => onTV(id) ? '' : `<div class="rp-hint">Para gumana ang button, i-tap muna ang <b>I-display sa TV</b> sa taas para lumabas ang ${label} sa TV.</div>`;
 
   function homeHTML() {
     return `<div class="cats">${CATS.map(([id, l, c, dark, wide]) => `<button class="cp ${dark ? 'dark' : ''} ${wide ? 'wide' : ''}" style="background:${c}" onclick="RM.go('${id}')">${l}${onTV(id === 'videoke' ? 'stage' : id) ? '<span class="tvb">TV</span>' : ''}</button>`).join('')}</div>`;
@@ -356,8 +358,11 @@
         <button onclick="RM.score('sub', ${i})" aria-label="Bawas">−</button><span>${Number(t.s) || 0}</span><button onclick="RM.score('add', ${i})" aria-label="Dagdag">+</button>
         ${sb.mode === 'custom' && sb.teams.length > 2 ? `<button class="del" onclick="RM.tool('sb-delteam', ${i})" aria-label="Alisin">✕</button>` : ''}</li>`).join('')}</ul>
       ${sb.mode === 'custom' && sb.teams.length < 8 ? `<button class="btn btn--ghost btn--sm" style="margin-top:10px" onclick="RM.tool('sb-addteam')">${ic('plus')}Add team</button>` : ''}
-      <div class="rp-row" style="margin-top:12px"><button class="btn btn--ghost" onclick="RM.score('reset')">Reset score</button></div>
-      ${needTV('score', 'Scoreboard')}<button class="rp-go" style="background:var(--gold);color:var(--ink)" onclick="RM.score('win')" ${onTV('score') ? '' : 'disabled'}>Panalo!</button>`;
+      <div class="rp-row" style="margin-top:12px"><button class="btn btn--ghost" onclick="RM.score('reset')" ${sb.win ? 'disabled title="I-close muna ang Panalo screen"' : ''}>Reset score</button></div>
+      ${needTV('score', 'Scoreboard')}${sb.win
+        ? `<button class="rp-go" style="background:var(--ink);color:#fff" onclick="RM.score('winclose')">Close · balik sa scoreboard</button>`
+        : `<button class="rp-go" style="background:var(--gold);color:var(--ink)" onclick="RM.score('win')" ${onTV('score') && (sb.teams || []).some(x => Number(x.s)) ? '' : 'disabled'}>Panalo!</button>
+          ${(sb.teams || []).every(x => !Number(x.s)) ? '<p class="rp-note" style="text-align:center">Wala pang score, kaya wala pang panalo.</p>' : ''}`}`;
   }
   function raffleHTML(st) {
     const t = st.tools || {}, names = t.names || [];

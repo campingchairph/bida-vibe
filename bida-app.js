@@ -3227,6 +3227,13 @@ function vkNoise(t0, dur, vol) {
   g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
   src.connect(f).connect(g).connect(SFX_BUS); src.start(t0);
 }
+// A tone that slides from one pitch to another (for the sad "wah-wah")
+function vkSlide(f0, f1, t0, dur, type = 'sawtooth', vol = .12) {
+  const x = ac(), o = x.createOscillator(), g = x.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + .02); g.gain.setValueAtTime(vol, t0 + dur * .7); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
+  o.connect(g).connect(SFX_BUS); o.start(t0); o.stop(t0 + dur + .05);
+}
 function vkSfx(kind) {
   try {
     const t = ac().currentTime + .03;
@@ -3242,6 +3249,15 @@ function vkSfx(kind) {
       for (let i = 0; i < 4; i++) vkNoise(t + i * .03, .04, .12);
     } else if (kind === 'roll') {                                   // drum roll while the raffle spins
       for (let i = 0; i < 60; i++) vkNoise(t + i * .07, .06, .04 + (i / 60) * .08);
+    } else if (kind === 'up') {                                     // +1 point: bright little "bling"
+      vkTone(987.77, t, .14, 'triangle', .2); vkTone(1318.5, t + .07, .22, 'triangle', .18);
+    } else if (kind === 'down') {                                   // −1 point: sad trombone "wah-wah-wah-waaah"
+      [[311, 294], [294, 277], [277, 262]].forEach(([a, b], i) => vkSlide(a, b, t + i * .3, .26, 'sawtooth', .1));
+      vkSlide(262, 220, t + .9, .75, 'sawtooth', .11);
+    } else if (kind === 'win') {                                    // Panalo! fanfare: run up, then a big held chord
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => vkTone(f, t + i * .09, .25, 'square', .07));
+      [523.25, 659.25, 783.99, 1046.5].forEach(f => vkTone(f, t + .5, 1.4, 'sawtooth', .05));
+      vkTone(2093, t + .5, .8, 'triangle', .08); vkNoise(t + .5, .35, .2);
     } else if (kind === 'buzz') {                                   // time's up
       vkTone(110, t, .9, 'sawtooth', .18); vkTone(165, t, .9, 'square', .08); vkTone(110, t + 1, .9, 'sawtooth', .18);
     } else if (kind === 'go') {
@@ -3298,9 +3314,11 @@ function sbColor(i) { const t = sbState().teams[i]; if (!t) return; t.c = SB_COL
 function sbAddTeam() { const sb = sbState(); if (sb.teams.length >= 8) return; const i = sb.teams.length; sb.teams.push({ n: `Grupo ${i + 1}`, c: SB_COLORS[i % SB_COLORS.length], s: 0 }); saveState(); sbSetup(); }
 function sbDel(i) { const sb = sbState(); if (sb.teams.length <= 2) return; sb.teams.splice(i, 1); saveState(); sbSetup(); }
 async function sbReset(fromRemote) {
+  if (sbWinOpen()) return;                                     // close the winner screen first
   if (!fromRemote && !await askConfirm('Ibalik sa 0 lahat ng score?', 'Reset')) return;
   sbState().teams.forEach(t => t.s = 0); saveState();
   if (!$('#sb-stage').hidden) sbRender(); else toast('Na-reset ang score');
+  rmtPublish();
 }
 function sbShow() {
   closeSheet();
@@ -3319,24 +3337,38 @@ function sbRender() {
   $('#sb-stage').innerHTML = `<div class="sb-bar">
       <button class="btn btn--ghost btn--sm sb-light" onclick="sbHide()">${ic('x')}Exit</button>
       <b class="sb-title">${esc(sb.title || 'Scoreboard')}</b>
-      <div class="sb-acts"><button class="btn btn--gold btn--sm" onclick="sbWinner()">Panalo!</button>
-        <button class="btn btn--ghost btn--sm sb-light" onclick="sbReset()">Reset</button>
+      <div class="sb-acts"><button class="btn btn--gold btn--sm" id="sb-winbtn" onclick="sbWinToggle()">Panalo!</button>
+        <button class="btn btn--ghost btn--sm sb-light" id="sb-reset" onclick="sbReset()">Reset</button>
         <button class="btn btn--ghost btn--sm sb-light" onclick="sbFull()">Full screen</button></div></div>
     <div class="sb-grid" style="--n:${sb.teams.length}">${sb.teams.map((t, i) => `<div class="sb-tile ${lead !== null && t.s === lead ? 'lead' : ''}" style="--c:${t.c}">
       <div class="sb-name">${esc(t.n)}</div><div class="sb-score" id="sb-s-${i}">${t.s}</div>
       <div class="sb-btns"><button onclick="sbAdd(${i},-1)" aria-label="Bawas sa ${esc(t.n)}">−</button><button onclick="sbAdd(${i},1)" aria-label="Dagdag sa ${esc(t.n)}">+</button></div>
       <span class="sb-key">${i + 1}</span></div>`).join('')}</div>
-    <div class="sb-win" id="sb-win" hidden onclick="this.hidden=true"></div>`;
+    <div class="sb-win" id="sb-win" hidden onclick="sbWinClose()"></div>`;
+  sbSyncBtns();
 }
+// No winner while every score is still 0
+const sbAllZero = () => sbState().teams.every(t => !t.s);
+const sbWinOpen = () => !!($('#sb-win') && !$('#sb-win').hidden);
+function sbSyncBtns() {
+  const w = $('#sb-winbtn'), r = $('#sb-reset'), open = sbWinOpen();
+  if (w) { w.textContent = open ? 'Close' : 'Panalo!'; w.disabled = !open && sbAllZero(); w.title = !open && sbAllZero() ? 'Wala pang score' : ''; }
+  if (r) r.disabled = open;                                     // can't wipe the scores while the winner is on screen
+}
+function sbWinToggle() { sbWinOpen() ? sbWinClose() : sbWinner(); }
+function sbWinClose() { const w = $('#sb-win'); if (w) w.hidden = true; sbSyncBtns(); rmtPublish(); }
 function sbAdd(i, d) {
   const sb = sbState(), t = sb.teams[i]; if (!t) return;
   t.s = Math.max(-9999, Math.min(99999, t.s + d)); saveState();
+  vkSfx(d > 0 ? 'up' : 'down');                               // bling for a point, sad trombone for losing one
   if ($('#sb-stage').hidden) return;
+  sbSyncBtns();
   const n = $('#sb-s-' + i); if (n) { n.textContent = t.s; n.classList.remove('pop', 'down'); void n.offsetWidth; n.classList.add(d > 0 ? 'pop' : 'down'); }
   const lead = sbLead();
   $$('.sb-tile').forEach((el, k) => el.classList.toggle('lead', lead !== null && sb.teams[k].s === lead));
 }
 function sbWinner() {
+  if (sbAllZero()) { toast('Wala pang score. Mag-add muna ng points.'); return; }
   if ($('#sb-stage').hidden) sbShow();
   const t = sbState().teams, max = Math.max(...t.map(x => x.s)), top = t.filter(x => x.s === max);
   const conf = [...Array(40)].map((_, i) => `<i style="--x:${(i * 37) % 100};--d:${(i % 9) * .12}s;--c:${SB_COLORS[i % 6]};--r:${(i * 53) % 360}deg"></i>`).join('');
@@ -3345,14 +3377,15 @@ function sbWinner() {
     <div class="vki-tag">${top.length > 1 ? 'Tabla!' : 'Panalo!'}</div>
     <div class="sb-win-name">${top.map(x => `<span style="color:${x.c}">${esc(x.n)}</span>`).join(' &amp; ')}</div>
     <div class="sb-win-score">${max} points</div><small>Tap para i-close</small></div>`;
-  el.hidden = false; vkPlayPad(/palakpak|applause|clap|ta-?da/i);
+  el.hidden = false; vkSfx('win'); vkPlayPad(/palakpak|applause|clap|ta-?da/i);
+  sbSyncBtns(); rmtPublish();
 }
 function sbFull() { const s = $('#sb-stage'); (s.requestFullscreen ? s.requestFullscreen() : Promise.reject()).catch(() => toast("Walang full screen sa browser na 'to")); }
 addEventListener('keydown', e => {
   if ($('#sb-stage').hidden || e.target.closest('input, textarea')) return;
   const k = e.code.match(/^Digit([1-8])$/);
   if (k) { e.preventDefault(); sbAdd(+k[1] - 1, e.shiftKey ? -1 : 1); }
-  else if (e.key === 'Escape') { const w = $('#sb-win'); if (w && !w.hidden) w.hidden = true; else sbHide(); }
+  else if (e.key === 'Escape') { if (sbWinOpen()) sbWinClose(); else sbHide(); }
 });
 
 /* ============================================================
@@ -3781,7 +3814,7 @@ function rmtState() {
     timer: { on: !$('#gtimer').hidden, run: TM.running, left: Math.ceil(TM.running ? Math.max(0, (TM.endAt - Date.now()) / 1000) : TM.left), total: TM.total },
     vk: { stage: !$('#vk-stage').hidden, playing: !!VK.playing && !$('#vk-stage').hidden, intro: !$('#vk-intro').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song), free: BIDA.premium ? null : [...VK_FREE_CODES] },
     tv: { view: BIDA.view, screen: tvScreen(), pro: !!BIDA.premium },
-    sb: (s => ({ on: !$('#sb-stage').hidden, title: s.title, mode: s.mode, modes: SB_MODES, teams: s.teams.map(x => ({ n: x.n, c: x.c, s: x.s })) }))(sbState())
+    sb: (s => ({ on: !$('#sb-stage').hidden, win: sbWinOpen(), title: s.title, mode: s.mode, modes: SB_MODES, teams: s.teams.map(x => ({ n: x.n, c: x.c, s: x.s })) }))(sbState())
   };
 }
 // Keep the phone's copy fresh (only writes when something actually changed)
@@ -3841,6 +3874,7 @@ function rmtRun(d) {
       else if (v === 'show') sbShow();
       else if (v === 'hide') { if (!$('#sb-stage').hidden) sbHide(); }
       else if (v === 'win') { if (!$('#sb-stage').hidden) sbWinner(); }
+      else if (v === 'winclose') sbWinClose();
       else if (v === 'reset') sbReset(true);
       break;
     case 'plan': if (v === 'done' && BIDA.program.some(p => p.id === n)) { toggleDone(n); if (BIDA.tab === 'plan') renderPlan(); } break;
@@ -4552,7 +4586,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- exports for inline handlers ---------- */
-Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyoShow, henyoNext, henyoHide, henyoTimer, timerPreset, raffleSetup, raffleNames, raffleMode, raffleShow, raffleGo, diceSetup, diceSet, diceShow, diceRoll, colorSetup, colorToggle, colorShow, colorGo, tlClose, tlFull, tlSettings, tlWinClose, toolsState, timerOpen, timerToggle, timerAdd, timerReset, timerEdit, timerBig, timerClose, cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
+Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyoShow, henyoNext, henyoHide, henyoTimer, timerPreset, raffleSetup, raffleNames, raffleMode, raffleShow, raffleGo, diceSetup, diceSet, diceShow, diceRoll, colorSetup, colorToggle, colorShow, colorGo, tlClose, tlFull, tlSettings, tlWinClose, toolsState, timerOpen, timerToggle, timerAdd, timerReset, timerEdit, timerBig, timerClose, cardShowTV, cardHideTV, cardTVFull, sbSetup, sbMode, sbTitle, sbName, sbColor, sbAddTeam, sbDel, sbReset, sbWinToggle, sbWinClose, sbShow, sbHide, sbAdd, sbWinner, sbFull, rmtSheet, rmtStart, rmtCopy, rmtStop, cardUploadBg, cardRemoveBg, CARD_UI_more: open => { CARD_UI.more = open; },
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
