@@ -2307,6 +2307,7 @@ function vkState() {
     queue: (Array.isArray(v.queue) ? v.queue : []).filter(q => q && Number.isInteger(q.c)).slice(0, 100).map(q => ({ id: String(q.id || Math.random().toString(36).slice(2, 9)).slice(0, 12), c: q.c, singer: String(q.singer || '').slice(0, 30),
       av: /^[a-z]{2,10}$/.test(q.av) ? q.av : '', ph: vkPhotoOk(q.ph) ? q.ph : '', mo: vkMouthOk(q.mo) ? q.mo : '', src: q.src === 'guest' ? 'guest' : '' })),
     mine: (Array.isArray(v.mine) ? v.mine : []).map(vkCleanSong).filter(Boolean).slice(0, 200),
+    freeKey: String(v.freeKey || '').slice(0, 200), freeUsed: clamp(parseInt(v.freeUsed, 10) || 0, 0, 99),
     score: v.score !== false, lastSinger: String(v.lastSinger || '').slice(0, 30), lastAv: /^[a-z]{2,10}$/.test(v.lastAv) ? v.lastAv : '',
     room: v.room && /^[A-Za-z0-9]{24}$/.test(v.room.id) && typeof v.room.owner === 'string' && v.room.exp > Date.now()
       ? { id: v.room.id, owner: v.room.owner.slice(0, 128), exp: +v.room.exp } : null
@@ -2343,13 +2344,6 @@ function vkSearch() {
 /* ---- Videoke tab ---- */
 function renderVideoke() {
   if (isTV()) { renderVideokeTV(); return; }
-  if (!BIDA.premium) {        // Videoke is part of Premium
-    $('#panel-videoke').innerHTML = `<div class="panel-head"><div><h2>Videoke</h2><p>Kasama sa Premium (${esc(BIDA_CONFIG.price)} one-time).</p></div></div>
-      <div class="card vk-lock">${ic('mic')}<div><h3>Videoke para sa buong pamilya</h3>
-        <p class="muted">Song library na may search, QR para makapag-reserve ang mga bisita gamit ang phone nila, at TV screen na may banderitas, pila at score.</p>
-        <button class="btn btn--magenta" style="margin-top:12px" onclick="openPremium('Videoke')">${ic('star')}I-unlock ang Premium</button></div></div>`;
-    return;
-  }
   const v = vkState();
   if (!VK.loaded) { loadVkLibrary().then(() => { if (BIDA.tab === 'videoke') renderVideoke(); }); }
   const letters = [...new Set(vkAll().map(s => vkFirst(s.t)))].sort((a, b) => a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b));
@@ -2372,7 +2366,8 @@ function renderVideoke() {
         <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
         : '<p class="muted" style="margin-top:6px">Wala pang nakapila. Pumili ng kanta sa baba.</p>'}
     </div>
-    ${vkRoomHTML()}
+    ${BIDA.premium ? '' : vkFreeHTML()}
+    ${BIDA.premium ? vkRoomHTML() : ''}
     ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
       <div class="vk-search">
@@ -2405,6 +2400,24 @@ function renderVideokeTV() {
   else if (AUTH.user) vkMakeRoom(true);              // makes the link, then this screen redraws with the QR
 }
 // The family link card in the Videoke tab
+/* ---- Free taste: 3 songs per event, then Premium ----
+   (Counted when a song actually starts. A new event — different type, name or date — gets 3 again.) */
+const VK_FREE_SONGS = 3;
+const vkFreeKey = () => [BIDA.event.type, BIDA.event.name, BIDA.event.date].join('|');
+function vkFreeLeft() {
+  if (BIDA.premium) return Infinity;
+  const v = vkState(); if (v.freeKey !== vkFreeKey()) { v.freeKey = vkFreeKey(); v.freeUsed = 0; }
+  return Math.max(0, VK_FREE_SONGS - v.freeUsed);
+}
+// can one more song be reserved? (songs waiting in line count against what's left)
+function vkCanReserve() { return BIDA.premium || vkState().queue.length < vkFreeLeft(); }
+function vkFreeHTML() {
+  const left = vkFreeLeft();
+  return `<div class="card vk-free ${left ? '' : 'done'}">${ic('mic')}<div>
+      <h3>${left ? `Libreng subok: ${left} sa ${VK_FREE_SONGS} kanta pa` : 'Tapos na ang 3 libreng kanta'}</h3>
+      <p class="muted">${left ? 'Subukan ang videoke ngayong event.' : 'I-unlock para tuloy-tuloy ang kantahan.'} Sa Premium: walang limit na kanta, QR para makapag-reserve ang mga bisita sa phone nila, at sariling kanta.</p>
+      <button class="btn btn--magenta btn--sm" style="margin-top:10px" onclick="openPremium('Videoke')">${ic('star')}I-unlock ang Premium</button></div></div>`;
+}
 function vkRoomHTML() {
   const on = vkRoomValid();
   const left = on ? Math.max(1, Math.round((BIDA.vk.room.exp - Date.now()) / 36e5)) : 0;
@@ -2468,7 +2481,7 @@ function vkSetArtistIdx(i) { const a = VK.artistList[i]; if (a) vkSetArtist(a.k)
 // Host reserves for someone: their name, plus an avatar or a photo (camera with the mouth guide)
 const VKP = { c: 0, av: '', ph: '', mo: '' };
 function vkReserve(c) {
-  if (needPro('Videoke')) return;
+  if (!vkCanReserve()) { openPremium('Videoke'); return; }
   const s = vkSong(c); if (!s) return;
   const v = vkState();
   Object.assign(VKP, { c, av: '', ph: '', mo: '' });      // nothing picked = the singer's own default avatar
@@ -2502,7 +2515,7 @@ function vkScoreToggle(on) { vkState().score = on; saveState(); }
 
 /* ---- The big screen (cast / connect this to the TV) ---- */
 async function vkStart() {
-  if (needPro('Videoke')) return;
+  if (!BIDA.premium && !vkFreeLeft() && !VK.cur) { openPremium('Videoke'); return; }
   const stage = $('#vk-stage');
   stage.hidden = false; document.body.classList.add('in-vk'); document.body.style.overflow = 'hidden';
   vkDressStage();
@@ -2525,7 +2538,12 @@ async function vkNext() {
   clearTimeout(VK.scoreT); clearTimeout(VK.introT); $('#vk-score').hidden = true; $('#vk-intro').hidden = true;
   const q = vkState().queue;
   if (!q.length) { VK.cur = null; saveState(); vkStageInfo(); vkPublish(); try { VK.yt?.stopVideo(); } catch (e) { } return; }
-  VK.cur = q.shift(); saveState();
+  if (!BIDA.premium && !vkFreeLeft()) {
+    VK.cur = null; q.length = 0; saveState(); vkClose(); openPremium('Videoke'); return;
+  }
+  VK.cur = q.shift();
+  if (!BIDA.premium) vkState().freeUsed++;
+  saveState();
   const s = vkSong(VK.cur.c); if (!s) { vkNext(); return; }
   vkStageInfo(); vkPublish();
   await ytApi();
@@ -3411,12 +3429,11 @@ function rmtRun(d) {
       break;
     case 'plan': if (v === 'done' && BIDA.program.some(p => p.id === n)) { toggleDone(n); if (BIDA.tab === 'plan') renderPlan(); } break;
     case 'vk':
-      if (!BIDA.premium) break;                     // Videoke is Premium
       if (v === 'start') vkStart();
       else if (v === 'close') { if (!$('#vk-stage').hidden) vkClose(); }
       else if (v === 'skip') { if (!$('#vk-stage').hidden) vkNext(); }
       else if (v === 'reserve') {
-        const s = vkSong(n); if (!s) break;
+        const s = vkSong(n); if (!s || !vkCanReserve()) break;
         const singer = String(d.s || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
         const av = VK_AVATARS.some(a => a.id === d.av) ? d.av : vkAvatarFor(singer);
         vkState().queue.push({ id: Math.random().toString(36).slice(2, 9), c: s.c, singer, av, ph: vkPhotoOk(d.ph) ? d.ph : '', mo: vkMouthOk(d.mo) ? d.mo : '', src: '' });
@@ -3449,6 +3466,7 @@ async function vkOembed(id) {
   return r.json();
 }
 async function vkAddMine() {
+  if (needPro('Sariling kanta sa videoke')) return;
   const link = await askText('I-paste ang YouTube karaoke link', '', 600); if (!link) return;
   const p = parseYouTube(link); if (!p || !p.id) { toast('Hindi valid ang YouTube video link'); return; }
   let info; try { info = await vkOembed(p.id); } catch (e) { toast(e.message === 'no_embed' ? 'Hindi pwedeng i-play sa ibang site ang video na ito — pumili ng iba' : 'Hindi mahanap ang video'); return; }
@@ -3808,7 +3826,7 @@ function openPremium(feature) {
         <li>${ic('star')}Lahat ng sound pads + walang limit na sariling upload</li>
         <li>${ic('star')}Walang limit na YouTube links, Spotify at sariling music files</li>
         <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
-        <li>${ic('star')}Videoke: song library, QR para sa mga bisita at TV screen</li>
+        <li>${ic('star')}Videoke na walang limit: QR para sa mga bisita, sariling kanta, TV screen</li>
       </ul>
       <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">one-time · walang monthly, walang auto-charge</small></p>
     </div>
