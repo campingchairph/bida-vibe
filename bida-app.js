@@ -2189,8 +2189,36 @@ function musicSkip(d) {
 
 /* ---- The music bar ---- */
 let barSrc = '';
+// The YouTube music video floats on screen while YouTube is the source (never hidden while it plays)
+// Where the floating video sits: in the reserved spot while the music panel is open, otherwise where the host dragged it
+function ytPlace() {
+  const f = $('#yt-float'), s = $('#yt-spot'); if (!f || f.hidden) return;
+  const set = (k, v) => f.style.setProperty(k, v, 'important');
+  if ($('#mbar').classList.contains('open') && s && s.offsetParent) {
+    const r = s.getBoundingClientRect(); set('top', r.top + 'px'); set('left', r.left + 'px'); set('bottom', 'auto'); set('right', 'auto');
+  } else {
+    ['top', 'left', 'bottom', 'right'].forEach(k => f.style.removeProperty(k));
+    try { const p = JSON.parse(localStorage.getItem('bv_ytpos') || 'null'); if (p) { f.style.left = clamp(p.x, 4, innerWidth - 214) + 'px'; f.style.top = clamp(p.y, 4, innerHeight - 240) + 'px'; f.style.bottom = 'auto'; } } catch (e) { }
+  }
+}
+function ytFloat() {
+  const f = $('#yt-float'); if (!f) return;
+  f.hidden = M.kind !== 'youtube';
+  document.body.classList.toggle('yt-on', !f.hidden);
+  ytPlace();
+  if (f.dataset.d) return; f.dataset.d = 1;
+  $('#mbar-panel').addEventListener('scroll', ytPlace, { passive: true }); addEventListener('resize', ytPlace);
+  const g = $('#yt-grip');
+  g.onpointerdown = e => {
+    if ($('#mbar').classList.contains('open')) return;          // parked in the open music panel: no dragging
+    const r = f.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top; g.setPointerCapture(e.pointerId);
+    g.onpointermove = m => { f.style.left = clamp(m.clientX - dx, 4, innerWidth - r.width - 4) + 'px'; f.style.top = clamp(m.clientY - dy, 4, innerHeight - r.height - 4) + 'px'; f.style.bottom = 'auto'; };
+    g.onpointerup = () => { g.onpointermove = g.onpointerup = null; try { localStorage.setItem('bv_ytpos', JSON.stringify({ x: parseInt(f.style.left, 10), y: parseInt(f.style.top, 10) })); } catch (x) { } };
+  };
+}
 function updateBar(src) {
   if (src) barSrc = src;
+  ytFloat();
   rmtPublish();
   const has = !!M.kind;
   $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang naka-play';
@@ -2211,6 +2239,8 @@ function updateBar(src) {
 function toggleBar(force) {
   const b = $('#mbar'), open = force ?? !b.classList.contains('open');
   b.classList.toggle('open', open);
+  document.body.classList.toggle('bar-open', open);
+  ytPlace(); setTimeout(ytPlace, 380);                 // after the panel finishes opening
   $('#mb-more').setAttribute('aria-expanded', open);
 }
 function openBar(v) { toggleBar(v); }

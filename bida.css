@@ -1086,7 +1086,7 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
   .mb-play { width: 52px; height: 52px; }
   .mb-fade { width: auto; height: 46px; }
   .talk-btn--bar { height: 52px; padding: 0 22px; font-size: 17px; }
-  .mbp-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; padding: 16px; }
+  .mbp-grid { align-items: start; padding: 16px; }
   .sheet { max-width: 640px; }
   .sheet-wrap { align-items: center; padding: 24px; }
   .sheet { border-radius: var(--r-xl); border-bottom: 2px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); max-height: 86dvh; }
@@ -1136,3 +1136,19 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 .land-legal { max-width: 1200px; margin: 0 auto; padding: 8px 20px 28px; text-align: center; font: 700 13px/1.5 var(--f); color: var(--ink-3); }
 .land-legal a, .legal-line a { color: inherit; font-weight: 800; }
 .legal-line { margin-top: 10px; text-align: center; font: 700 12px/1.45 var(--f); color: var(--ink-3); }
+
+/* Floating YouTube music player: visible whenever YouTube music is the source (YouTube API rules:
+   the player must stay visible, at least 200×200, never audio-only). Drag by the top bar. */
+.yt-float { position: fixed; z-index: 57; left: 14px; bottom: calc(var(--tab-h) + var(--bar-h) + env(safe-area-inset-bottom) + 12px);
+  width: 206px; background: #000; border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; box-shadow: 0 8px 22px rgba(0,0,0,.3); touch-action: none; }
+.yt-float[hidden] { display: none; }
+.yt-grip { height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 8px; background: var(--ink); color: var(--gold); font: 800 11px/1 var(--f); letter-spacing: .06em; text-transform: uppercase; cursor: grab; user-select: none; }
+.yt-grip span { color: var(--cream); }
+.yt-float .yt-dock { width: 200px; height: 200px; aspect-ratio: auto; border-radius: 0; }
+@media (min-width: 1100px) { .yt-float { bottom: calc(var(--bar-h) + 16px); } }
+body.tv-mode .yt-float, body.in-sb .yt-float { bottom: 14px; }
+body.in-vk .yt-float { display: none; }      /* music is paused while someone sings */
+/* While the music panel is open, the video parks in this reserved space so it never covers a control */
+.yt-spot { display: none; width: 206px; height: 229px; }
+body.yt-on .yt-spot { display: block; }
+@media (min-width: 1100px) { body.yt-on .mbp-grid { grid-template-columns: 206px minmax(0, 1fr); } }

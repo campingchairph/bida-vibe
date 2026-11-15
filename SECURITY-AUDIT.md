@@ -77,6 +77,6 @@ Bida-Vibe is a static site on GitHub Pages. It has no server pages, no SQL datab
 
 ## Known limits (honest)
 
-- **YouTube music player size:** YouTube's API rules say the player must be visible (at least 200×200) and not used for audio only. The music player sits in the music bar's preview, which can be collapsed while music keeps playing. Keeping a visible video preview while music plays would be safest. This is a product decision, so it's flagged here rather than changed silently.
+- **YouTube music player (fixed):** the music video now floats on screen at 200×200 whenever YouTube is the source, and never hides while it plays. With the music panel open, it parks in its own space at the top. It hides only while the videoke stage is up, when music is paused.
 - **Client-side free limits** (5 music songs, 5 files, uploads, Talk/Fade) run on the visitor's own device and can't be made hack-proof. Payments, Premium sounds, admin and library changes are all server-enforced.
 - **Not legal advice:** these pages follow common practice and Philippine law as I understand it, but a Philippine lawyer should review them before you rely on them, especially once you register a business for PayMongo live payments.
