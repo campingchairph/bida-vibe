@@ -805,10 +805,22 @@ body.tv-mode .head-event b { font-size: 1.15em; }
 .vk-lock, .vk-free { display: flex; gap: 16px; align-items: flex-start; }
 .vk-free { margin-top: 16px; background: #FFF6E5; }
 .vk-free > .ic { flex: none; width: 40px; height: 40px; padding: 9px; border-radius: 12px; background: var(--gold); color: var(--ink); border: 2px solid var(--ink); }
-.vk-free-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.vk-list li.locked b, .vk-list li.locked small { opacity: .55; }
-.vk-list li.locked .vk-add { background: var(--gold-soft); color: var(--ink); }
-.vk-freetag { font-style: normal; font-weight: 800; color: var(--leaf); }
+/* queued count on the + button */
+.vk-add.on { background: var(--leaf); color: #fff; }
+.vk-cnt { font: 900 15px/1 var(--f); }
+.vk-list li.queued b::after { content: ' ✓'; color: var(--leaf); }
+/* locked songs: a faded peek behind the unlock card */
+.vk-more { position: relative; margin-top: 10px; }
+.vk-peek { opacity: .45; filter: blur(1.5px); pointer-events: none; user-select: none;
+  -webkit-mask-image: linear-gradient(#000 0%, transparent 92%); mask-image: linear-gradient(#000 0%, transparent 92%); }
+.vk-peek .vk-add { background: var(--gold-soft); color: var(--ink); }
+.vk-more-card { position: absolute; inset: 0; margin: auto; height: fit-content; max-width: 420px; text-align: center;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 18px 18px 20px; }
+.vk-more-card > .ic { width: 40px; height: 40px; padding: 9px; border-radius: 12px; background: var(--gold); border: 2px solid var(--ink); }
+.vk-more-card h3 { margin-top: 8px; }
+.vk-more-card p { margin: 6px 0 14px; font-size: 14px; color: var(--ink-2); }
+.vk-more { min-height: 320px; }
+.vk-more .vk-peek { min-height: 320px; align-content: start; }
 .vk-lock > .ic { flex: none; width: 44px; height: 44px; padding: 10px; border-radius: 14px; background: var(--magenta); color: #fff; border: 2px solid var(--ink); }
 
 /* Floating game timer */

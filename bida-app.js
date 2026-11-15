@@ -27,7 +27,7 @@ const BIDA_CONFIG = {
   adminHashes: ['291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd'],
   // Free tier limits
   freeUploads: 2,     // uploaded sound pads a free user can add
-  freeYtLinks: 2,     // saved YouTube links a free user can play; more needs Premium
+  freeYtLinks: 5,     // songs from the music library a free user can keep in their playlist; more needs Premium
   // Test unlock — only works on localhost, never on the live site.
   devUnlockCode: 'BIDATEST',
   // Spotify: create an app at developer.spotify.com, add this page's URL as a Redirect URI, paste the Client ID.
@@ -214,7 +214,7 @@ const TV_TABS = ['games', 'videoke'];
 const isTV = () => BIDA.view === 'tv';
 function applyView() {
   document.body.classList.toggle('tv-mode', isTV());
-  const b = $('#view-btn'); if (b) b.innerHTML = isTV() ? `${ic('people')}<span>Host view</span>` : `${ic('live')}<span>TV view</span>`;
+  const b = $('#view-btn'); if (b) b.innerHTML = isTV() ? `${ic('people')}<span>Host view</span>` : `${ic('tv')}<span>TV view</span>`;
 }
 function setView(v) {
   BIDA.view = v === 'tv' ? 'tv' : 'host'; saveState(); applyView();
@@ -1360,12 +1360,12 @@ function padsHTML(limit) {
   }).join('');
 }
 function uploadsLeft() { return BIDA.premium ? Infinity : Math.max(0, BIDA_CONFIG.freeUploads - CUSTOM.length); }
-const leftLabel = (n, more) => n === Infinity ? more : n ? `${n} libre pa` : 'Premium';
+// We never show how many free uploads are left: it's just "max 3 sec" until the limit, then Premium
+const leftLabel = (n, more) => n ? more : 'Premium';
 function renderSounds() {
-  const freeN = PADS.filter(p => p.tier === 'free').length;
   $('#panel-sounds').innerHTML = `
     <div class="panel-head"><div><h2>Sound pads</h2>
-      <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : `Libre ang ${freeN ? freeN + ' sound pads' : 'mga libreng pads'} at ${BIDA_CONFIG.freeUploads} sariling upload.`}</p></div>
+      <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : 'Tap lang para tumunog. Pwede ka ring mag-upload ng sarili mong sounds.'}</p></div>
       ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}Unlock all</button>`}</div>
     <div class="pads" id="pads">${padsHTML()}
       <button class="pad pad--add" onclick="addSoundClick()">${ic('upload')}<span class="pad-name">Upload</span>
@@ -1887,7 +1887,7 @@ function ytAdvance(dir = 1) {
 }
 function ytListHTML() {
   const links = ytLinks();
-  if (!links.length) return '<p class="muted">Wala pang naka-save. I-paste ang link sa taas.</p>';
+  if (!links.length) return '<p class="muted">Wala pang songs. Pili ka sa baba.</p>';
   return `<ul class="yt-list">${links.map((l, i) => {
     const now = i === BIDA.music.ytIdx && M.kind === 'youtube', ok = ytCanUse(i);
     return `<li class="${now ? 'now' : ''} ${ok ? '' : 'locked'}">
@@ -1949,8 +1949,9 @@ async function loadLocal(files) {
   await loadMusicFiles();
   if (BIDA.tab === 'music') renderMusic();
   if (!saved) return;
-  toast(arr.length > take.length ? `${saved} lang ang na-save. Hanggang ${FREE_MUSIC_FILES} files ang libre.` : `Saved: ${saved} file${saved > 1 ? 's' : ''}`);
+  toast(`Saved: ${saved} file${saved > 1 ? 's' : ''}`);
   playMusicFile(first);
+  if (arr.length > take.length) setTimeout(() => openPremium('Music files'), 600);   // picked more than the free room: offer Premium for the rest
 }
 function playMusicFile(i) {
   const list = musicFilesOk(); if (!list[i]) return;
@@ -2306,20 +2307,21 @@ document.addEventListener('visibilitychange', () => {
 function renderMusic() {
   const m = BIDA.music;
   if (!['youtube', 'spotify', 'local'].includes(m.src)) m.src = 'youtube';   // the old "link only" option is gone
+  if (!ML.loaded) mlLoad().then(() => { if (BIDA.tab === 'music') renderMusic(); });
   $('#panel-music').innerHTML = `
     <div class="panel-head"><div><h2>Music setup</h2>
       <p>Dito i-set ang music. Yung play, next, fade at Talk, nasa music bar sa baba kahit anong tab ka.</p></div></div>
     <div class="src-tabs" role="tablist">
-      ${[['youtube', 'YouTube', BIDA.premium ? 'Walang limit' : `${BIDA_CONFIG.freeYtLinks} libre`], ['spotify', 'Spotify', 'Premium'], ['local', 'Sariling files', BIDA.premium ? 'Walang limit' : `${FREE_MUSIC_FILES} libre`]].map(([id, l, s]) =>
-        `<button class="src-tab ${m.src === id ? 'on' : ''}" role="tab" aria-selected="${m.src === id}" onclick="setMusicSrc('${id}')">${l}<small>${s}</small></button>`).join('')}
+      ${[['youtube', 'Music library', ''], ['spotify', 'Spotify', BIDA.premium ? '' : 'Premium'], ['local', 'Sariling files', '']].map(([id, l, s]) =>
+        `<button class="src-tab ${m.src === id ? 'on' : ''}" role="tab" aria-selected="${m.src === id}" onclick="setMusicSrc('${id}')">${l}${s ? `<small>${s}</small>` : ''}</button>`).join('')}
     </div>
     <div class="card stack">
       <div ${m.src === 'youtube' ? '' : 'hidden'}>
-        <div class="field"><label for="yt-url">YouTube o YouTube Music link (video o playlist)</label>
-          <div class="yt-add"><input class="input" id="yt-url" placeholder="https://www.youtube.com/…" onkeydown="if(event.key==='Enter')addYouTube()">
-          <button class="btn btn--chili" onclick="addYouTube()">${ic('plus')}Add</button></div></div>
-        <div class="yt-head"><span class="field-label">Naka-save</span><small class="muted">${m.ytLinks.length}${BIDA.premium ? '' : ` / ${BIDA_CONFIG.freeYtLinks} libre`}</small></div>
+        <div class="yt-head"><span class="field-label">Playlist mo</span></div>
         ${ytListHTML()}
+        <span class="field-label" style="display:block;margin-top:18px">Pili ng songs</span>
+        <div class="vk-find" style="margin-top:8px"><input class="input" id="ml-q" placeholder="Search song o artist" value="${esc(ML.q)}" oninput="mlFind(this.value)" autocomplete="off"></div>
+        <div id="ml-res" style="margin-top:6px">${mlResultsHTML()}</div>
         ${braveTipHTML()}
       </div>
       <div ${m.src === 'spotify' ? '' : 'hidden'}>
@@ -2333,7 +2335,7 @@ function renderMusic() {
       <div ${m.src === 'local' ? '' : 'hidden'}>
         <button class="btn btn--turq btn--block" onclick="${BIDA.premium || MFILES.length < FREE_MUSIC_FILES ? `$('#local-files').click()` : `openPremium('Music files')`}">${ic('upload')}Add music files</button>
         <input type="file" id="local-files" accept="audio/*" multiple hidden onchange="loadLocal(this.files);this.value=''">
-        <div class="yt-head" style="margin-top:12px"><span class="field-label">Naka-save sa device na 'to</span><small class="muted">${MFILES.length}${BIDA.premium ? '' : ` / ${FREE_MUSIC_FILES} libre`}</small></div>
+        <div class="yt-head" style="margin-top:12px"><span class="field-label">Naka-save sa device na 'to</span></div>
         ${musicFilesHTML()}
         <p class="note" style="margin-top:10px">${ic('check')}<span>Mp3 o m4a galing sa phone o laptop mo. Naka-save lang sa browser ng device na 'to, <b>hindi ina-upload</b> sa amin o kahit saan. Kapag nag-clear ka ng browser data, mabubura rin sila.</span></p>
       </div>
@@ -2345,9 +2347,117 @@ function renderMusic() {
       ${m.autoDuck ? `<div class="vu"><i></i></div>
       <div class="slider-row"><label for="sl-sens">Mic sensitivity</label><output id="o-sens">${Math.round(m.sens * 100)}%</output>
         <input type="range" id="sl-sens" min="0.05" max="1" step="0.05" value="${m.sens}" oninput="BIDA.music.sens=+this.value;saveState();$('#o-sens').textContent=Math.round(this.value*100)+'%'"></div>` : ''}
-    </div>`;
+    </div>
+    ${isAdmin() ? mlAdminHTML() : ''}`;
 }
 function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
+
+/* ---- Music library: like the videoke library. The admin imports YouTube playlists into
+   music/library.json (up to 1,000 songs). Users pick songs into "Playlist mo"; without Premium
+   they can keep 5 (BIDA_CONFIG.freeYtLinks), then Premium. No pasting of own YouTube links. ---- */
+const ML_PATH = 'music/library.json', ML_MAX = 1000, ML_PER = 60;
+const ML = { lib: [], loaded: false, q: '', page: 0, admin: { busy: false, msg: '', q: '' } };
+async function mlLoad() {
+  try {
+    const r = await fetch(ML_PATH + '?t=' + Math.floor(Date.now() / 6e5), { cache: 'no-cache' });
+    const j = r.ok ? await r.json() : { songs: [] };
+    ML.lib = (j.songs || []).map(vkCleanSong).filter(Boolean);
+  } catch (e) { ML.lib = []; }
+  ML.loaded = true;
+}
+const mlInList = y => ytLinks().findIndex(l => l.v === y && !l.list);
+function mlAdd(c) {
+  const s = ML.lib.find(x => x.c === c); if (!s) return;
+  const i = mlInList(s.y); if (i >= 0) { playYouTube(i); return; }          // already in the playlist: just play it
+  if (!BIDA.premium && ytLinks().length >= BIDA_CONFIG.freeYtLinks) { openPremium('Music library'); return; }
+  ytLinks().push({ v: s.y, list: '', title: (s.a ? s.a + ' – ' : '') + s.t, thumb: `https://i.ytimg.com/vi/${s.y}/mqdefault.jpg` });
+  saveState(); renderMusic(); renderPlaylist(); playYouTube(ytLinks().length - 1);
+}
+function mlSearch() {
+  const q = vkNorm(ML.q);
+  return ML.lib.filter(s => !q || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q)).sort((a, b) => vkNorm(a.t).localeCompare(vkNorm(b.t)) || a.c - b.c);
+}
+function mlResultsHTML() {
+  if (!ML.loaded) return '<p class="muted">Loading ang music library…</p>';
+  if (!ML.lib.length) return '<p class="muted">Wala pang songs sa music library.</p>';
+  const res = mlSearch(), pages = Math.max(1, Math.ceil(res.length / ML_PER));
+  ML.page = Math.min(ML.page, pages - 1);
+  const page = res.slice(ML.page * ML_PER, ML.page * ML_PER + ML_PER);
+  if (!page.length) return '<p class="muted">Walang lumabas.</p>';
+  return `<ul class="vk-list">${page.map(s => { const on = mlInList(s.y) >= 0; return `<li class="${on ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div>
+    <button class="vk-add ${on ? 'on' : ''}" onclick="mlAdd(${s.c})" aria-label="${on ? 'Play' : 'Add'}: ${esc(s.t)}" title="${on ? 'Nasa playlist mo na · Play' : 'Add sa playlist'}">${ic(on ? 'play' : 'plus')}</button></li>`; }).join('')}</ul>
+    ${pages > 1 ? `<div class="admin-up" style="margin-top:10px"><button class="btn btn--ghost btn--sm" ${ML.page ? '' : 'disabled'} onclick="mlPage(-1)">Back</button><span class="muted">${ML.page + 1} / ${pages}</span><button class="btn btn--ghost btn--sm" ${ML.page + 1 < pages ? '' : 'disabled'} onclick="mlPage(1)">Next</button></div>` : ''}`;
+}
+function mlFind(q) { ML.q = q; ML.page = 0; const b = $('#ml-res'); if (b) b.innerHTML = mlResultsHTML(); }
+function mlPage(d) { ML.page = Math.max(0, ML.page + d); const b = $('#ml-res'); if (b) { b.innerHTML = mlResultsHTML(); b.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' }); } }
+
+// Admin: import playlists, delete songs, remove duplicates
+function mlAdminHTML() {
+  const a = ML.admin, dis = a.busy ? 'disabled' : '', full = ML.lib.length >= ML_MAX, q = vkNorm(a.q), dups = vkDupSet(ML.lib);
+  const list = ML.lib.filter(s => !q || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q)), shown = list.slice(0, 120);
+  return `<div class="card admin-card" style="margin-top:20px">
+    <div class="adm-head"><h3>${ic('lock')}Admin: Music library</h3><span class="adm-count ${full ? 'full' : ''}">${ML.lib.length} / ${ML_MAX}</span></div>
+    <p class="muted">Makikita 'to ng lahat ng users. Import ng YouTube playlist: hanggang 200 songs bawat import, ulitin lang para sa iba pang playlist.</p>
+    <div class="admin-up">
+      <button class="btn btn--ink btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="mlAdminImport()">${ic('upload')}Import playlist</button>
+      ${dups.size ? `<button class="btn btn--chili btn--sm" ${dis} onclick="mlAdminDedupe()">${ic('trash')}Remove duplicates (${vkDupCount(ML.lib)})</button>` : ''}
+    </div>
+    ${a.msg ? `<p class="note adm-msg" style="margin-top:10px">${esc(a.msg)}</p>` : ''}
+    ${ML.lib.length ? `<input class="input adm-find" id="ml-adm-q" style="margin-top:12px" placeholder="Search title o artist" value="${esc(a.q)}" oninput="mlAdminFind(this.value)">
+    <ul class="adm-list">${shown.map(s => `<li class="${dups.has(s.c) ? 'dup' : ''}"><span class="adm-c">${s.c}</span>
+      <span class="adm-t"><b>${esc(s.t)}</b><small>${esc(s.a) || '—'}</small></span>
+      <button class="adm-ic adm-del" onclick="mlAdminDelete(${s.c})" aria-label="Burahin ang ${s.c}" ${dis}>${ic('trash')}</button></li>`).join('')}</ul>
+    ${list.length > shown.length ? `<p class="muted" style="margin-top:8px">+${list.length - shown.length} pa. Gamitin ang search.</p>` : ''}` : ''}
+  </div>`;
+}
+function mlAdminFind(q) { ML.admin.q = q; renderMusic(); setTimeout(() => { const i = $('#ml-adm-q'); if (i) { i.focus(); i.setSelectionRange(q.length, q.length); } }, 0); }
+async function mlAdminWork(fn) {
+  if (ML.admin.busy) return; ML.admin.busy = true; ML.admin.msg = ''; renderMusic();
+  try { await fn(); } catch (e) { ML.admin.msg = e.message === 'lib_full' ? 'Puno na ang music library (1,000 songs).' : (VK_ERR[e.message] || ('Hindi natuloy: ' + e.message)); }
+  finally { ML.admin.busy = false; renderMusic(); }
+}
+const mlSave = (mutate, message, bulk) => vkSaveLib(mutate, message, { path: ML_PATH, max: ML_MAX, bulk }).then(out => { ML.lib = out; ML.loaded = true; });
+// Music titles: drop the "(Official Music Video)" / "[Lyrics]" bits
+const mlCleanTitle = t => String(t || '').replace(/\s*[\(\[][^\)\]]*\b(official|video|audio|lyrics?|visuali[sz]er|mv|hd|4k|remaster(ed)?)\b[^\)\]]*[\)\]]/gi, '').replace(/\s{2,}/g, ' ').trim();
+async function mlAdminImport() {
+  const room = ML_MAX - ML.lib.length;
+  if (room <= 0) { toast('Puno na ang music library (1,000 songs).'); return; }
+  const link = await askText(`I-paste ang YouTube playlist link (max ${Math.min(200, room)} songs bawat import)`, '', 600); if (!link) return;
+  const p = parseYouTube(link); if (!p || !p.list) { toast('Hindi playlist link yan'); return; }
+  mlAdminWork(async () => {
+    const ids = (await vkPlaylistIds(p.list)).filter(id => /^[\w-]{11}$/.test(id)).slice(0, 200);
+    const fresh = [], cap = Math.min(200, room);
+    let skipped = 0, doubles = 0;
+    for (let i = 0; i < ids.length && fresh.length < cap; i++) {
+      if (ML.lib.some(s => s.y === ids[i]) || fresh.some(f => f.y === ids[i])) { doubles++; continue; }
+      ML.admin.msg = `Binabasa ang songs… ${i + 1}/${ids.length}`; const m = $('#panel-music .adm-msg'); if (m) m.textContent = ML.admin.msg;
+      try {
+        const info = await vkOembed(ids[i]), pt = vkParseTitle(mlCleanTitle(info.title));
+        const cand = { y: ids[i], t: mlCleanTitle(pt.t) || pt.t, a: pt.a || String(info.author_name || '').replace(/\s*-\s*Topic$/i, '').slice(0, 60), g: '' };
+        if (vkFindDup(ML.lib, cand) || vkFindDup(fresh, cand)) { doubles++; continue; }
+        fresh.push(cand);
+      } catch (e) { skipped++; }
+    }
+    let added = 0;
+    await mlSave(songs => {
+      let code = vkNextCode(songs) - 1;
+      for (const f of fresh) { if (songs.length >= ML_MAX) break; if (vkFindDup(songs, f)) { doubles++; continue; } songs.push({ c: ++code, ...f }); added++; }
+      return songs;
+    }, `Music: import ${fresh.length} songs`);
+    ML.admin.msg = `Na-import: ${added} songs` + (doubles ? ` · ${doubles} hindi sinama kasi meron na` : '')
+      + (skipped ? ` · ${skipped} hindi pwede (private, wala na, o ayaw i-play sa ibang site)` : '') + '.';
+  });
+}
+async function mlAdminDelete(c) {
+  const s = ML.lib.find(x => x.c === c); if (!s) return;
+  if (!await askConfirm(`Burahin ang "${s.t}"?`, 'Burahin')) return;
+  mlAdminWork(() => mlSave(songs => songs.filter(x => x.c !== c), `Music: remove ${c}`));
+}
+async function mlAdminDedupe() {
+  const n = vkDupCount(ML.lib);
+  if (!n || !await askConfirm(`Burahin ang ${n} na doble sa music library? Matitira ang unang kopya ng bawat song.`, 'Burahin')) return;
+  mlAdminWork(async () => { let removed = 0; await mlSave(songs => { const out = vkDedupe(songs); removed = songs.length - out.length; return out; }, 'Music: remove duplicates', true); ML.admin.msg = `Nabura ang ${removed} na doble.`; });
+}
 
 /* ============================================================
    VIDEOKE — Pinoy-style: every song has a number code.
@@ -2402,8 +2512,7 @@ function vkSearch() {
   if (VK.letter) list = list.filter(s => vkFirst(s.t) === VK.letter);
   if (VK.artist) list = list.filter(s => vkNorm(s.a) === VK.artist);
   if (q) list = list.filter(s => String(s.c).startsWith(q) || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q));
-  if (!BIDA.premium && VK.freeOnly) list = list.filter(s => vkIsFree(s.c));
-  // free users see the free songs first, then the locked ones
+  // free users see the free songs first, then the locked ones (shown faded behind the unlock card)
   return list.sort((a, b) => (BIDA.premium ? 0 : vkIsFree(b.c) - vkIsFree(a.c)) || vkNorm(a.t).localeCompare(vkNorm(b.t)) || a.c - b.c);
 }
 
@@ -2432,7 +2541,6 @@ function renderVideoke() {
         <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
         : '<p class="muted" style="margin-top:6px">Wala pang nakapila. Pili ng song sa baba.</p>'}
     </div>
-    ${BIDA.premium ? '' : vkFreeHTML()}
     ${BIDA.premium ? vkRoomHTML() : ''}
     ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
@@ -2471,14 +2579,15 @@ const VK_FREE_CODES = new Set([10637, 10667, 10672, 10684, 11066, 10669, 10587, 
   10686, 10630, 10377, 10678, 10675, 10698, 10835, 10825, 10895, 11595]);
 const vkIsFree = c => VK_FREE_CODES.has(c);
 const vkCanSing = c => BIDA.premium || vkIsFree(c);
-function vkFreeHTML() {
-  return `<div class="card vk-free">${ic('mic')}<div>
-      <h3>${VK_FREE_CODES.size} songs na libre, kantahin kahit ilang beses</h3>
-      <p class="muted">Gusto mo ng lahat ng ${VK.lib.length ? VK.lib.length.toLocaleString() + ' ' : ''}songs? Sa Premium, unlocked lahat, pati QR para makapag-reserve ang guests sa phone nila at sariling YouTube songs.</p>
-      <div class="vk-free-btns"><button class="btn btn--ink btn--sm" onclick="vkFreeOnly(${!VK.freeOnly})">${VK.freeOnly ? 'Show all songs' : 'Libreng songs lang'}</button>
-      <button class="btn btn--magenta btn--sm" onclick="openPremium('Videoke')">${ic('star')}Unlock all · ${esc(BIDA_CONFIG.price)}</button></div></div></div>`;
+// Without Premium, locked songs sit faded behind this card (a peek at what's waiting)
+function vkUnlockHTML(peek) {
+  return `<div class="vk-more"><ul class="vk-list vk-peek" aria-hidden="true">${peek.map(s => `<li><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div><span class="vk-add">${ic('lock')}</span></li>`).join('')}</ul>
+    <div class="vk-more-card">${ic('mic')}<h3>Bitin pa? Marami pang kanta dito!</h3>
+      <p>Unlock all songs para tuloy-tuloy ang kantahan: OPM, love songs, 90s hits at marami pa. Kasama na rin ang QR para makapag-reserve ang guests sa phone nila.</p>
+      <button class="btn btn--magenta" onclick="openPremium('Videoke')">${ic('star')}Unlock all songs · ${esc(BIDA_CONFIG.price)}</button></div></div>`;
 }
-function vkFreeOnly(on) { VK.freeOnly = on; renderVideoke(); }
+// How many times each song is already in the queue (shown on its + button)
+function vkQCounts() { const m = new Map(); vkState().queue.forEach(q => m.set(q.c, (m.get(q.c) || 0) + 1)); return m; }
 function vkRoomHTML() {
   const on = vkRoomValid();
   const left = on ? Math.max(1, Math.round((BIDA.vk.room.exp - Date.now()) / 36e5)) : 0;
@@ -2502,9 +2611,11 @@ function braveTipHTML() {
 function vkResultsHTML(shown, total) {
   if (!vkAll().length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang songs sa library.' : 'Loading ang library…'}</p>`;
   if (!shown.length) return '<p class="muted" style="margin-top:12px">Walang lumabas.</p>';
-  return `<ul class="vk-list">${shown.map(s => { const ok = vkCanSing(s.c); return `<li class="${ok ? '' : 'locked'}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.c >= 90000 ? ' · sarili mo' : ''}${!BIDA.premium && vkIsFree(s.c) ? ' · <em class="vk-freetag">Libre</em>' : ''}</small></div>
-    <button class="vk-add" onclick="vkReserve(${s.c})" aria-label="${ok ? 'Reserve' : 'Premium song'}: ${esc(s.t)}" title="${ok ? 'Reserve' : 'Premium'}">${ic(ok ? 'plus' : 'lock')}</button></li>`; }).join('')}</ul>
-    ${total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa. I-type ang hinahanap o gamitin ang filter.</p>` : ''}`;
+  const cnt = vkQCounts(), open = shown.filter(s => vkCanSing(s.c)), locked = shown.filter(s => !vkCanSing(s.c));
+  const rows = open.length ? `<ul class="vk-list">${open.map(s => { const n = cnt.get(s.c) || 0; return `<li class="${n ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.c >= 90000 ? ' · sarili mo' : ''}</small></div>
+    <button class="vk-add ${n ? 'on' : ''}" onclick="vkReserve(${s.c})" aria-label="${n ? `Nakapila na ×${n}. Reserve ulit` : 'Reserve'}: ${esc(s.t)}" title="${n ? `Nakapila na ×${n}` : 'Reserve'}">${n ? `<span class="vk-cnt">${n}</span>` : ic('plus')}</button></li>`; }).join('')}</ul>` : '';
+  if (locked.length) return rows + vkUnlockHTML(locked.slice(0, 12));
+  return rows + (total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa. I-type ang hinahanap o gamitin ang filter.</p>` : '');
 }
 function vkFind(q) {
   VK.q = q; const res = vkSearch();
@@ -2634,6 +2745,26 @@ function vkStageInfo() {
   rmtPublish(); vkSinger();
   $('#vk-side').innerHTML = items.join('') + (all.length > 8 ? `<li class="vk-tx" style="--o:.22">+${all.length - 8} pa</li>` : '');
 }
+/* The intro calls the singer's name out loud in a bright female voice (the device's own text-to-speech).
+   Prefers a Filipino voice (e.g. Edge's "Blessica"), then a female English one. Silent if the device has none. */
+const VK_FEMALE = /blessica|female|woman|samantha|zira|aria|jenny|michelle|karen|moira|tessa|fiona|victoria|serena|susan|hazel|libby|sonia|natasha|ava|allison|nicky|google us english|google uk english female/i;
+function vkVoice() {
+  const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+  const fil = v => /^(fil|tl)/i.test(v.lang), en = v => /^en/i.test(v.lang);
+  return vs.find(v => fil(v) && VK_FEMALE.test(v.name)) || vs.find(v => /en-PH/i.test(v.lang) && VK_FEMALE.test(v.name))
+    || vs.find(v => en(v) && VK_FEMALE.test(v.name)) || vs.find(fil) || vs.find(en) || null;
+}
+try { speechSynthesis.getVoices(); speechSynthesis.addEventListener?.('voiceschanged', () => speechSynthesis.getVoices()); } catch (e) { }
+function vkAnnounce(name) {
+  try {
+    if (!window.speechSynthesis || $('#vk-intro').hidden) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(name ? `${name}... ikaw na!` : 'Ikaw na!');
+    const v = vkVoice(); if (v) { u.voice = v; u.lang = v.lang; }
+    u.pitch = 1.4; u.rate = 1.05; u.volume = 1;              // high and bubbly
+    speechSynthesis.speak(u);
+  } catch (e) { }
+}
 /* "Susunod na kakanta" — a big, fun intro before each song, then the video starts */
 function vkIntro(it, s, done) {
   const el = $('#vk-intro'), name = it.singer || 'Ikaw na!';
@@ -2648,6 +2779,7 @@ function vkIntro(it, s, done) {
     </div>`;
   el.hidden = false; el.classList.remove('out');
   vkSfx('intro');
+  setTimeout(() => vkAnnounce(it.singer), 700);          // after the ta-da: "Tita Baby... ikaw na!"
   const cnt = $('#vki-count'); let n = 3;
   const step = () => {
     n--;
@@ -3545,6 +3677,13 @@ function vkDupSet(songs) {
   songs.forEach(s => { put('y:' + s.y, s); if (vkKeyPart(s.t)) put('k:' + vkDupKey(s), s); });
   return dup;
 }
+// Keep one copy of every song, drop the rest. Kept first: the `prefer` codes (the free videoke songs), then the lowest code.
+function vkDedupe(songs, prefer = new Set()) {
+  const kept = [];
+  [...songs].sort((a, b) => (prefer.has(b.c) - prefer.has(a.c)) || a.c - b.c).forEach(s => { if (!vkFindDup(kept, s)) kept.push(s); });
+  return kept.sort((a, b) => a.c - b.c);
+}
+const vkDupCount = songs => songs.length - vkDedupe(songs).length;      // how many extra copies "Remove duplicates" would delete
 function vkFindDup(songs, cand) {
   const k = vkKeyPart(cand.t) ? vkDupKey(cand) : '';
   return songs.find(s => s.y === cand.y || (k && vkDupKey(s) === k));
@@ -3562,7 +3701,8 @@ function vkAdminHTML() {
     <div class="admin-up">
       <button class="btn btn--ink btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="vkAdminAdd()">${ic('plus')}Add song</button>
       <button class="btn btn--ghost btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="vkAdminImport()">${ic('upload')}Import playlist</button>
-      ${dups.size ? `<button class="btn btn--sm ${a.dup ? 'btn--chili' : 'btn--ghost'}" onclick="vkAdminDup()">${a.dup ? 'Ipakita lahat' : `May doble: ${dups.size}`}</button>` : ''}
+      ${dups.size ? `<button class="btn btn--sm ${a.dup ? 'btn--chili' : 'btn--ghost'}" onclick="vkAdminDup()">${a.dup ? 'Ipakita lahat' : `May doble: ${dups.size}`}</button>
+      <button class="btn btn--chili btn--sm" ${dis} onclick="vkAdminDedupe()">${ic('trash')}Remove duplicates (${vkDupCount(VK.lib)})</button>` : ''}
     </div>
     ${full ? '<p class="note" style="margin-top:10px">Puno na (3,000). Magbura muna bago magdagdag.</p>' : ''}
     ${a.msg ? `<p class="note adm-msg" style="margin-top:10px">${esc(a.msg)}</p>` : ''}
@@ -3586,8 +3726,8 @@ async function vkGhReady() {
 }
 // Read the library straight from GitHub. Big files (over 1 MB) come back without content from the
 // contents API, so fall back to the blob API. If it still can't be read, STOP: saving would wipe it.
-async function vkReadLib() {
-  const r = await ghApi('contents/' + VK_LIB_PATH);
+async function vkReadLib(path = VK_LIB_PATH) {
+  const r = await ghApi('contents/' + path);
   if (r.status === 404) return { sha: '', songs: [] };
   if (!r.ok) throw new Error('lib_read');
   const j = await r.json();
@@ -3604,19 +3744,23 @@ async function vkReadLib() {
   return { sha: j.sha, songs: data.songs.map(vkCleanSong).filter(Boolean) };
 }
 // Re-read right before saving so two edits never overwrite each other
-async function vkSaveLib(mutate, message) {
+// Used for both libraries: opt.path / opt.max pick the file; opt.bulk allows removing many at once (duplicates)
+async function vkSaveLib(mutate, message, opt = {}) {
+  const path = opt.path || VK_LIB_PATH, max = opt.max || VK_MAX;
   await vkGhReady();
-  const { sha, songs } = await vkReadLib();
+  const { sha, songs } = await vkReadLib(path);
   const before = songs.length;
-  const out = mutate(songs) || songs;
-  if (out.length > VK_MAX && out.length > before) throw new Error('lib_full');
-  if (out.length < before - 1) throw new Error('lib_read');      // a save should never lose more than the one song being deleted
+  const out = mutate(songs.slice()) || songs;
+  if (out.length > max && out.length > before) throw new Error('lib_full');
+  // a save should never lose more than the one song being deleted (or, for "remove duplicates", only the doubles)
+  if (out.length < before - 1 && !(opt.bulk && before - out.length === songs.length - vkDedupe(songs).length)) throw new Error('lib_read');
   out.sort((a, b) => a.c - b.c);
   // One song per line: small file, and GitHub shows clean diffs
   const json = '{"v":1,"updated":' + JSON.stringify(new Date().toISOString()) + ',"songs":[\n'
     + out.map(s => JSON.stringify({ c: s.c, y: s.y, t: s.t, a: s.a, g: s.g || '' })).join(',\n') + '\n]}\n';
-  await ghPut(VK_LIB_PATH, b64(new TextEncoder().encode(json)), message, sha || undefined);
-  VK.lib = out; VK.loaded = true;
+  await ghPut(path, b64(new TextEncoder().encode(json)), message, sha || undefined);
+  if (path === VK_LIB_PATH) { VK.lib = out; VK.loaded = true; }
+  return out;
 }
 const VK_ERR = {
   no_gh_token: 'Ilagay muna ang GitHub token sa Sounds → Admin: Sound manager.',
@@ -3698,6 +3842,11 @@ async function vkAdminImport() {
       + (doubles ? ` · ${doubles} hindi sinama kasi meron na` : '')
       + (skipped ? ` · ${skipped} hindi pwede (private, wala na, o ayaw i-play sa ibang site)` : '') + '.';
   });
+}
+async function vkAdminDedupe() {
+  const n = vkDupCount(VK.lib);
+  if (!n || !await askConfirm(`Burahin ang ${n} na doble sa videoke library? Matitira ang unang kopya (pinakamababang code) ng bawat kanta.`, 'Burahin')) return;
+  vkAdminWork(async () => { let removed = 0; await vkSaveLib(songs => { const out = vkDedupe(songs, VK_FREE_CODES); removed = songs.length - out.length; return out; }, 'Videoke: remove duplicates', { bulk: true }); VK.admin.dup = false; VK.admin.msg = `Nabura ang ${removed} na doble.`; });
 }
 async function vkAdminEdit(c) {
   const s = VK.lib.find(x => x.c === c); if (!s) return;
@@ -4060,7 +4209,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
-  addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, playMusicFile, delMusicFile, vkFreeOnly,spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
+  addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, playMusicFile, delMusicFile, mlAdd, mlFind, mlPage, mlAdminImport, mlAdminDelete, mlAdminFind, mlAdminDedupe, vkAdminDedupe, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,
   toggleBar, barInfoClick, setTalkSpeed, setAutoReturn, setAutoDuck, setMusicSrc,
   openPremium, openAccount, redeem, signIn, signOut, startCheckout, openLive, closeLive, liveStep, liveTimerToggle,
   openSheet, closeSheet, saveState
