@@ -21,16 +21,19 @@ Google sign-in is connected (project `bidavibe`). The admin test account is set 
 
 To change the admin: hash the new Gmail (lowercase) with SHA-256 and replace the value in `adminHashes` (and `DEFAULT_ADMIN_HASHES` in the Worker), or just ask for it to be updated.
 
+*(Menu names checked against Cloudflare's and PayMongo's docs on 2026-11-15. If a label looks different, the screenshot tells me where things moved.)*
+
 ## 2. PayMongo
-1. Sign up at **dashboard.paymongo.com**. Test mode works right away. Live payments need account activation (they'll ask for ID and business details).
-2. **Developers → API Keys**: copy the **test secret key** (`sk_test_…`). Never put it in the app's code.
+1. Sign up at **dashboard.paymongo.com**. Test keys work right away, before any approval.
+2. **Settings → Product Settings → Developers**: copy the **test secret key** (`sk_test_…`). Never put it in the app's code.
+3. **For real money (live keys):** PayMongo only gives live keys to a **registered business type**: Sole Proprietor (DTI), Partnership, One Person Corporation or Corporation. An *Individual* account only sees test keys ("Live keys need a registered business type"). Upgrade under **Settings → Business information**; live keys appear once PayMongo approves it.
 
 ## 3. Cloudflare Worker (free plan, no card needed)
-1. dash.cloudflare.com → **Workers & Pages → Create → Create Worker** → name it `bida-pay` → Deploy → **Edit code**.
-2. Replace everything with the contents of [`worker/bida-pay-worker.js`](worker/bida-pay-worker.js) → **Deploy**. Note the URL, e.g. `https://bida-pay.<you>.workers.dev`.
-3. **Storage & Databases → KV → Create** a namespace called `bida-premium`.
-4. Worker → **Settings → Bindings → Add → KV namespace**: variable name **`PREMIUM`**, namespace `bida-premium`.
-5. Worker → **Settings → Variables and Secrets** (add as *Text*):
+1. dash.cloudflare.com → **Workers & Pages → Create application → Start with Hello World! → Get started** → name it `bida-pay` → **Deploy**.
+2. Open the Worker → **Edit Code** → replace everything in `worker.js` with the contents of [`worker/bida-pay-worker.js`](worker/bida-pay-worker.js) → **Deploy**. Note the URL, e.g. `https://bida-pay.<you>.workers.dev`.
+3. **Workers KV → Create instance** → name it `bida-premium` → **Create**.
+4. Back to the Worker → **Bindings** tab → **Add binding → KV namespace → Add binding**: Variable name **`PREMIUM`**, namespace `bida-premium` → **Add binding**.
+5. Worker → **Settings → Variables and Secrets → Add** (Type: *Text*), then **Deploy**:
 
    | Name | Value |
    |---|---|
@@ -41,26 +44,28 @@ To change the admin: hash the new Gmail (lowercase) with SHA-256 and replace the
 
    If you had added `PASS_DAYS` before, you can delete it: it isn't used anymore.
 
-   And as *Secret*: `PAYMONGO_SECRET_KEY` = your `sk_test_…` key.
+   And as Type *Secret*: `PAYMONGO_SECRET_KEY` = your `sk_test_…` key.
 
-## 4. PayMongo webhook
-PayMongo creates webhooks through its API. Run this once in Git Bash, with your secret key and Worker URL filled in:
+## 4. PayMongo webhook (tells the Worker "this person paid")
+1. In the PayMongo dashboard open **Webhooks → Create Webhook**. Make sure the top bar says **Test Mode**.
+2. **URL endpoint:** `https://bida-pay.<you>.workers.dev/webhook` · **Event:** `checkout_session.payment.paid` → **Create**.
+3. Copy the webhook's secret key (starts with `whsk_`) and add it to the Worker as a *Secret* named **`PAYMONGO_WEBHOOK_SECRET`** → **Deploy**.
+
+If the dashboard doesn't show a `whsk_` key, create the webhook with this one command in Git Bash instead; the reply contains `"secret_key": "whsk_…"`:
 
 ```bash
 curl https://api.paymongo.com/v1/webhooks -u "sk_test_YOURKEY:" -H "Content-Type: application/json" -d '{"data":{"attributes":{"url":"https://bida-pay.YOU.workers.dev/webhook","events":["checkout_session.payment.paid"]}}}'
 ```
-
-The response contains `"secret_key": "whsk_…"`. Add it to the Worker as a *Secret* named **`PAYMONGO_WEBHOOK_SECRET`**.
 
 ## 5. Connect the app
 In `bida-app.js`, set `BIDA_CONFIG.workerUrl: 'https://bida-pay.YOU.workers.dev'` and push.
 
 ## 6. Test, then go live
 1. On the live site: sign in with a **non-admin** Google account → Account → **I-unlock ang Premium · ₱150 one-time** → **Bayaran · ₱150** → on PayMongo's test checkout pick GCash and authorize → you're sent back and Premium shows "Bayad na. Sa'yo na 'to for good."
-2. When PayMongo activates your account:
+2. When PayMongo approves your business and live keys appear:
    - Swap `PAYMONGO_SECRET_KEY` to `sk_live_…`.
-   - Run the webhook command again with the live key.
-   - Replace `PAYMONGO_WEBHOOK_SECRET` with the new `whsk_…`.
+   - Create the webhook again with the top bar on **Live Mode** (same URL and event).
+   - Replace `PAYMONGO_WEBHOOK_SECRET` with the new live `whsk_…`.
 
    The Worker picks the live or test signature automatically based on the key.
 
