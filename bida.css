@@ -1152,3 +1152,4 @@ body.in-vk .yt-float { display: none; }      /* music is paused while someone si
 .yt-spot { display: none; width: 206px; height: 229px; }
 body.yt-on .yt-spot { display: block; }
 @media (min-width: 1100px) { body.yt-on .mbp-grid { grid-template-columns: 206px minmax(0, 1fr); } }
+.vk-more-card .vk-more-dev { margin-top: -6px; font-size: 12.5px; font-style: italic; }

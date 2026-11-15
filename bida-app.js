@@ -1867,7 +1867,7 @@ async function playYouTube(i) {
   M.yt = new YT.Player('yt-player', {
     videoId: l.v || undefined, playerVars: vars,
     events: {
-      onReady: e => { M.ytReady = true; M.wantPlay = true; applyVolume(liveTarget()); e.target.playVideo(); },
+      onReady: e => { M.ytReady = true; if (vkSinging()) { M.wantPlay = false; return; } M.wantPlay = true; applyVolume(liveTarget()); e.target.playVideo(); },
       onStateChange: e => {
         M.playing = e.data === YT.PlayerState.PLAYING;
         if (e.data === YT.PlayerState.PAUSED) guardResume('youtube');
@@ -2035,6 +2035,7 @@ function playLocal(i) {
   M.pos = `${M.qi + 1} / ${M.queue.length}`;
   M.upNext = M.queue.slice(M.qi + 1, M.qi + 4).map(q => q.name);
   applyVolume(liveTarget());
+  if (vkSinging()) { M.wantPlay = false; updateBar('Sariling files'); return; }
   M.wantPlay = true; a.play().catch(() => { }); updateBar('Sariling files');
 }
 
@@ -2154,7 +2155,9 @@ function setMediaSession() {
     navigator.mediaSession.setActionHandler('previoustrack', () => musicSkip(-1));
   } catch (e) { }
 }
+const vkSinging = () => !$('#vk-stage').hidden;          // the videoke screen is up
 function musicPlay() {
+  if (vkSinging()) { M.wantPlay = false; toast('Naka-videoke pa. I-close muna ang videoke screen bago mag-music.'); return; }
   M.wantPlay = true;
   if (M.kind === 'youtube' && M.yt) M.yt.playVideo();
   else if (M.kind === 'local' && M.audio) M.audio.play().catch(() => { });
@@ -2446,6 +2449,12 @@ function mlResultsHTML() {
   ML.page = Math.min(ML.page, pages - 1);
   const page = res.slice(ML.page * ML_PER, ML.page * ML_PER + ML_PER);
   if (!page.length) return '<p class="muted">Walang lumabas.</p>';
+  const full = !BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks;
+  if (full) {                                              // free limit reached: only their chosen songs play
+    const locked = res.filter(s => mlInList(s.y) < 0);
+    return locked.length ? unlockBoxHTML(locked.slice(0, 12), { icon: 'music', title: 'Gusto mo pa ng ibang songs?', feature: 'Music library',
+      text: 'Naka-5 songs ka na sa free. Unlock all songs para buong music library ang magamit mo: party, OPM, love songs at marami pa. Pwede ring i-play by category.' }) : '<p class="muted">Lahat ng nahanap, nasa playlist mo na.</p>';
+  }
   return `<ul class="vk-list">${page.map(s => { const on = mlInList(s.y) >= 0; return `<li class="${on ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.g && !ML.cat ? ' · ' + esc(s.g) : ''}</small></div>
     <button class="vk-add ${on ? 'on' : ''}" onclick="mlAdd(${s.c})" aria-label="${on ? 'Play' : 'Add'}: ${esc(s.t)}" title="${on ? 'Nasa playlist mo na · Play' : 'Add sa playlist'}">${ic(on ? 'play' : 'plus')}</button></li>`; }).join('')}</ul>
     ${pages > 1 ? `<div class="admin-up" style="margin-top:10px"><button class="btn btn--ghost btn--sm" ${ML.page ? '' : 'disabled'} onclick="mlPage(-1)">Back</button><span class="muted">${ML.page + 1} / ${pages}</span><button class="btn btn--ghost btn--sm" ${ML.page + 1 < pages ? '' : 'disabled'} onclick="mlPage(1)">Next</button></div>` : ''}`;
@@ -2770,11 +2779,16 @@ const VK_FREE_CODES = new Set([10637, 10667, 10672, 10684, 11066, 10669, 10587, 
 const vkIsFree = c => VK_FREE_CODES.has(c);
 const vkCanSing = c => BIDA.premium || vkIsFree(c);
 // Without Premium, locked songs sit faded behind this card (a peek at what's waiting)
-function vkUnlockHTML(peek) {
+const UNLOCK_DEV = 'Isang developer lang ang gumawa ng Bida-Vibe — ang ₱150 mo ay tulong para mas gumanda pa ito.';
+function unlockBoxHTML(peek, { icon = 'mic', title, text, feature }) {
   return `<div class="vk-more"><ul class="vk-list vk-peek" aria-hidden="true">${peek.map(s => `<li><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div><span class="vk-add">${ic('lock')}</span></li>`).join('')}</ul>
-    <div class="vk-more-card">${ic('mic')}<h3>Bitin pa? Marami pang kanta dito!</h3>
-      <p>Unlock all songs para tuloy-tuloy ang kantahan: OPM, love songs, 90s hits at marami pa. Kasama na rin ang QR para makapag-reserve ang guests sa phone nila.</p>
-      <button class="btn btn--magenta" onclick="openPremium('Videoke')">${ic('star')}Unlock all songs · ${esc(BIDA_CONFIG.price)}</button></div></div>`;
+    <div class="vk-more-card">${ic(icon)}<h3>${title}</h3>
+      <p>${text}</p><p class="vk-more-dev">${UNLOCK_DEV}</p>
+      <button class="btn btn--magenta" onclick="openPremium('${feature}')">${ic('star')}Unlock all songs · ${esc(BIDA_CONFIG.price)}</button></div></div>`;
+}
+function vkUnlockHTML(peek) {
+  return unlockBoxHTML(peek, { icon: 'mic', title: 'Bitin pa? Marami pang kanta dito!', feature: 'Videoke',
+    text: 'Unlock all songs para tuloy-tuloy ang kantahan: OPM, love songs, 90s hits at marami pa. Kasama na rin ang QR para makapag-reserve ang guests sa phone nila.' });
 }
 // How many times each song is already in the queue (shown on its + button)
 function vkQCounts() { const m = new Map(); vkState().queue.forEach(q => m.set(q.c, (m.get(q.c) || 0) + 1)); return m; }
@@ -2889,7 +2903,7 @@ async function vkStart() {
   const stage = $('#vk-stage');
   stage.hidden = false; document.body.classList.add('in-vk'); document.body.style.overflow = 'hidden';
   vkDressStage();
-  if (M.playing) musicPause();                         // party music stops while someone sings
+  if (M.kind) musicPause();                           // party music stops while someone sings (also if it was still loading)
   try { navigator.wakeLock?.request('screen').then(l => VK.lock = l).catch(() => { }); } catch (e) { }
   if (!VK.cur) vkNext(); else vkStageInfo();
   // the QR on the right lets guests add songs; make the link now if the host hasn't yet
@@ -2913,7 +2927,7 @@ async function vkNext() {
   vkStageInfo(); vkPublish();
   await ytApi();
   VK.introDone = false; VK.ready2play = false;
-  const go = () => { if (VK.introDone && VK.ready2play) { try { VK.yt.setVolume(100); VK.yt.playVideo(); } catch (e) { } } };
+  const go = () => { if (VK.introDone && VK.ready2play) { if (M.kind && (M.playing || M.wantPlay)) musicPause(); try { VK.yt.setVolume(100); VK.yt.playVideo(); } catch (e) { } } };
   if (VK.yt && VK.ytReady) { VK.yt.cueVideoById(s.y); VK.ready2play = true; }
   else {
     $('#vk-player').innerHTML = '<div id="vk-yt"></div>';
@@ -3745,7 +3759,7 @@ async function rmtStart() {
   const exp = Date.now() + REMOTE_HOURS * 36e5;
   try {
     await fs.collection('vk_remotes').doc(id).set({ owner: AUTH.user.uid, open: true, expires: firebase.firestore.Timestamp.fromMillis(exp),
-      state: rmtState(), updated: firebase.firestore.FieldValue.serverTimestamp() });
+      state: rmtClean(rmtState()), updated: firebase.firestore.FieldValue.serverTimestamp() });
   } catch (e) { toast(/permission/i.test(e.message) ? 'Hindi pa naka-publish ang bagong Firestore rules' : 'Hindi nagawa ang remote. Try ulit.'); return; }
   BIDA.remote = { id, owner: AUTH.user.uid, exp }; saveState();
   rmtListen(); rmtSheet();
@@ -3768,7 +3782,7 @@ function rmtState() {
     plan: BIDA.program.slice(0, 60).map((p, i) => ({ id: p.id, t: String(p.title || '').slice(0, 80), min: p.min, done: !!p.done, next: i === nxt, note: String(p.note || '').slice(0, 200) })),
     pads: padList().filter(p => canPlaySound(p.id)).slice(0, 40).map(p => ({ id: p.id, n: p.name.slice(0, 24), c: p.c })),
     music: { has: !!M.kind, on: !!M.playing, t: String(M.title || '').slice(0, 90), duck: !!M.ducked, faded: !!M.faded, pro: !!BIDA.premium,
-      kind: M.kind || '', src: BIDA.music.src, idx: M.kind === 'youtube' ? BIDA.music.ytIdx : -1, fi: M.kind === 'local' ? M.qi : -1, cat: plCat(),
+      kind: M.kind || '', src: BIDA.music.src, vk: vkSinging(), idx: M.kind === 'youtube' ? BIDA.music.ytIdx : -1, fi: M.kind === 'local' ? M.qi : -1, cat: plCat(),
       full: !BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks,
       list: ytLinks().slice(0, 200).map((l, i) => ({ t: ytLabel(l, i).slice(0, 80), y: l.v || '', g: ytCat(l), ok: ytCanUse(i), pl: !!l.list })),
       files: musicFilesOk().slice(0, 100).map(f => f.name.slice(0, 60)) },
@@ -3782,14 +3796,23 @@ function rmtState() {
   };
 }
 // Keep the phone's copy fresh (only writes when something actually changed)
+// Firestore refuses a whole update if ANY value is undefined, NaN or an array inside an array.
+// Clean the snapshot so one odd field (an old sound pad, a missing note) can never freeze the phone.
+function rmtClean(st) {
+  return JSON.parse(JSON.stringify(st, (k, v) => {
+    if (typeof v === 'number' && !isFinite(v)) return 0;
+    if (Array.isArray(v)) return v.map(x => Array.isArray(x) ? JSON.stringify(x) : x === undefined ? null : x);
+    return v;
+  }));
+}
 function rmtPublish() {
   if (!BIDA.remote) return;
   clearTimeout(RMT.pubT);
   RMT.pubT = setTimeout(() => {
     const fs = vkFs(); if (!fs || !rmtValid()) return;
-    const st = rmtState(), key = JSON.stringify(st);
+    const st = rmtClean(rmtState()), key = JSON.stringify(st);
     if (key === RMT.last) return; RMT.last = key;
-    fs.collection('vk_remotes').doc(BIDA.remote.id).update({ state: st, updated: firebase.firestore.FieldValue.serverTimestamp() }).catch(e => { RMT.last = ''; console.warn('Remote update failed', e && e.message); });
+    fs.collection('vk_remotes').doc(BIDA.remote.id).update({ state: st, updated: firebase.firestore.FieldValue.serverTimestamp() }).catch(e => { RMT.last = ''; if (!RMT.warned) { RMT.warned = true; toast('Remote: hindi ma-update ang phone (' + ((e && e.code) || 'error') + ')'); } console.warn('Remote update failed', e && e.message); });
   }, 500);
 }
 function rmtListen() {
