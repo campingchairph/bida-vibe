@@ -20,6 +20,10 @@ const BIDA_CONFIG = {
     messagingSenderId: '596965053196',
     appId: '1:596965053196:web:cb32617798b800f4276f29'
   },
+  // Google OAuth "Web client" ID (public, not a secret). Turns on the iPhone-safe sign-in: a full-page trip to
+  // Google and straight back to this page. Google Auth Platform → Clients → "Web client (auto created by Google
+  // Service)": its redirect URIs must include https://campingchairph.github.io/bida-vibe/ (see SECURITY.md).
+  googleClientId: '',
   // Admin test accounts: SHA-256 fingerprints of the Google email (lowercase), never the email itself.
   // Only someone who signs in with Google as that verified account matches. To add/change an admin,
   // hash the new email (e.g. `printf '%s' you@gmail.com | sha256sum`) and replace/add it here.
@@ -3024,7 +3028,7 @@ function vkRoomValid() {
 async function vkMakeRoom(silent) {
   if (!BIDA.premium) { if (!silent) needPro('Videoke'); return; }
   if (!authReady()) { if (!silent) toast('Hindi pa ready ang sign-in'); return; }
-  if (!AUTH.user) { if (silent) return; await signIn(); if (!AUTH.user) return; }
+  if (!AUTH.user) { if (silent) return; await signIn('room'); if (!AUTH.user) return; }
   const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang link. I-refresh mo.'); return; }
   const old = BIDA.vk.room;
   if (old && old.owner === AUTH.user.uid) vkWipeRoom(old.id);
@@ -3770,7 +3774,7 @@ function rmtValid() {
 function rmtUrl() { return new URL('remote.html?k=' + BIDA.remote.id, location.href).href; }
 function rmtSheet() {
   const on = rmtValid();
-  openSheet(`<div class="sheet-head"><h3>Remote para sa host</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+  openSheet(`<div class="sheet-head" data-rmt><h3>Remote para sa host</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <p class="muted">Naka-connect ba sa TV 'tong laptop o tablet? I-scan ang QR sa phone mo para ma-control ang sounds, videoke, music at plan, kahit malayo ka sa TV.</p>
     ${on ? `<div class="qr-box" id="rmt-qr"><p class="muted">Ginagawa ang QR…</p></div>
       <p class="note" style="margin-top:12px"><b>Para sa co-host lang 'to.</b> Kahit sino ang may link, pwedeng mag-control, kaya 'wag i-send sa GC. Mag-e-expire in ${Math.max(1, Math.round((BIDA.remote.exp - Date.now()) / 36e5))} hours.</p>
@@ -3783,7 +3787,7 @@ function rmtSheet() {
 }
 async function rmtStart() {
   if (!authReady()) { toast('Hindi pa ready ang sign-in'); return; }
-  if (!AUTH.user) { await signIn(); if (!AUTH.user) return; }
+  if (!AUTH.user) { await signIn('remote'); if (!AUTH.user) return; }
   const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang remote. I-refresh mo.'); return; }
   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   const id = [...crypto.getRandomValues(new Uint8Array(24))].map(b => abc[b % abc.length]).join('');
@@ -4240,7 +4244,7 @@ async function vkAdminDelete(c) {
      own document; the Worker re-checks it server-side.
    ============================================================ */
 const IS_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-const AUTH = { user: null, ready: false, busy: false, admin: false };
+const AUTH = { user: null, ready: false, busy: false, admin: false, after: '' };
 let FB_READY = false;           // all three Firebase files loaded
 function authReady() { return !!(BIDA_CONFIG.firebase && window.firebase && FB_READY); }
 function paymentsReady() { return !!(authReady() && BIDA_CONFIG.workerUrl); }
@@ -4275,6 +4279,7 @@ function initAuth() {
   try {
     firebase.initializeApp(BIDA_CONFIG.firebase);
     firebase.auth().getRedirectResult().catch(() => { });
+    googleRedirectFinish();
     firebase.auth().onAuthStateChanged(async u => {
       AUTH.user = u; AUTH.ready = true;
       if (u) {
@@ -4288,8 +4293,12 @@ function initAuth() {
         BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = '';
         applyEntitlement(); saveState(); rerenderPremiumViews();
       }
+      // every open sheet that had a sign-in button redraws for the signed-in account
       if (!$('#sheet-wrap').hidden && $('#sheet [data-acct]')) openAccount();
       if (!$('#sheet-wrap').hidden && $('#sheet .pro-hero')) openPremium(PRO_FEATURE);
+      if (!$('#sheet-wrap').hidden && $('#sheet [data-rmt]')) rmtSheet();
+      renderHead();
+      if (u) signInContinue();
     });
   } catch (e) { AUTH.ready = true; }
 }
@@ -4347,18 +4356,67 @@ function rerenderPremiumViews() {
   if (!$('#live').hidden) renderLive();
   renderHead(); updateBar();
 }
-async function signIn() {
-  if (!authReady()) { toast('Hindi pa ready ang sign-in'); return; }
+/* ---- Google sign-in (the only sign-in) ----
+   iPhone/iPad/Safari block the storage Firebase's popup/redirect helpers need when the site (github.io) and the
+   sign-in helper (firebaseapp.com) are different domains: you finish at Google but the app never hears back.
+   So on those browsers (and whenever the popup fails) we go to Google ourselves: a full-page trip with
+   response_type=id_token, straight back to THIS page, then Firebase signs in with that token (signInWithCredential).
+   "after" = what to continue with once signed in (unlock, room, remote). */
+const UA = navigator.userAgent;
+const isAppleWebKit = /iPhone|iPad|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1) || (/Safari\//.test(UA) && !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Android/.test(UA));
+const isInAppBrowser = /FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\/|TikTok|musical_ly|BytedanceWebview|; wv\)/i.test(UA);
+const rnd = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+function googleRedirectSignIn(after) {
+  const nonce = rnd(), state = rnd();
+  try { localStorage.setItem('bv_gsi', JSON.stringify({ nonce, state, after: after || '', t: Date.now() })); } catch (e) { }
+  const q = new URLSearchParams({ client_id: BIDA_CONFIG.googleClientId, redirect_uri: location.origin + location.pathname,
+    response_type: 'id_token', scope: 'openid email profile', nonce, state, prompt: 'select_account' });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + q;
+}
+// Back from Google: check it's our own round trip (state + nonce), then sign in to Firebase with the ID token
+async function googleRedirectFinish() {
+  if (!/[#&](id_token|error)=/.test(location.hash)) return;
+  const h = new URLSearchParams(location.hash.slice(1));
+  history.replaceState(null, '', location.pathname + location.search);          // the token never stays in the address bar
+  let saved = null; try { saved = JSON.parse(localStorage.getItem('bv_gsi') || 'null'); localStorage.removeItem('bv_gsi'); } catch (e) { }
+  if (h.get('error')) { if (h.get('error') !== 'access_denied') toast('Hindi natuloy ang Google sign-in. Try ulit.'); return; }
+  const tok = h.get('id_token') || '';
+  let claims = {}; try { claims = JSON.parse(atob(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { }
+  if (!saved || Date.now() - saved.t > 15 * 60e3 || h.get('state') !== saved.state || claims.nonce !== saved.nonce) { toast('Hindi natuloy ang sign-in. Try ulit.'); return; }
+  try { await firebase.auth().signInWithCredential(firebase.auth.GoogleAuthProvider.credential(tok)); }
+  catch (e) { toast('Hindi naka-sign in (' + (e.code || 'error') + '). Try ulit.'); return; }
+  AUTH.after = saved.after;                                                      // continue what they were doing
+}
+// After a sign-in finishes, pick up where they were: Premium page, guest link, remote
+function signInContinue() {
+  const a = AUTH.after; AUTH.after = ''; if (!a || !AUTH.user) return;
+  if (a === 'unlock') { if (!BIDA.premium) openPremium(PRO_FEATURE || 'Premium'); else toast('Unlocked na ang Premium!'); }
+  else if (a === 'room') { goTab('videoke'); vkMakeRoom(); }
+  else if (a === 'remote') rmtSheet();
+}
+async function signIn(after = '') {
+  if (AUTH.user) { AUTH.after = after; signInContinue(); return; }               // already signed in: just continue
+  if (isInAppBrowser) {                                                          // Google blocks sign-in inside Messenger/Facebook/TikTok
+    openSheet(`<div class="sheet-head"><h3>Buksan sa browser</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+      <p>Hindi pinapayagan ng Google ang sign-in sa loob ng Messenger, Facebook o TikTok. I-tap ang <b>⋯</b> o <b>⋮</b> sa taas, tapos <b>Open in browser</b> (Safari o Chrome), at doon mag-sign in.</p>
+      <button class="btn btn--ink btn--block" style="margin-top:12px" onclick="braveCopy()">Copy Bida-Vibe link</button>`);
+    return;
+  }
+  const useRedirect = !!BIDA_CONFIG.googleClientId && isAppleWebKit;
+  if (useRedirect) { googleRedirectSignIn(after); return; }                       // iPhone/Safari: the reliable way
+  if (!authReady()) { toast('Sandali, nagloload pa ang sign-in. Try ulit.'); return; }
   const p = new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' });
-  try { await firebase.auth().signInWithPopup(p); }
+  try { await firebase.auth().signInWithPopup(p); AUTH.after = after; signInContinue(); }
   catch (e) {
+    if (/popup-closed|cancelled-popup/.test(e.code || '')) return;
+    if (BIDA_CONFIG.googleClientId) { googleRedirectSignIn(after); return; }        // popup blocked/failed: go the redirect way
     if (/popup-blocked|operation-not-supported/.test(e.code || '')) firebase.auth().signInWithRedirect(p);
-    else if (!/popup-closed|cancelled-popup/.test(e.code || '')) toast('Hindi naka-sign in — try ulit');
+    else toast('Hindi naka-sign in — try ulit');
   }
 }
 function signOut() { firebase.auth().signOut(); toast('Signed out na'); }
 async function startCheckout() {
-  if (!AUTH.user) { await signIn(); return; }       // sign-in is required before paying
+  if (!AUTH.user) { await signIn('unlock'); return; }       // sign-in is required before paying
   if (!paymentsReady()) { toast('Hindi pa ready ang payments — soon!'); return; }
   if (AUTH.busy) return; AUTH.busy = true;
   const b = $('#pay-btn'); if (b) { b.disabled = true; b.querySelector('span').textContent = 'Opening PayMongo…'; }
@@ -4403,7 +4461,7 @@ function openPremium(feature) {
   const u = AUTH.user, admin = isAdmin();
   let action;
   if (admin || (u && passActive() && isLifetime())) action = `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`;
-  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn()">${googleG()}Sign in with Google para ma-unlock</button>
+  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn('unlock')">${googleG()}Sign in with Google para ma-unlock</button>
       <p class="muted" style="margin-top:10px;text-align:center">Naka-save ang Premium sa Google account mo, kaya gagana sa phone, tablet o computer.</p>
       <p class="legal-line">Sa pag-sign in, sang-ayon ka sa <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> at <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>`;
   else action = `${passActive() ? `<div class="note" style="background:var(--leaf-soft);margin-bottom:12px">${passLine()}</div>` : ''}

@@ -55,6 +55,13 @@ Not applicable here: SQL injection, CSRF, session cookies, password hashing, ser
 8. **Cloudflare**: keep `PAYMONGO_SECRET_KEY` and `PAYMONGO_WEBHOOK_SECRET` as *Secrets* (encrypted), never as plain variables.
 9. **Auto-delete forgotten links (Firestore TTL)**: Firebase Console → Firestore → **Time-to-live** → *Create policy*: collection group `vk_rooms`, timestamp field `expires`. Repeat for `vk_remotes`. Expired guest links and remotes (with singer names/selfies) are then deleted automatically even if the host never closed them.
 
+10. **Google sign-in on iPhone/iPad/Safari** (needed because Safari blocks Firebase's cross-site sign-in helper for github.io sites):
+   - Open **Google Auth Platform → Clients** (https://console.cloud.google.com/auth/clients?project=bidavibe) and click the client named **Web client (auto created by Google Service)**.
+   - Under **Authorized JavaScript origins** add `https://campingchairph.github.io` (and `http://localhost:8102` for testing).
+   - Under **Authorized redirect URIs** add `https://campingchairph.github.io/bida-vibe/` (and `http://localhost:8102/`). Save. Google says changes can take 5 minutes to a few hours.
+   - Copy its **Client ID** (ends in `.apps.googleusercontent.com`; it's public, not a secret) into `BIDA_CONFIG.googleClientId` in bida-app.js.
+   - How it works: on Apple browsers the app goes to Google itself (full page, `response_type=id_token`), comes back to this page, checks its own random `state` and `nonce`, removes the token from the address bar, then signs in to Firebase with `signInWithCredential`. Other browsers keep the popup and fall back to this if it fails. In-app browsers (Messenger, Facebook, TikTok) are asked to open Safari/Chrome, because Google blocks sign-in there.
+
 ## When something changes
 - **Rules change**: edit `firestore.rules`, paste it into the Console, Publish, and re-run the Playground checks above.
 - **Price change**: Worker variable `PRICE_CENTAVOS` **and** `price` in `BIDA_CONFIG` (display only).
