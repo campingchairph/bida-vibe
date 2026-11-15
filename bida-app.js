@@ -3597,7 +3597,7 @@ async function henyoNext() {
   wordEl.textContent = '…'; let d = 60;
   while (d < 260) { catEl.textContent = BIDA_WORD_CATS[tlRand(BIDA_WORD_CATS.length)][1]; vkSfx('tick2'); await tlWait(d); d *= 1.15; }
   HY.cat = cat; HY.word = word; TL.busy = false;
-  henyoShow();
+  henyoShow(); rmtPublish();
   const w = $('#hy-word'); w.classList.add('pop'); vkSfx('go');
 }
 function henyoHide() { HY.hidden = !HY.hidden; henyoShow(); }
@@ -3629,12 +3629,13 @@ function timerTick() {
   TM.left = Math.max(0, (TM.endAt - Date.now()) / 1000);
   const s = Math.ceil(TM.left);
   if (s <= 5 && s > 0 && s !== TM.lastBeep) { TM.lastBeep = s; vkSfx('tick'); }
-  if (TM.left <= 0) { clearInterval(TM.iv); TM.running = false; vkSfx('buzz'); timerRender(); return; }
+  if (TM.left <= 0) { clearInterval(TM.iv); TM.running = false; vkSfx('buzz'); timerRender(); rmtPublish(); return; }
   const el = $('#gtimer'), warn = s <= 10;
   if (el.classList.contains('warn') !== warn) timerRender();                 // turns red for the last 10 seconds
   else { const tEl = el.querySelector('.gt-time'); if (tEl) tEl.textContent = tmFmt(s); }
 }
 function timerToggle() {
+  setTimeout(rmtPublish, 0);
   if (TM.running) { TM.running = false; clearInterval(TM.iv); TM.left = Math.max(0, (TM.endAt - Date.now()) / 1000); }
   else { if (TM.left <= 0) TM.left = TM.total; TM.running = true; TM.endAt = Date.now() + TM.left * 1000; TM.lastBeep = -1; clearInterval(TM.iv); TM.iv = setInterval(timerTick, 200); ac(); }
   timerRender();
@@ -3644,7 +3645,7 @@ function timerAdd(sec) {
   else { TM.left = clamp(Math.ceil(TM.left) + sec, 3, 5999); TM.total = TM.left; toolsState().timer = TM.total; saveState(); }
   timerRender();
 }
-function timerReset() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; timerRender(); }
+function timerReset() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; timerRender(); rmtPublish(); }
 async function timerEdit() {
   const v = await askText('Gaano katagal? (hal. 1:30, 90 para 90 sec, o 5m)', tmFmt(TM.total), 8); if (v === null) return;
   const s = String(v).trim().toLowerCase();
@@ -3654,7 +3655,7 @@ async function timerEdit() {
 }
 function timerPreset(sec) { clearInterval(TM.iv); TM.running = false; TM.total = TM.left = sec; toolsState().timer = sec; saveState(); timerRender(); }
 function timerBig() { TM.big = !TM.big; timerRender(); }
-function timerClose() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; $('#gtimer').hidden = true; }
+function timerClose() { clearInterval(TM.iv); TM.running = false; TM.left = TM.total; $('#gtimer').hidden = true; rmtPublish(); }
 // Drag the widget by its header (mouse or finger); it remembers where you put it
 function timerDrag() {
   const el = $('#gtimer'), head = el.querySelector('.gt-head'); if (!head || head.dataset.d) return; head.dataset.d = 1;
@@ -3725,10 +3726,18 @@ function rmtState() {
     ev: String(BIDA.event.name || eventType().label).slice(0, 90),
     plan: BIDA.program.slice(0, 60).map((p, i) => ({ id: p.id, t: String(p.title || '').slice(0, 80), min: p.min, done: !!p.done, next: i === nxt, note: String(p.note || '').slice(0, 200) })),
     pads: padList().filter(p => canPlaySound(p.id)).slice(0, 40).map(p => ({ id: p.id, n: p.name.slice(0, 24), c: p.c })),
-    music: { has: !!M.kind, on: !!M.playing, t: String(M.title || '').slice(0, 90), duck: !!M.ducked, faded: !!M.faded, pro: !!BIDA.premium },
+    music: { has: !!M.kind, on: !!M.playing, t: String(M.title || '').slice(0, 90), duck: !!M.ducked, faded: !!M.faded, pro: !!BIDA.premium,
+      kind: M.kind || '', src: BIDA.music.src, idx: M.kind === 'youtube' ? BIDA.music.ytIdx : -1, fi: M.kind === 'local' ? M.qi : -1, cat: plCat(),
+      full: !BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks,
+      list: ytLinks().slice(0, 200).map((l, i) => ({ t: ytLabel(l, i).slice(0, 80), y: l.v || '', g: ytCat(l), ok: ytCanUse(i), pl: !!l.list })),
+      files: musicFilesOk().slice(0, 100).map(f => f.name.slice(0, 60)) },
+    tools: (t => ({ names: t.names, rmode: t.rmode, remove: t.remove, dice: t.dice, colors: t.colors, hcats: t.hcats, hsec: t.hsec,
+      word: HY.word ? { w: HY.word, c: (BIDA_WORD_CATS.find(c => c[0] === HY.cat) || [, ''])[1], hid: HY.hidden } : null,
+      allColors: TOOL_COLORS, allCats: BIDA_WORD_CATS.map(([k, l]) => [k, l]) }))(toolsState()),
+    timer: { on: !$('#gtimer').hidden, run: TM.running, left: Math.ceil(TM.running ? Math.max(0, (TM.endAt - Date.now()) / 1000) : TM.left), total: TM.total },
     vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song), free: BIDA.premium ? null : [...VK_FREE_CODES] },
     tv: { view: BIDA.view, screen: tvScreen(), pro: !!BIDA.premium },
-    sb: (s => ({ on: !$('#sb-stage').hidden, title: s.title, mode: s.mode, teams: s.teams.map(x => ({ n: x.n, c: x.c, s: x.s })) }))(sbState())
+    sb: (s => ({ on: !$('#sb-stage').hidden, title: s.title, mode: s.mode, modes: SB_MODES, teams: s.teams.map(x => ({ n: x.n, c: x.c, s: x.s })) }))(sbState())
   };
 }
 // Keep the phone's copy fresh (only writes when something actually changed)
@@ -3765,6 +3774,7 @@ function rmtRun(d) {
     case 'pad': if (soundEntry(v) && canPlaySound(v)) playSound(v); break;
     case 'stop': if (CUR_PAD) { try { CUR_PAD.src.stop(); } catch (e) { } } break;
     case 'music':
+      if (['play', 'playf', 'plcat', 'plplay', 'add'].includes(v)) { rmtMusic(v, n, String(d.s || '')); break; }
       if (!M.kind) { toast('Remote: wala pang music na naka-set'); break; }
       if (v === 'toggle') musicToggle();
       else if (v === 'next') musicSkip(1);
@@ -3772,7 +3782,7 @@ function rmtRun(d) {
       else if (v === 'fade' && BIDA.premium) fadeToggle();
       else if (v === 'talk' && BIDA.premium) (M.ducked ? duckUp() : duckDown());
       break;
-    case 'show': tvShow(v); break;
+    case 'show': if (!rmtTool(v, n, String(d.s || ''))) tvShow(v); break;
     case 'score':
       if (v === 'add' || v === 'sub') sbAdd(n, v === 'add' ? 1 : -1);
       else if (v === 'show') sbShow();
@@ -3797,6 +3807,81 @@ function rmtRun(d) {
       } else if (v === 'del' && Number.isInteger(n)) { const q = vkState().queue; if (q[n]) { q.splice(n, 1); saveState(); if (!$('#vk-stage').hidden) vkStageInfo(); if (BIDA.tab === 'videoke') renderVideoke(); vkPublish(); } }
       break;
   }
+}
+
+/* ---- Phone remote → game tools. All of these arrive as k:'show' with a short v (and n / s),
+   so they fit the existing Firestore rule. Every value is checked here before it's used.
+   Nothing here opens a settings sheet on the TV: the audience only sees the game. ---- */
+const tlOn = kind => !$('#tl-stage').hidden && TL.kind === kind;
+function rmtTool(v, n, s) {
+  const t = toolsState(), sb = sbState(), int = Number.isInteger(n);
+  switch (v) {
+    // Scoreboard
+    case 'sb-mode': if (SB_MODES[s] && sb.mode !== s) { sb.mode = s; sb.teams = SB_PRESET[s](); } break;
+    case 'sb-name': if (int && sb.teams[n] && s.trim()) sb.teams[n].n = s.replace(/\s+/g, ' ').trim().slice(0, 24); break;
+    case 'sb-addteam': if (sb.mode === 'custom' && sb.teams.length < 8) { const i = sb.teams.length; sb.teams.push({ n: `Grupo ${i + 1}`, c: SB_COLORS[i % SB_COLORS.length], s: 0 }); } break;
+    case 'sb-delteam': if (sb.mode === 'custom' && sb.teams.length > 2 && int && sb.teams[n]) sb.teams.splice(n, 1); break;
+    // Raffle
+    case 'rf-mode': if (s === 'wheel' || s === 'shuffle') t.rmode = s; break;
+    case 'rf-add': { const nm = s.replace(/\s+/g, ' ').trim().slice(0, 24); if (nm && t.names.length < 300) t.names.push(nm); break; }
+    case 'rf-del': if (int && t.names[n] !== undefined) t.names.splice(n, 1); break;
+    case 'rf-clear': t.names = []; break;
+    case 'rf-remove': t.remove = n === 1; break;
+    case 'raffle-go': rmtGo('raffle'); return true;
+    // Dice
+    case 'dice-n': if (int && n >= 1 && n <= 6) t.dice.n = n; break;
+    case 'dice-kind': if (s === 'num' || s === 'color') t.dice.kind = s; break;
+    case 'dice-go': rmtGo('dice'); return true;
+    // Colour randomizer
+    case 'color-tog': if (int && TOOL_COLORS[n]) { const k = t.colors.indexOf(n); if (k >= 0) { if (t.colors.length > 2) t.colors.splice(k, 1); } else t.colors.push(n); t.colors.sort((a, b) => a - b); } break;
+    case 'color-go': rmtGo('color'); return true;
+    // Henyo / charades
+    case 'hy-cat': if (BIDA_WORDS[s]) { const k = t.hcats.indexOf(s); if (k >= 0) { if (t.hcats.length > 1) t.hcats.splice(k, 1); } else t.hcats.push(s); } break;
+    case 'hy-sec': if ([60, 120, 180].includes(n)) t.hsec = n; break;
+    case 'hy-hide': HY.hidden = !HY.hidden; if (tlOn('henyo')) henyoShow(); rmtPublish(); return true;
+    case 'hy-timer': henyoTimer(); rmtPublish(); return true;
+    case 'henyo-go': rmtGo('henyo'); return true;
+    // Timer
+    case 'tm-preset': if (int && n >= 3 && n <= 5999) { if ($('#gtimer').hidden) timerOpen(); timerPreset(n); } rmtPublish(); return true;
+    case 'tm-toggle': if ($('#gtimer').hidden) timerOpen(); timerToggle(); rmtPublish(); return true;
+    case 'tm-reset': timerReset(); rmtPublish(); return true;
+    case 'tm-plus': case 'tm-minus': if ($('#gtimer').hidden) timerOpen(); timerAdd(v === 'tm-plus' ? 10 : -10); rmtPublish(); return true;
+    case 'tm-close': timerClose(); rmtPublish(); return true;
+    default: return false;
+  }
+  saveState();
+  // redraw whatever is on the TV so the change shows right away
+  if (v.startsWith('sb-') && !$('#sb-stage').hidden) sbRender();
+  if (v.startsWith('rf-') && tlOn('raffle') && !TL.busy) raffleShow();
+  if (v.startsWith('dice-') && tlOn('dice') && !TL.busy) diceShow();
+  if (v.startsWith('color-') && tlOn('color') && !TL.busy) colorShow();
+  if (v.startsWith('hy-') && tlOn('henyo') && !TL.busy) henyoShow();
+  rmtPublish();
+  return true;
+}
+// "Spin / Roll / Random / Bunot" from the phone: put that game on the TV first if it isn't there yet
+function rmtGo(kind) {
+  const go = { raffle: raffleGo, dice: diceRoll, color: colorGo, henyo: henyoNext }[kind];
+  if (tlOn(kind)) { go(); return; }
+  tvShow(kind); setTimeout(go, 400);
+}
+// Phone remote → music: play a saved song, add one from the music library, play a category
+async function rmtMusic(v, n, s) {
+  if (v === 'play' && Number.isInteger(n) && ytLinks()[n] && ytCanUse(n)) { BIDA.music.src = 'youtube'; playYouTube(n); return true; }
+  if (v === 'playf' && Number.isInteger(n) && musicFilesOk()[n]) { BIDA.music.src = 'local'; playMusicFile(n); return true; }
+  if (v === 'plcat' && BIDA.premium) { BIDA.music.plCat = s.slice(0, 20); saveState(); if (BIDA.tab === 'music' && !$('#app').hidden) renderMusic(); renderPlaylist(); rmtPublish(); return true; }
+  if (v === 'plplay') { const i = ytLinks().findIndex((l, j) => ytCanUse(j) && plMatch(j)); if (i >= 0) { BIDA.music.src = 'youtube'; playYouTube(i); } return true; }
+  if (v === 'add' && Number.isInteger(n)) {
+    if (!ML.loaded) await mlLoad();
+    const song = ML.lib.find(x => x.c === n); if (!song) return true;
+    const i = mlInList(song.y); if (i >= 0) { playYouTube(i); return true; }
+    if (!BIDA.premium && ytLinks().filter(l => !l.list).length >= BIDA_CONFIG.freeYtLinks) return true;   // the phone shows the limit, never a Premium popup on the TV
+    ytLinks().push({ v: song.y, list: '', g: song.g || '', title: (song.a ? song.a + ' – ' : '') + song.t, thumb: `https://i.ytimg.com/vi/${song.y}/mqdefault.jpg` });
+    saveState(); renderPlaylist(); if (BIDA.tab === 'music' && !$('#app').hidden) renderMusic();
+    BIDA.music.src = 'youtube'; if (!M.playing) playYouTube(ytLinks().length - 1);
+    rmtPublish(); return true;
+  }
+  return false;
 }
 
 /* ---- Hosts' own songs (saved only on this device) ---- */
