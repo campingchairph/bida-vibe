@@ -14,10 +14,14 @@
 <title>Bida-Vibe — Host Buddy</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 8h56l-6 24-22 24L10 32z' fill='%23E2367A' stroke='%231E1A16' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='24' r='7' fill='%23FFF6E5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<!-- YouTube: connect early so the first song starts faster -->
+<link rel="preconnect" href="https://www.youtube.com">
+<link rel="preconnect" href="https://i.ytimg.com">
+<link rel="dns-prefetch" href="https://www.google.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116n">
+<link rel="stylesheet" href="bida.css?v=20261116o">
 </head>
 <body>
 
@@ -138,12 +142,10 @@
 </div>
 
 <!-- ============ MUSIC BAR (always on screen in the app and Live mode) ============ -->
-<!-- YouTube music video: always visible while it plays (YouTube's rules: no audio-only, player at least 200×200). Drag the bar to move it. -->
-<div class="yt-float" id="yt-float" hidden><div class="yt-grip" id="yt-grip" title="I-drag para ilipat">⋮⋮ <span>Now playing</span></div><div class="yt-dock" id="yt-dock" aria-label="Music video"></div></div>
 <div class="mbar" id="mbar" aria-label="Music controls">
   <div class="mbar-panel" id="mbar-panel">
     <div class="mbp-grid">
-      <div class="yt-spot" id="yt-spot" aria-hidden="true"></div>
+      <div class="yt-dock" id="yt-dock" aria-label="Video preview"></div>
       <div class="mbp-side">
         <div class="slider-row"><label for="mb-vol-2">Volume</label><output></output>
           <input type="range" class="mb-vol" id="mb-vol-2" min="0" max="1" step="0.01" oninput="setMaster(+this.value)"></div>
@@ -238,8 +240,8 @@
 
 <!-- Firebase (sign-in, guest links, remote) is loaded by bida-app.js AFTER the app is usable,
      still pinned with SRI (see FB_SDK), so the buttons work right away even on slow phone data -->
-<script src="vk-avatars.js?v=20261116n"></script>
-<script src="bida-content.js?v=20261116n"></script>
-<script src="bida-app.js?v=20261116n"></script>
+<script src="vk-avatars.js?v=20261116o"></script>
+<script src="bida-content.js?v=20261116o"></script>
+<script src="bida-app.js?v=20261116o"></script>
 </body>
 </html>

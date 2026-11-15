@@ -198,11 +198,32 @@ function renderBunting(el) {
 function renderAllBunting() { $$('.bunting').forEach(el => { if (el.offsetParent !== null || el.closest('#landing')) renderBunting(el); }); }
 
 /* ---------- Landing / app ---------- */
+/* Brave suggestion: shown ONCE per device to hosts on another browser (never in TV view, never to guests).
+   Note: YouTube's API terms frown on steering people around ads, so the wording stays soft (owner's decision). */
+function braveNudge() {
+  if (navigator.brave || isTV()) return;
+  try { if (localStorage.getItem('bv_brave_seen')) return; } catch (e) { return; }
+  setTimeout(() => {
+    if ($('#app').hidden || !$('#sheet-wrap').hidden || isTV()) return;
+    try { localStorage.setItem('bv_brave_seen', '1'); } catch (e) { }
+    openSheet(`<div class="sheet-head"><h3>Walang YouTube Premium?</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+      <div class="brave-pop"><img src="https://brave.com/static-assets/images/brave-logo-sans-text.svg" alt="Brave" width="64" height="64" referrerpolicy="no-referrer">
+        <p>Subukan ang <b>Brave browser</b>. Libre siya, at mas tuloy-tuloy ang music at videoke. I-download, tapos buksan ulit ang Bida-Vibe doon.</p></div>
+      <div class="qr-btns"><a class="btn btn--chili" href="https://brave.com/download/" target="_blank" rel="noopener noreferrer">Get Brave</a>
+        <button class="btn btn--ink" onclick="braveCopy()">Copy Bida-Vibe link</button></div>
+      <button class="btn btn--ghost btn--block" style="margin-top:8px" onclick="closeSheet()">Later</button>`);
+  }, 2500);
+}
+async function braveCopy() {
+  const url = location.origin + location.pathname;
+  try { await navigator.clipboard.writeText(url); toast('Na-copy! I-paste mo sa Brave.'); } catch (e) { askText('I-copy ang link', url, 300); }
+}
 function enterApp(tab) {
   BIDA.seenLanding = true; saveState();
   $('#landing').hidden = true; $('#app').hidden = false; document.body.classList.add('in-app');
   goTab(tab || BIDA.tab || 'plan');
   requestAnimationFrame(renderAllBunting);
+  braveNudge();
 }
 function showLanding() {
   $('#landing').hidden = false; $('#app').hidden = true; document.body.classList.remove('in-app');
@@ -220,6 +241,7 @@ function applyView() {
 }
 function setView(v) {
   BIDA.view = v === 'tv' ? 'tv' : 'host'; saveState(); applyView();
+  if (isTV() && !$('#sheet-wrap').hidden) closeSheet();          // guests never see a setup pop-up on the TV
   if (isTV() && !TV_TABS.includes(BIDA.tab)) goTab('videoke'); else if (!$('#app').hidden) RENDER[BIDA.tab]();
   if (!isTV()) toast('Host view');
   rmtPublish();
@@ -1854,38 +1876,47 @@ async function delYouTube(i) {
   if (BIDA.music.ytIdx === i) BIDA.music.ytIdx = -1; else if (BIDA.music.ytIdx > i) BIDA.music.ytIdx--;
   saveState(); renderMusic(); renderPlaylist();
 }
+// Load the chosen saved link into the music player. The player is created ONCE and reused:
+// loading a new song into it starts much faster than building a new YouTube player every time.
+function ytLoadCur() {
+  const c = M.ytCur; if (!c || !M.yt || !M.ytReady) return;
+  const l = c.l, live = !vkSinging();                               // never start music over the videoke
+  M.wantPlay = live; if (live) applyVolume(liveTarget());
+  if (l.list) live ? M.yt.loadPlaylist({ listType: 'playlist', list: l.list }) : M.yt.cuePlaylist({ listType: 'playlist', list: l.list });
+  else live ? M.yt.loadVideoById(l.v) : M.yt.cueVideoById(l.v);
+}
 async function playYouTube(i) {
   const l = ytLinks()[i]; if (!l) return;
   if (!ytCanUse(i)) { openPremium('Music library'); return; }
   BIDA.music.ytIdx = i; saveState();
   stopOtherSources('youtube');
+  M.kind = 'youtube'; M.faded = false; M.title = ytLabel(l, i); M.ytCur = { l, i };
+  updateBar('YouTube'); renderPlaylist();
+  if (BIDA.tab === 'music' && !$('#app').hidden) renderMusic();
   await ytApi();
-  try { M.yt?.destroy?.(); } catch (e) { }
+  if (M.yt) { ytLoadCur(); return; }                                // already built (or being built): just load the song
   // The player lives in the music bar's preview area so it keeps playing on every tab
   $('#yt-dock').innerHTML = '<div id="yt-player"></div>';
-  M.ytReady = false; M.kind = 'youtube'; M.faded = false; M.title = ytLabel(l, i);
+  M.ytReady = false;
   // controls:0 — play/pause only from the music bar, so a stray tap on the preview can't stop the party
-  const vars = { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1 };
-  if (l.list) { vars.listType = 'playlist'; vars.list = l.list; }
   M.yt = new YT.Player('yt-player', {
-    videoId: l.v || undefined, playerVars: vars,
+    playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1 },
     events: {
-      onReady: e => { M.ytReady = true; if (vkSinging()) { M.wantPlay = false; return; } M.wantPlay = true; applyVolume(liveTarget()); e.target.playVideo(); },
+      onReady: () => { M.ytReady = true; ytLoadCur(); },
       onStateChange: e => {
+        const cur = M.ytCur || {}, cl = cur.l || {};
         M.playing = e.data === YT.PlayerState.PLAYING;
         if (e.data === YT.PlayerState.PAUSED) guardResume('youtube');
         if (e.data === YT.PlayerState.ENDED && M.wantPlay) ytAdvance();
         if (M.playing) setMediaSession();
-        try { M.title = M.yt.getVideoData().title || ytLabel(l, i); } catch (x) { }
-        if (M.playing && !l.title && !l.list && M.title) { l.title = M.title.slice(0, 120); saveState(); renderPlaylist(); }
+        try { M.title = M.yt.getVideoData().title || ytLabel(cl, cur.i); } catch (x) { }
+        if (M.playing && cl && !cl.title && !cl.list && M.title) { cl.title = M.title.slice(0, 120); saveState(); renderPlaylist(); }
         try { const pl = M.yt.getPlaylist(); M.pos = pl ? `${M.yt.getPlaylistIndex() + 1} / ${pl.length}` : ''; } catch (x) { M.pos = ''; }
         M.upNext = [];
         updateBar(); renderPlaylist();
       }
     }
   });
-  updateBar('YouTube'); renderPlaylist();
-  if (BIDA.tab === 'music' && !$('#app').hidden) renderMusic();
 }
 // A single video ended (or a playlist finished): continue with the next saved link the user can use
 // Category of a saved song: the library's current one (so the admin can re-sort), else what it had when added
@@ -2196,35 +2227,8 @@ function musicSkip(d) {
 /* ---- The music bar ---- */
 let barSrc = '';
 // The YouTube music video floats on screen while YouTube is the source (never hidden while it plays)
-// Where the floating video sits: in the reserved spot while the music panel is open, otherwise where the host dragged it
-function ytPlace() {
-  const f = $('#yt-float'), s = $('#yt-spot'); if (!f || f.hidden) return;
-  const set = (k, v) => f.style.setProperty(k, v, 'important');
-  if ($('#mbar').classList.contains('open') && s && s.offsetParent) {
-    const r = s.getBoundingClientRect(); set('top', r.top + 'px'); set('left', r.left + 'px'); set('bottom', 'auto'); set('right', 'auto');
-  } else {
-    ['top', 'left', 'bottom', 'right'].forEach(k => f.style.removeProperty(k));
-    try { const p = JSON.parse(localStorage.getItem('bv_ytpos') || 'null'); if (p) { f.style.left = clamp(p.x, 4, innerWidth - 214) + 'px'; f.style.top = clamp(p.y, 4, innerHeight - 240) + 'px'; f.style.bottom = 'auto'; } } catch (e) { }
-  }
-}
-function ytFloat() {
-  const f = $('#yt-float'); if (!f) return;
-  f.hidden = M.kind !== 'youtube';
-  document.body.classList.toggle('yt-on', !f.hidden);
-  ytPlace();
-  if (f.dataset.d) return; f.dataset.d = 1;
-  $('#mbar-panel').addEventListener('scroll', ytPlace, { passive: true }); addEventListener('resize', ytPlace);
-  const g = $('#yt-grip');
-  g.onpointerdown = e => {
-    if ($('#mbar').classList.contains('open')) return;          // parked in the open music panel: no dragging
-    const r = f.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top; g.setPointerCapture(e.pointerId);
-    g.onpointermove = m => { f.style.left = clamp(m.clientX - dx, 4, innerWidth - r.width - 4) + 'px'; f.style.top = clamp(m.clientY - dy, 4, innerHeight - r.height - 4) + 'px'; f.style.bottom = 'auto'; };
-    g.onpointerup = () => { g.onpointermove = g.onpointerup = null; try { localStorage.setItem('bv_ytpos', JSON.stringify({ x: parseInt(f.style.left, 10), y: parseInt(f.style.top, 10) })); } catch (x) { } };
-  };
-}
 function updateBar(src) {
   if (src) barSrc = src;
-  ytFloat();
   rmtPublish();
   const has = !!M.kind;
   $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang naka-play';
@@ -2246,7 +2250,6 @@ function toggleBar(force) {
   const b = $('#mbar'), open = force ?? !b.classList.contains('open');
   b.classList.toggle('open', open);
   document.body.classList.toggle('bar-open', open);
-  ytPlace(); setTimeout(ytPlace, 380);                 // after the panel finishes opening
   $('#mb-more').setAttribute('aria-expanded', open);
 }
 function openBar(v) { toggleBar(v); }
@@ -2774,7 +2777,7 @@ function renderVideokeTV() {
       ${q.length ? `<ol class="tvl-q">${q.slice(0, 8).map((it, i) => { const s = vkSong(it.c); return `<li><span class="n">${i + 1}</span>${face(it, 44)}<div><b>${esc(it.singer || 'Bisita')}</b><em>${esc(s ? s.t : '')}</em></div></li>`; }).join('')}</ol>
         ${q.length > 8 ? `<p class="tvl-more">+${q.length - 8} pa</p>` : ''}` : '<p class="tvl-empty">Wala pang nakapila. Ikaw na mauna!</p>'}
     </div>
-    <div class="tvl-qr" id="tvl-qr">${BIDA.premium ? '<p class="tvl-empty">Loading ang QR…</p>' : ''}</div></div>`;
+    ${BIDA.premium ? '<div class="tvl-qr" id="tvl-qr"><p class="tvl-empty">Loading ang QR…</p></div>' : ''}</div>`;      // the guest QR is Premium: no empty box for free accounts
   if (!BIDA.premium) return;
   const paint = () => qrCanvas(vkRoomUrl(BIDA.vk.room.id), 640).then(c => { const b = $('#tvl-qr'); if (!b) return; b.innerHTML = '<b>Gusto mong kumanta?</b><small>I-scan para pumili ng kanta</small>'; b.prepend(c); }).catch(() => { });
   if (vkRoomValid()) paint();
@@ -2944,7 +2947,7 @@ async function vkNext() {
       videoId: s.y, playerVars: { playsinline: 1, rel: 0, modestbranding: 1, autoplay: 0 },
       events: {
         onReady: () => { VK.ytReady = true; VK.ready2play = true; go(); },
-        onStateChange: e => { if (e.data === YT.PlayerState.ENDED) vkSongEnded(); },
+        onStateChange: e => { VK.playing = e.data === YT.PlayerState.PLAYING; rmtPublish(); if (e.data === YT.PlayerState.ENDED) vkSongEnded(); },
         onError: () => { toast('Ayaw mag-play ng video na \'to dito. Next na.'); setTimeout(vkNext, 1500); }
       }
     });
@@ -3810,7 +3813,7 @@ function rmtState() {
       word: HY.word ? { w: HY.word, c: (BIDA_WORD_CATS.find(c => c[0] === HY.cat) || [, ''])[1], hid: HY.hidden } : null,
       allColors: TOOL_COLORS.map(([n, h]) => ({ n, h })), allCats: BIDA_WORD_CATS.map(([k, l]) => ({ k, l })) }))(toolsState()),   // objects, not nested arrays (Firestore refuses those)
     timer: { on: !$('#gtimer').hidden, run: TM.running, left: Math.ceil(TM.running ? Math.max(0, (TM.endAt - Date.now()) / 1000) : TM.left), total: TM.total },
-    vk: { stage: !$('#vk-stage').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song), free: BIDA.premium ? null : [...VK_FREE_CODES] },
+    vk: { stage: !$('#vk-stage').hidden, playing: !!VK.playing && !$('#vk-stage').hidden, intro: !$('#vk-intro').hidden, now: VK.cur ? song(VK.cur) : null, q: vkState().queue.slice(0, 30).map(song), free: BIDA.premium ? null : [...VK_FREE_CODES] },
     tv: { view: BIDA.view, screen: tvScreen(), pro: !!BIDA.premium },
     sb: (s => ({ on: !$('#sb-stage').hidden, title: s.title, mode: s.mode, modes: SB_MODES, teams: s.teams.map(x => ({ n: x.n, c: x.c, s: x.s })) }))(sbState())
   };
@@ -3879,6 +3882,9 @@ function rmtRun(d) {
       if (v === 'start') vkStart();
       else if (v === 'close') { if (!$('#vk-stage').hidden) vkClose(); }
       else if (v === 'skip') { if (!$('#vk-stage').hidden) vkNext(); }
+      // pause / resume / start over the song that's singing now
+      else if (v === 'toggle') { if (!$('#vk-stage').hidden && VK.yt && VK.cur && $('#vk-intro').hidden) { try { VK.playing ? VK.yt.pauseVideo() : VK.yt.playVideo(); } catch (e) { } } }
+      else if (v === 'restart') { if (!$('#vk-stage').hidden && VK.yt && VK.cur) { try { VK.yt.seekTo(0, true); VK.yt.playVideo(); } catch (e) { } } }
       else if (v === 'reserve') {
         const s = vkSong(n); if (!s || !vkCanSing(s.c)) break;
         const singer = String(d.s || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Bisita';
@@ -4568,6 +4574,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateBar();
   if (BIDA.tab === 'videoke' || BIDA.tab === 'music' || !$('#landing').hidden) loadVkLibrary();   // warm up while they look around
   loadFirebase().then(() => { FB_READY = true; initAuth(); }).catch(() => { AUTH.ready = true; });
+  setTimeout(() => { ytApi(); }, 1500);                   // YouTube's player code loads in the background, so the first song starts fast
   handlePaidReturn();
   await spHandleRedirect();
   await loadCustom();
@@ -4583,7 +4590,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
-  vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, vkAnnounceToggle, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, vkAnnounceToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,

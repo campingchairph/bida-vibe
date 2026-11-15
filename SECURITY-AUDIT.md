@@ -77,6 +77,9 @@ Bida-Vibe is a static site on GitHub Pages. It has no server pages, no SQL datab
 
 ## Known limits (honest)
 
-- **YouTube music player (fixed):** the music video now floats on screen at 200×200 whenever YouTube is the source, and never hides while it plays. With the music panel open, it parks in its own space at the top. It hides only while the videoke stage is up, when music is paused.
+- **YouTube terms, owner's choice (November 16):** two YouTube-terms safeguards were removed at the owner's request.
+  - The floating music video is gone; the video now plays inside the music bar and is hidden while the bar is collapsed. YouTube's terms want the player visible (at least 200×200).
+  - A one-time pop-up now suggests Brave to hosts without YouTube Premium. YouTube's API terms frown on steering people away from ads; the wording stays soft and never says "block ads".
+  - Risk: YouTube could restrict the app's embedded videos. These are product decisions, not code bugs.
 - **Client-side free limits** (5 music songs, 5 files, uploads, Talk/Fade) run on the visitor's own device and can't be made hack-proof. Payments, Premium sounds, admin and library changes are all server-enforced.
 - **Not legal advice:** these pages follow common practice and Philippine law as I understand it, but a Philippine lawyer should review them before you rely on them, especially once you register a business for PayMongo live payments.
