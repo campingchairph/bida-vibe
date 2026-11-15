@@ -56,7 +56,9 @@ Not applicable here: SQL injection, CSRF, session cookies, password hashing, ser
 9. **Auto-delete forgotten links (Firestore TTL)**: Firebase Console → Firestore → **Time-to-live** → *Create policy*: collection group `vk_rooms`, timestamp field `expires`. Repeat for `vk_remotes`. Expired guest links and remotes (with singer names/selfies) are then deleted automatically even if the host never closed them.
 
 10. **Google sign-in on iPhone/iPad/Safari** (needed because Safari blocks Firebase's cross-site sign-in helper for github.io sites):
-   - Open **Google Auth Platform → Clients** (https://console.cloud.google.com/auth/clients?project=bidavibe) and click the client named **Web client (auto created by Google Service)**.
+   - Open a **private/incognito window** (so only one Google account is signed in), go to **console.cloud.google.com** and sign in with the Gmail that owns the Bida-Vibe Firebase project.
+   - Top bar: project picker → choose **bidavibe**. Then the search bar at the top → type **Clients** → open **Clients (Google Auth Platform)**.
+   - Click the client named **Web client (auto created by Google Service)**.
    - Under **Authorized JavaScript origins** add `https://campingchairph.github.io` (and `http://localhost:8102` for testing).
    - Under **Authorized redirect URIs** add `https://campingchairph.github.io/bida-vibe/` (and `http://localhost:8102/`). Save. Google says changes can take 5 minutes to a few hours.
    - Copy its **Client ID** (ends in `.apps.googleusercontent.com`; it's public, not a secret) into `BIDA_CONFIG.googleClientId` in bida-app.js.
