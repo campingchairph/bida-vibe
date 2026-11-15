@@ -1084,7 +1084,10 @@ function gameMatch(g) {
     default: return true;
   }
 }
+let gamesBuilt = '';      // which filter the Games panel was last built for: reopening the tab reuses it (40 animated scenes are slow to rebuild)
 function renderGames() {
+  if (gamesBuilt === gameFilter && $('#panel-games').firstElementChild) return;
+  gamesBuilt = gameFilter;
   const list = BIDA_GAMES.filter(gameMatch);
   $('#panel-games').innerHTML = `
     <div class="panel-head"><div><h2>Mga Laro</h2>
@@ -2356,7 +2359,7 @@ function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
    music/library.json (up to 1,000 songs). Users pick songs into "Playlist mo"; without Premium
    they can keep 5 (BIDA_CONFIG.freeYtLinks), then Premium. No pasting of own YouTube links. ---- */
 const ML_PATH = 'music/library.json', ML_MAX = 1000, ML_PER = 60;
-const ML = { lib: [], loaded: false, q: '', page: 0, admin: { busy: false, msg: '', q: '' } };
+const ML = { lib: [], loaded: false, q: '', page: 0, admin: { busy: false, msg: '', q: '', sel: new Set() } };
 async function mlLoad() {
   try {
     const r = await fetch(ML_PATH + '?t=' + Math.floor(Date.now() / 6e5), { cache: 'no-cache' });
@@ -2375,7 +2378,7 @@ function mlAdd(c) {
 }
 function mlSearch() {
   const q = vkNorm(ML.q);
-  return ML.lib.filter(s => !q || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q)).sort((a, b) => vkNorm(a.t).localeCompare(vkNorm(b.t)) || a.c - b.c);
+  return ML.lib.filter(s => !q || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q)).sort((a, b) => vkCmp(vkNorm(a.t), vkNorm(b.t)) || a.c - b.c);
 }
 function mlResultsHTML() {
   if (!ML.loaded) return '<p class="muted">Loading ang music library…</p>';
@@ -2391,6 +2394,58 @@ function mlResultsHTML() {
 function mlFind(q) { ML.q = q; ML.page = 0; const b = $('#ml-res'); if (b) b.innerHTML = mlResultsHTML(); }
 function mlPage(d) { ML.page = Math.max(0, ML.page + d); const b = $('#ml-res'); if (b) { b.innerHTML = mlResultsHTML(); b.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' }); } }
 
+/* ---- Admin, both libraries: tick songs and delete them together, or delete every song of one artist ---- */
+const ADM = {
+  vk: { lib: () => VK.lib, a: () => VK.admin, work: f => vkAdminWork(f), save: (m, msg, o) => vkSaveLib(m, msg, o), render: () => renderVideoke(), name: 'videoke' },
+  ml: { lib: () => ML.lib, a: () => ML.admin, work: f => mlAdminWork(f), save: (m, msg, o) => mlSave(m, msg, o), render: () => renderMusic(), name: 'music' }
+};
+function admSelBar(w, page) {
+  const A = ADM[w], sel = A.a().sel;
+  A.page = page.map(s => s.c);
+  if (!sel.size) return page.length ? `<div class="admin-up" style="margin-top:10px"><button class="btn btn--ghost btn--sm" onclick="admSelPage('${w}')">${ic('check')}Select lahat ng nakikita (${page.length})</button></div>` : '';
+  return `<div class="adm-sel"><b>${sel.size} selected</b>
+    <button class="btn btn--ghost btn--sm" onclick="admSelPage('${w}')">Select lahat ng nakikita</button>
+    <button class="btn btn--ghost btn--sm" onclick="admSelClear('${w}')">Clear</button>
+    <button class="btn btn--chili btn--sm" ${A.a().busy ? 'disabled' : ''} onclick="admDelSel('${w}')">${ic('trash')}Delete ${sel.size}</button></div>`;
+}
+function admSel(w, c, on) { const s = ADM[w].a().sel; if (on) s.add(c); else s.delete(c); ADM[w].render(); }
+function admSelPage(w) { const s = ADM[w].a().sel; (ADM[w].page || []).forEach(c => s.add(c)); ADM[w].render(); }
+function admSelClear(w) { ADM[w].a().sel.clear(); ADM[w].render(); }
+function admRemove(w, codes, message) {
+  const A = ADM[w], set = new Set(codes);
+  A.work(async () => {
+    let removed = 0;
+    await A.save(songs => { const out = songs.filter(s => !set.has(s.c)); removed = songs.length - out.length; return out; }, message, { remove: set });
+    A.a().sel.clear(); A.a().msg = `Nabura ang ${removed} song${removed === 1 ? '' : 's'}.`;
+  });
+}
+async function admDelSel(w) {
+  const sel = [...ADM[w].a().sel]; if (!sel.length) return;
+  if (!await askConfirm(`Burahin ang ${sel.length} song${sel.length === 1 ? '' : 's'} sa ${ADM[w].name} library? Hindi na maibabalik.`, 'Burahin')) return;
+  admRemove(w, sel, `${ADM[w].name}: remove ${sel.length} songs`);
+}
+// Delete by artist: a sheet with every artist and how many songs each has
+function admByArtist(w) {
+  const m = new Map();
+  ADM[w].lib().forEach(s => { const k = vkNorm(s.a) || '-'; const g = m.get(k) || { name: s.a || '(walang artist)', codes: [] }; g.codes.push(s.c); m.set(k, g); });
+  ADM.artists = [...m.values()].sort((a, b) => a.name.localeCompare(b.name)); ADM.artW = w;
+  openSheet(`<div class="sheet-head"><div><span class="kicker">Admin · ${ADM[w].name}</span><h3>Delete by artist</h3></div><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <input class="input" id="adm-art-q" placeholder="Search artist" autocomplete="off" oninput="admArtistList(this.value)">
+    <ul class="art-list" id="adm-art-list"></ul>`);
+  admArtistList('');
+}
+function admArtistList(q) {
+  const k = vkNorm(q), list = ADM.artists.map((a, i) => ({ ...a, i })).filter(a => !k || vkNorm(a.name).includes(k));
+  $('#adm-art-list').innerHTML = list.map(a => `<li><button onclick="admDelArtist(${a.i})"><b>${esc(a.name)}</b><small>${a.codes.length} song${a.codes.length === 1 ? '' : 's'} · Delete</small></button></li>`).join('')
+    || '<li class="muted" style="padding:12px 4px">Walang ganyang artist.</li>';
+}
+async function admDelArtist(i) {
+  const a = ADM.artists[i], w = ADM.artW; if (!a) return;
+  closeSheet();
+  if (!await askConfirm(`Burahin lahat ng ${a.codes.length} song${a.codes.length === 1 ? '' : 's'} ni ${a.name} sa ${ADM[w].name} library?`, 'Burahin lahat')) return;
+  admRemove(w, a.codes, `${ADM[w].name}: remove all songs by ${a.name}`);
+}
+
 // Admin: import playlists, delete songs, remove duplicates
 function mlAdminHTML() {
   const a = ML.admin, dis = a.busy ? 'disabled' : '', full = ML.lib.length >= ML_MAX, q = vkNorm(a.q), dups = vkDupSet(ML.lib);
@@ -2400,11 +2455,13 @@ function mlAdminHTML() {
     <p class="muted">Makikita 'to ng lahat ng users. Import ng YouTube playlist: hanggang 200 songs bawat import, ulitin lang para sa iba pang playlist.</p>
     <div class="admin-up">
       <button class="btn btn--ink btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="mlAdminImport()">${ic('upload')}Import playlist</button>
+      ${ML.lib.length ? `<button class="btn btn--ghost btn--sm" ${dis} onclick="admByArtist('ml')">${ic('people')}Delete by artist</button>` : ''}
       ${dups.size ? `<button class="btn btn--chili btn--sm" ${dis} onclick="mlAdminDedupe()">${ic('trash')}Remove duplicates (${vkDupCount(ML.lib)})</button>` : ''}
     </div>
     ${a.msg ? `<p class="note adm-msg" style="margin-top:10px">${esc(a.msg)}</p>` : ''}
     ${ML.lib.length ? `<input class="input adm-find" id="ml-adm-q" style="margin-top:12px" placeholder="Search title o artist" value="${esc(a.q)}" oninput="mlAdminFind(this.value)">
-    <ul class="adm-list">${shown.map(s => `<li class="${dups.has(s.c) ? 'dup' : ''}"><span class="adm-c">${s.c}</span>
+    ${admSelBar('ml', shown)}
+    <ul class="adm-list">${shown.map(s => `<li class="${dups.has(s.c) ? 'dup' : ''}"><input type="checkbox" class="adm-chk" ${a.sel.has(s.c) ? 'checked' : ''} ${dis} onchange="admSel('ml',${s.c},this.checked)" aria-label="Piliin ang ${s.c}"><span class="adm-c">${s.c}</span>
       <span class="adm-t"><b>${esc(s.t)}</b><small>${esc(s.a) || '—'}</small></span>
       <button class="adm-ic adm-del" onclick="mlAdminDelete(${s.c})" aria-label="Burahin ang ${s.c}" ${dis}>${ic('trash')}</button></li>`).join('')}</ul>
     ${list.length > shown.length ? `<p class="muted" style="margin-top:8px">+${list.length - shown.length} pa. Gamitin ang search.</p>` : ''}` : ''}
@@ -2416,7 +2473,7 @@ async function mlAdminWork(fn) {
   try { await fn(); } catch (e) { ML.admin.msg = e.message === 'lib_full' ? 'Puno na ang music library (1,000 songs).' : (VK_ERR[e.message] || ('Hindi natuloy: ' + e.message)); }
   finally { ML.admin.busy = false; renderMusic(); }
 }
-const mlSave = (mutate, message, bulk) => vkSaveLib(mutate, message, { path: ML_PATH, max: ML_MAX, bulk }).then(out => { ML.lib = out; ML.loaded = true; });
+const mlSave = (mutate, message, opt = {}) => vkSaveLib(mutate, message, { ...opt, path: ML_PATH, max: ML_MAX }).then(out => { ML.lib = out; ML.loaded = true; });
 // Music titles: drop the "(Official Music Video)" / "[Lyrics]" bits
 const mlCleanTitle = t => String(t || '').replace(/\s*[\(\[][^\)\]]*\b(official|video|audio|lyrics?|visuali[sz]er|mv|hd|4k|remaster(ed)?)\b[^\)\]]*[\)\]]/gi, '').replace(/\s{2,}/g, ' ').trim();
 async function mlAdminImport() {
@@ -2456,7 +2513,7 @@ async function mlAdminDelete(c) {
 async function mlAdminDedupe() {
   const n = vkDupCount(ML.lib);
   if (!n || !await askConfirm(`Burahin ang ${n} na doble sa music library? Matitira ang unang kopya ng bawat song.`, 'Burahin')) return;
-  mlAdminWork(async () => { let removed = 0; await mlSave(songs => { const out = vkDedupe(songs); removed = songs.length - out.length; return out; }, 'Music: remove duplicates', true); ML.admin.msg = `Nabura ang ${removed} na doble.`; });
+  mlAdminWork(async () => { let removed = 0; await mlSave(songs => { const out = vkDedupe(songs); removed = songs.length - out.length; return out; }, 'Music: remove duplicates', { bulk: true }); ML.admin.msg = `Nabura ang ${removed} na doble.`; });
 }
 
 /* ============================================================
@@ -2467,8 +2524,12 @@ async function mlAdminDedupe() {
    Hosts can also add their own songs — saved only on their device.
    ============================================================ */
 const VK_LIB_PATH = 'karaoke/library.json';
-const VK = { lib: [], loaded: false, input: '', q: '', genre: '', yt: null, cur: null, scoreT: 0, admin: { busy: false, q: '', page: 0, msg: '', dup: false }, letter: '', artist: '' };
-const vkNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const VK = { lib: [], loaded: false, input: '', q: '', genre: '', yt: null, cur: null, scoreT: 0, admin: { busy: false, q: '', page: 0, msg: '', dup: false, sel: new Set() }, letter: '', artist: '', mode: '' };
+const vkNormRaw = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+// Remembered results: the library has thousands of titles, and every search/filter/sort re-normalises them
+const VK_NC = new Map();
+const vkNorm = s => { s = String(s || ''); let v = VK_NC.get(s); if (v === undefined) { v = vkNormRaw(s); if (VK_NC.size > 30000) VK_NC.clear(); VK_NC.set(s, v); } return v; };
+const vkCmp = (x, y) => x < y ? -1 : x > y ? 1 : 0;      // normalised titles are plain a-z/0-9, so no slow localeCompare needed
 function vkCleanSong(s) {
   const c = parseInt(s && s.c, 10), y = String(s && s.y || '');
   if (!(c >= 1 && c <= 99999) || !/^[\w-]{11}$/.test(y)) return null;
@@ -2503,17 +2564,17 @@ const vkSong = c => vkAll().find(s => s.c === c);
 const vkFirst = t => { const ch = vkNorm(t).charAt(0); return /[a-z]/.test(ch) ? ch.toUpperCase() : '#'; };
 function vkArtists() {
   const m = new Map();
-  vkAll().forEach(s => { const k = vkNorm(s.a); if (k && !m.has(k)) m.set(k, s.a); });
+  VK.lib.forEach(s => { const k = vkNorm(s.a); if (k && !m.has(k)) m.set(k, s.a); });
   return [...m].sort((a, b) => a[1].localeCompare(b[1]));
 }
 function vkSearch() {
   const q = vkNorm(VK.q);
-  let list = vkAll();
+  let list = VK.lib.slice();               // the shared library only; the host's own songs have their own card
   if (VK.letter) list = list.filter(s => vkFirst(s.t) === VK.letter);
   if (VK.artist) list = list.filter(s => vkNorm(s.a) === VK.artist);
   if (q) list = list.filter(s => String(s.c).startsWith(q) || vkNorm(s.t).includes(q) || vkNorm(s.a).includes(q));
   // free users see the free songs first, then the locked ones (shown faded behind the unlock card)
-  return list.sort((a, b) => (BIDA.premium ? 0 : vkIsFree(b.c) - vkIsFree(a.c)) || vkNorm(a.t).localeCompare(vkNorm(b.t)) || a.c - b.c);
+  return list.sort((a, b) => (BIDA.premium ? 0 : vkIsFree(b.c) - vkIsFree(a.c)) || vkCmp(vkNorm(a.t), vkNorm(b.t)) || a.c - b.c);
 }
 
 /* ---- Videoke tab ---- */
@@ -2521,7 +2582,7 @@ function renderVideoke() {
   if (isTV()) { renderVideokeTV(); return; }
   const v = vkState();
   if (!VK.loaded) { loadVkLibrary().then(() => { if (BIDA.tab === 'videoke') renderVideoke(); }); }
-  const letters = [...new Set(vkAll().map(s => vkFirst(s.t)))].sort((a, b) => a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b));
+  const letters = [...new Set(VK.lib.map(s => vkFirst(s.t)))].sort((a, b) => a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b));
   const artists = vkArtists();
   if (VK.letter && !letters.includes(VK.letter)) VK.letter = '';
   if (VK.artist && !artists.some(([k]) => k === VK.artist)) VK.artist = '';
@@ -2529,7 +2590,7 @@ function renderVideoke() {
   const now = VK.cur && vkSong(VK.cur.c);
   $('#panel-videoke').innerHTML = `
     <div class="panel-head"><div><h2>Videoke</h2>
-      <p>Search ng song, i-reserve, tapos kanta na! ${vkAll().length} songs sa library.</p></div>
+      <p>Search ng song, i-reserve, tapos kanta na! ${VK.lib.length} songs sa library.</p></div>
       <button class="btn btn--chili" onclick="vkStart()" ${v.queue.length || VK.cur ? '' : 'disabled'}>${ic('play')}${VK.cur ? 'Open screen' : 'Start'}</button></div>
     <div class="card vk-queue">
       <div class="vk-qhead"><h3>Nakapila <small class="muted">(${v.queue.length})</small></h3>
@@ -2544,16 +2605,19 @@ function renderVideoke() {
     ${BIDA.premium ? vkRoomHTML() : ''}
     ${braveTipHTML()}
     <div class="card" style="margin-top:16px">
-      <div class="vk-search">
-        <div class="vk-find"><input class="input" id="vk-q" placeholder="Search song o artist" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
-          <button class="vk-find-x" id="vk-q-x" ${VK.q ? '' : 'hidden'} onclick="vkFind('');$('#vk-q').value='';$('#vk-q').focus()" aria-label="Clear search">${ic('x')}</button></div>
-        <button class="vk-art-btn ${VK.artist ? 'on' : ''}" onclick="vkPickArtist()" aria-haspopup="dialog">${ic('people')}<span>${VK.artist ? esc((artists.find(([k]) => k === VK.artist) || [, 'Artist'])[1]) : 'Artist'}</span>${ic('down')}</button>
-        <label class="toggle" style="margin:0"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
-      ${letters.length > 1 ? `<div class="vk-letters" role="group" aria-label="Unang letra ng kanta">${letters.map(l => `<button class="${VK.letter === l ? 'on' : ''}" aria-pressed="${VK.letter === l}" onclick="vkSetLetter('${l}')">${l}</button>`).join('')}</div>` : ''}
+      <!-- Search, Artist and By song each work on their own: turning one on turns the others off -->
+      <div class="vk-tools" role="toolbar" aria-label="Hanapin ang kanta">
+        <button class="vk-tool vk-tool--ic ${VK.mode === 'search' ? 'on' : ''}" onclick="vkMode('search')" aria-pressed="${VK.mode === 'search'}" aria-label="Search" title="Search">${ic('search')}</button>
+        <button class="vk-tool ${VK.mode === 'artist' ? 'on' : ''}" onclick="vkMode('artist')" aria-haspopup="dialog">${ic('people')}<span>${VK.artist ? esc((artists.find(([k]) => k === VK.artist) || [, 'Artist'])[1]) : 'Artist'}</span></button>
+        <button class="vk-tool ${VK.mode === 'letter' ? 'on' : ''}" onclick="vkMode('letter')" aria-pressed="${VK.mode === 'letter'}">${ic('music')}<span>${VK.letter ? 'Song: ' + VK.letter : 'By song'}</span></button>
+        <label class="toggle vk-scoretg"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
+      ${VK.mode === 'search' ? `<div class="vk-find" style="margin-top:10px"><input class="input" id="vk-q" placeholder="Type ang song o artist" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
+          <button class="vk-find-x" id="vk-q-x" onclick="vkMode('search')" aria-label="Close search">${ic('x')}</button></div>` : ''}
+      ${VK.mode === 'letter' && letters.length > 1 ? `<div class="vk-letters" role="group" aria-label="Unang letra ng song">${letters.map(l => `<button class="${VK.letter === l ? 'on' : ''}" aria-pressed="${VK.letter === l}" onclick="vkSetLetter('${l}')">${l}</button>`).join('')}</div>` : ''}
       <div id="vk-fbar">${vkFilterBar(res.length)}</div>
       <div id="vk-results">${vkResultsHTML(shown, res.length)}</div>
-      <button class="btn btn--ghost btn--sm" style="margin-top:12px" onclick="vkAddMine()">${ic('plus')}Add ng sariling song (YouTube link)</button>
     </div>
+    ${vkMineHTML()}
     ${isAdmin() ? vkAdminHTML() : ''}`;
 }
 // TV view of the Videoke tab: what the guests see between songs
@@ -2609,10 +2673,10 @@ function braveTipHTML() {
   return `<p class="note brave-tip" style="margin-top:16px"><span><b>Ayaw ng ads habang kumakanta?</b> Gamitin ang <a href="https://brave.com/download/" target="_blank" rel="noopener noreferrer">Brave browser</a>, auto-block ang YouTube ads. Kung may YouTube Premium ka, dapat naka-sign in yun sa YouTube sa parehong browser at device.</span></p>`;
 }
 function vkResultsHTML(shown, total) {
-  if (!vkAll().length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang songs sa library.' : 'Loading ang library…'}</p>`;
+  if (!VK.lib.length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang songs sa library.' : 'Loading ang library…'}</p>`;
   if (!shown.length) return '<p class="muted" style="margin-top:12px">Walang lumabas.</p>';
   const cnt = vkQCounts(), open = shown.filter(s => vkCanSing(s.c)), locked = shown.filter(s => !vkCanSing(s.c));
-  const rows = open.length ? `<ul class="vk-list">${open.map(s => { const n = cnt.get(s.c) || 0; return `<li class="${n ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}${s.c >= 90000 ? ' · sarili mo' : ''}</small></div>
+  const rows = open.length ? `<ul class="vk-list">${open.map(s => { const n = cnt.get(s.c) || 0; return `<li class="${n ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div>
     <button class="vk-add ${n ? 'on' : ''}" onclick="vkReserve(${s.c})" aria-label="${n ? `Nakapila na ×${n}. Reserve ulit` : 'Reserve'}: ${esc(s.t)}" title="${n ? `Nakapila na ×${n}` : 'Reserve'}">${n ? `<span class="vk-cnt">${n}</span>` : ic('plus')}</button></li>`; }).join('')}</ul>` : '';
   if (locked.length) return rows + vkUnlockHTML(locked.slice(0, 12));
   return rows + (total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa. I-type ang hinahanap o gamitin ang filter.</p>` : '');
@@ -2630,12 +2694,21 @@ function vkFilterBar(n) {
   const tags = [VK.letter && `Letra ${VK.letter}`, art, VK.q && `“${VK.q}”`].filter(Boolean).map(s => `<span class="vk-tag">${esc(s)}</span>`).join('');
   return `<div class="vk-fbar"><span class="vk-fcount"><b>${n}</b> songs</span>${tags}<button class="btn btn--ghost btn--sm vk-clear" onclick="vkClearFilter()">${ic('x')}Clear filter</button></div>`;
 }
-function vkSetLetter(l) { VK.letter = VK.letter === l ? '' : l; renderVideoke(); }       // tap again to turn it off
-function vkSetArtist(a) { VK.artist = a; if (a) VK.letter = ''; closeSheet(); renderVideoke(); }   // letter + artist together is usually 0 songs
-function vkClearFilter() { VK.q = ''; VK.letter = ''; VK.artist = ''; renderVideoke(); }
+/* Search, Artist and By song never combine: switching one on clears the other two.
+   Tapping the active one again turns it off. */
+function vkMode(m) {
+  if (m === 'artist') { vkPickArtist(); return; }                    // the artist is set when they pick one
+  const off = VK.mode === m;
+  VK.q = ''; VK.letter = ''; VK.artist = ''; VK.mode = off ? '' : m;
+  renderVideoke();
+  if (VK.mode === 'search') setTimeout(() => $('#vk-q')?.focus(), 30);
+}
+function vkSetLetter(l) { VK.q = ''; VK.artist = ''; VK.mode = 'letter'; VK.letter = VK.letter === l ? '' : l; renderVideoke(); }   // tap again to turn it off
+function vkSetArtist(a) { VK.q = ''; VK.letter = ''; VK.artist = a; VK.mode = a ? 'artist' : ''; closeSheet(); renderVideoke(); }
+function vkClearFilter() { VK.q = ''; VK.letter = ''; VK.artist = ''; VK.mode = ''; renderVideoke(); }
 // Artist picker: a sheet with its own search and how many songs each artist has
 function vkPickArtist() {
-  const counts = new Map(); vkAll().forEach(s => { const k = vkNorm(s.a); if (k) counts.set(k, (counts.get(k) || 0) + 1); });
+  const counts = new Map(); VK.lib.forEach(s => { const k = vkNorm(s.a); if (k) counts.set(k, (counts.get(k) || 0) + 1); });
   VK.artistList = vkArtists().map(([k, name]) => ({ k, name, n: counts.get(k) || 0 }));
   openSheet(`<div class="sheet-head"><h3>Pili ng artist</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <input class="input" id="art-q" placeholder="Search artist" autocomplete="off" oninput="vkArtistList(this.value)">
@@ -3652,6 +3725,23 @@ async function vkOembed(id) {
   if (!r.ok) throw new Error('not_found');
   return r.json();
 }
+// The host's own songs: saved only in this app's data on their device (localStorage), never in the shared library
+function vkMineHTML() {
+  if (!BIDA.premium) return '';
+  const mine = vkState().mine;
+  return `<div class="card" style="margin-top:16px">
+    <div class="yt-head"><h3>Sariling songs mo</h3><button class="btn btn--ghost btn--sm" onclick="vkAddMine()">${ic('plus')}Add (YouTube link)</button></div>
+    <p class="muted" style="margin-top:4px">Naka-save lang sa device na 'to, hindi sa library ng Bida-Vibe. Ikaw lang ang makakakita.</p>
+    ${mine.length ? `<ul class="vk-list" style="margin-top:10px">${mine.map(s => `<li><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div>
+      <button class="vk-add" onclick="vkReserve(${s.c})" aria-label="Reserve: ${esc(s.t)}">${ic('plus')}</button>
+      <button class="icon-btn icon-btn--plain" onclick="vkDelMine(${s.c})" aria-label="Tanggalin: ${esc(s.t)}">${ic('trash')}</button></li>`).join('')}</ul>` : ''}
+  </div>`;
+}
+async function vkDelMine(c) {
+  const v = vkState(), s = v.mine.find(x => x.c === c); if (!s) return;
+  if (!await askConfirm(`Tanggalin ang "${s.t}" sa sariling songs mo?`, 'Tanggalin')) return;
+  v.mine = v.mine.filter(x => x.c !== c); vkChecked = BIDA.vk; saveState(); renderVideoke();
+}
 async function vkAddMine() {
   if (needPro('Sariling kanta sa videoke')) return;
   const link = await askText('I-paste ang YouTube karaoke link', '', 600); if (!link) return;
@@ -3701,6 +3791,7 @@ function vkAdminHTML() {
     <div class="admin-up">
       <button class="btn btn--ink btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="vkAdminAdd()">${ic('plus')}Add song</button>
       <button class="btn btn--ghost btn--sm" ${dis} ${full ? 'disabled' : ''} onclick="vkAdminImport()">${ic('upload')}Import playlist</button>
+      ${VK.lib.length ? `<button class="btn btn--ghost btn--sm" ${dis} onclick="admByArtist('vk')">${ic('people')}Delete by artist</button>` : ''}
       ${dups.size ? `<button class="btn btn--sm ${a.dup ? 'btn--chili' : 'btn--ghost'}" onclick="vkAdminDup()">${a.dup ? 'Ipakita lahat' : `May doble: ${dups.size}`}</button>
       <button class="btn btn--chili btn--sm" ${dis} onclick="vkAdminDedupe()">${ic('trash')}Remove duplicates (${vkDupCount(VK.lib)})</button>` : ''}
     </div>
@@ -3708,7 +3799,8 @@ function vkAdminHTML() {
     ${a.msg ? `<p class="note adm-msg" style="margin-top:10px">${esc(a.msg)}</p>` : ''}
     ${VK.lib.length ? `<input class="input adm-find" style="margin-top:12px" placeholder="Hanapin: title, artist o code" value="${esc(a.q)}" oninput="vkAdminFind(this.value)">
     ${a.dup ? '<p class="muted" style="margin-top:8px">Magkatabi ang magkaparehong kanta. Burahin lang ang sobra.</p>' : ''}
-    <ul class="adm-list">${page.map(s => `<li class="${dups.has(s.c) ? 'dup' : ''}"><span class="adm-c">${s.c}</span>
+    ${admSelBar('vk', page)}
+    <ul class="adm-list">${page.map(s => `<li class="${dups.has(s.c) ? 'dup' : ''}"><input type="checkbox" class="adm-chk" ${a.sel.has(s.c) ? 'checked' : ''} ${dis} onchange="admSel('vk',${s.c},this.checked)" aria-label="Piliin ang ${s.c}"><span class="adm-c">${s.c}</span>
       <span class="adm-t"><b>${esc(s.t)}</b><small>${esc(s.a) || '—'}</small></span>
       <button class="adm-ic" onclick="vkAdminEdit(${s.c})" aria-label="I-edit ang ${s.c}" ${dis}>${ic('edit')}</button>
       <button class="adm-ic adm-del" onclick="vkAdminDelete(${s.c})" aria-label="Burahin ang ${s.c}" ${dis}>${ic('trash')}</button></li>`).join('')}</ul>
@@ -3753,7 +3845,9 @@ async function vkSaveLib(mutate, message, opt = {}) {
   const out = mutate(songs.slice()) || songs;
   if (out.length > max && out.length > before) throw new Error('lib_full');
   // a save should never lose more than the one song being deleted (or, for "remove duplicates", only the doubles)
-  if (out.length < before - 1 && !(opt.bulk && before - out.length === songs.length - vkDedupe(songs).length)) throw new Error('lib_read');
+  const okDedupe = opt.bulk && before - out.length === songs.length - vkDedupe(songs).length;
+  const okChosen = opt.remove && songs.filter(s => !out.some(o => o.c === s.c)).every(s => opt.remove.has(s.c));
+  if (out.length < before - 1 && !okDedupe && !okChosen) throw new Error('lib_read');
   out.sort((a, b) => a.c - b.c);
   // One song per line: small file, and GitHub shows clean diffs
   const json = '{"v":1,"updated":' + JSON.stringify(new Date().toISOString()) + ',"songs":[\n'
@@ -3870,7 +3964,8 @@ async function vkAdminDelete(c) {
    ============================================================ */
 const IS_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const AUTH = { user: null, ready: false, busy: false, admin: false };
-function authReady() { return !!(BIDA_CONFIG.firebase && window.firebase); }
+let FB_READY = false;           // all three Firebase files loaded
+function authReady() { return !!(BIDA_CONFIG.firebase && window.firebase && FB_READY); }
 function paymentsReady() { return !!(authReady() && BIDA_CONFIG.workerUrl); }
 function isAdmin() { return !!AUTH.admin; }
 function fmtDay(ms) { return new Date(ms).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }); }
@@ -3882,6 +3977,21 @@ function applyEntitlement() {
   const u = AUTH.user;
   const ownPass = !!(u && BIDA.premiumUid === u.uid && passActive());
   BIDA.premium = !!AUTH.admin || ownPass || (IS_LOCAL && !!BIDA.devPro);
+}
+// Firebase SDK, loaded in the background once the page is usable. Same pinned versions + SRI hashes as before:
+// the browser refuses a file whose contents don't match.
+const FB_SDK = [
+  ['firebase-app-compat.js', 'sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4'],
+  ['firebase-auth-compat.js', 'sha384-lI+CxEx/bCvWP1b0OK13j5HTrTZP7yf1xle8TVOFq2smz6KC1RChTarRV/RHP5PP'],
+  ['firebase-firestore-compat.js', 'sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7']
+];
+function loadFirebase() {
+  if (window.firebase || !BIDA_CONFIG.firebase) return Promise.resolve();
+  return FB_SDK.reduce((p, [file, hash]) => p.then(() => new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://www.gstatic.com/firebasejs/10.7.1/' + file; s.integrity = hash; s.crossOrigin = 'anonymous';
+    s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  })), Promise.resolve());
 }
 function initAuth() {
   if (!authReady()) { AUTH.ready = true; return; }
@@ -4185,17 +4295,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindTalk($('#talk-bar'));
   $('#mb-talk').innerHTML = talkControls('bar');
   renderPlaylist();
-  initAuth();
-  handlePaidReturn();
-  await spHandleRedirect();
-  await loadCustom();
-  loadMusicFiles().then(() => { if (BIDA.tab === 'music') renderMusic(); });
-  const probing = loadPads().then(() => { preloadPads(); return null; }).then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
+  // Show the landing page / app FIRST, then do the slower background work
+  applyView();
   const startTab = new URLSearchParams(location.search).get('tab');
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
   updateBar();
-  applyView();
+  if (BIDA.tab === 'videoke' || BIDA.tab === 'music' || !$('#landing').hidden) loadVkLibrary();   // warm up while they look around
+  loadFirebase().then(() => { FB_READY = true; initAuth(); }).catch(() => { AUTH.ready = true; });
+  handlePaidReturn();
+  await spHandleRedirect();
+  await loadCustom();
+  if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds();
+  loadMusicFiles().then(() => { if (BIDA.tab === 'music') renderMusic(); });
+  const probing = loadPads().then(() => { preloadPads(); return null; }).then(() => { if (BIDA.tab === 'sounds' && !$('#app').hidden) renderSounds(); if (!$('#live').hidden) renderLive(); });
   micResume();          // auto-fade turns itself back on (asks only if the browser needs a tap)
   await probing;
 });
@@ -4206,7 +4319,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
   vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
-  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
+  vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
   addYouTube, playYouTube, delYouTube, togglePlaylist, loadLocal, playLocal, playMusicFile, delMusicFile, mlAdd, mlFind, mlPage, mlAdminImport, mlAdminDelete, mlAdminFind, mlAdminDedupe, vkAdminDedupe, spPlay, spLogin, musicToggle, musicSkip, setMaster, setDuck, fadeTo, fadeToggle, duckDown, duckUp,

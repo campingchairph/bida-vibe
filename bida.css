@@ -489,6 +489,16 @@ body.in-live .pl-panel { bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)
 .vk-art-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vk-art-btn .ic { width: 16px; height: 16px; flex: none; }
 .vk-art-btn.on { background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+.vk-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.vk-tool { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; max-width: 230px; padding: 0 14px; border: 2px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); font: 800 14px/1 var(--f); cursor: pointer; }
+.vk-tool span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vk-tool .ic { width: 18px; height: 18px; flex: none; }
+.vk-tool--ic { width: 44px; padding: 0; justify-content: center; }
+.vk-tool.on { background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+.vk-scoretg { margin: 0 0 0 auto; }
+.adm-chk { flex: none; width: 18px; height: 18px; accent-color: var(--magenta); margin: 0; }
+.adm-sel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; padding: 8px 10px; border-radius: 12px; background: var(--magenta-soft); border: 2px solid var(--ink); }
+.adm-sel b { font: 800 14px/1 var(--f); margin-right: auto; }
 .vk-letters { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
 @media (min-width: 900px) { .vk-letters { flex-wrap: wrap; overflow: visible; } }
 .vk-letters button { flex: none; width: 36px; height: 36px; border-radius: 10px; border: 2px solid var(--ink); background: #fff; color: var(--ink); font: 800 14px/1 var(--f); cursor: pointer; padding: 0; }
