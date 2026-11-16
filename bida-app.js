@@ -22,7 +22,7 @@ const BIDA_CONFIG = {
   },
   // Google OAuth "Web client" ID (public, not a secret). Turns on the iPhone-safe sign-in: a full-page trip to
   // Google and straight back to this page. Google Auth Platform → Clients → "Web client (auto created by Google
-  // Service)": its redirect URIs must include https://campingchairph.github.io/bida-vibe/ (see SECURITY.md).
+  // Service)": its redirect URIs must include https://bida.vows-and-petals.com/ (see SECURITY.md).
   googleClientId: '596965053196-gov3pvq0hmu3lonjs7q2svcagucls0do.apps.googleusercontent.com',
   // Admin test accounts: SHA-256 fingerprints of the Google email (lowercase), never the email itself.
   // Only someone who signs in with Google as that verified account matches. To add/change an admin,
@@ -1275,11 +1275,11 @@ async function loadFolderPads() {
   try { const r = await fetch('sounds/free/list.json', { cache: 'no-cache' }); if (r.ok) files = (await r.json()).map(String); } catch (e) { }
   if (!files.length && IS_LOCAL) { try { files = [...(await (await fetch('sounds/free/', { cache: 'no-cache' })).text()).matchAll(/href="([^"?#/]+)"/g)].map(m => { try { return decodeURIComponent(m[1]); } catch (x) { return m[1]; } }); } catch (e) { } }   // folder listings give encoded names
   if (!files.length) {
-    const gh = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split('/')[1], KEY = 'bidavibe_freepads';
-    if (gh && repo) {
+    const { owner, repo } = ghRepo(), KEY = 'bidavibe_freepads';   // works on github.io and on a custom domain
+    if (!IS_LOCAL) {
       try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.at < 6e5) files = c.files || []; } catch (e) { }
       if (!files.length) try {
-        const r = await fetch(`https://api.github.com/repos/${gh[1]}/${encodeURIComponent(repo)}/contents/sounds/free`);
+        const r = await fetch(`https://api.github.com/repos/${owner}/${encodeURIComponent(repo)}/contents/sounds/free`);
         if (r.ok) { files = (await r.json()).filter(x => x && x.type === 'file' && x.size < 3e6).map(x => String(x.name)); localStorage.setItem(KEY, JSON.stringify({ at: Date.now(), files })); }
       } catch (e) { }
     }
@@ -1445,7 +1445,7 @@ function adminSoundsHTML() { return BIDA_CONFIG.workerUrl ? adminWorkerHTML() : 
 const GH = { state: '', token: null, files: [], busy: false, msg: '' };
 function ghRepo() {
   const gh = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split('/')[1];
-  return gh && repo ? { owner: gh[1], repo } : { owner: 'campingchairph', repo: 'bida-vibe' };
+  return gh && repo ? { owner: gh[1], repo } : { owner: 'campingchairph', repo: 'bida-vibe' };   // custom domain → this repo
 }
 const secretUrl = () => `https://firestore.googleapis.com/v1/projects/${BIDA_CONFIG.firebase.projectId}/databases/(default)/documents/bida_secrets/github`;
 async function fsAuth() { return { Authorization: 'Bearer ' + await AUTH.user.getIdToken() }; }

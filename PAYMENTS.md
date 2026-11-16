@@ -38,8 +38,8 @@ To change the admin: hash the new Gmail (lowercase) with SHA-256 and replace the
    | Name | Value |
    |---|---|
    | `FIREBASE_PROJECT_ID` | `bidavibe` |
-   | `APP_URL` | `https://campingchairph.github.io/bida-vibe/` (keep the trailing `/`) |
-   | `ALLOWED_ORIGINS` | `https://campingchairph.github.io,http://localhost:8102` |
+   | `APP_URL` | `https://bida.vows-and-petals.com/` (keep the trailing `/`) |
+   | `ALLOWED_ORIGINS` | `https://bida.vows-and-petals.com,https://campingchairph.github.io,http://localhost:8102` |
    | `PRICE_CENTAVOS` | `15000` (₱150.00) |
 
    If you had added `PASS_DAYS` before, you can delete it: it isn't used anymore.

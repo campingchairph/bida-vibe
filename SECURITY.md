@@ -64,6 +64,16 @@ Not applicable here: SQL injection, CSRF, session cookies, password hashing, ser
    - Copy its **Client ID** (ends in `.apps.googleusercontent.com`; it's public, not a secret) into `BIDA_CONFIG.googleClientId` in bida-app.js.
    - How it works: on Apple browsers the app goes to Google itself (full page, `response_type=id_token`), comes back to this page, checks its own random `state` and `nonce`, removes the token from the address bar, then signs in to Firebase with `signInWithCredential`. Other browsers keep the popup and fall back to this if it fails. In-app browsers (Messenger, Facebook, TikTok) are asked to open Safari/Chrome, because Google blocks sign-in there.
 
+11. **Custom domain `bida.vows-and-petals.com`** (do these in this order, or the site goes down while DNS catches up):
+   1. **Cloudflare** (the DNS for vows-and-petals.com) → the domain → **DNS → Records → Add record**: Type `CNAME`, Name `bida`, Target `campingchairph.github.io`, Proxy status **DNS only** (grey cloud, so GitHub can issue the HTTPS certificate). Save.
+   2. **Google Cloud → Credentials → Browser key** (step 3): add the referrer `https://bida.vows-and-petals.com/*`. Without it, sign-in and the remote stop working on the new address.
+   3. **Firebase Auth → Settings → Authorized domains**: add `bida.vows-and-petals.com`.
+   4. **Google Auth Platform → Clients → Web client** (step 10): add the origin `https://bida.vows-and-petals.com` and the redirect URI `https://bida.vows-and-petals.com/`.
+   5. Only then add the file `CNAME` (one line: `bida.vows-and-petals.com`) to this repo and push. GitHub then sends the old github.io address to the new one automatically.
+   6. **GitHub → bida-vibe → Settings → Pages**: wait for the DNS check to pass, then tick **Enforce HTTPS**.
+   - Keep the old `campingchairph.github.io` entries for a while; they are harmless.
+   - Browser data (playlists, scores, settings) is saved per address, so hosts start fresh on the new address. Premium comes back on sign-in because it belongs to the Gmail.
+
 ## When something changes
 - **Rules change**: edit `firestore.rules`, paste it into the Console, Publish, and re-run the Playground checks above.
 - **Price change**: Worker variable `PRICE_CENTAVOS` **and** `price` in `BIDA_CONFIG` (display only).

@@ -5,8 +5,8 @@ compatibility_date = "2026-10-01"
 
 [vars]
 FIREBASE_PROJECT_ID = "bidavibe"
-APP_URL = "https://campingchairph.github.io/bida-vibe/"
-ALLOWED_ORIGINS = "https://campingchairph.github.io,http://localhost:8102"
+APP_URL = "https://bida.vows-and-petals.com/"
+ALLOWED_ORIGINS = "https://bida.vows-and-petals.com,https://campingchairph.github.io,http://localhost:8102"
 PRICE_CENTAVOS = "15000"   # ₱150.00, one-time
 
 [[kv_namespaces]]
