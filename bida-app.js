@@ -55,7 +55,8 @@ let BIDA = defaultState();
 function defaultState() {
   return {
     v: 4,
-    event: { type: 'reunion', name: '', date: '', start: '15:00' },
+    event: { type: 'reunion', name: '', date: '', start: '15:00', venue: '' },
+    setupDone: false, // the welcome steps (event type, date, time) were filled in
     program: [],
     nextId: 1,
     premium: false,
@@ -115,14 +116,18 @@ function loadState() {
   // Treat stored data as untrusted: keep only well-formed activities (numbers are numbers, ids are known)
   BIDA.program = (Array.isArray(BIDA.program) ? BIDA.program : []).filter(s => s && Number.isInteger(s.id) && BIDA_KINDS[s.kind])
     .map(s => ({ id: s.id, kind: s.kind, title: String(s.title || '').slice(0, 80), min: clamp(parseInt(s.min, 10) || 5, 1, 300), game: gameById(s.game) ? s.game : '',
-      note: String(s.note || '').slice(0, 300), done: s.done === true }));
+      note: String(s.note || '').slice(0, 300), done: s.done === true,
+      ...(s.kind === 'raffle' ? { names: cleanNames(Array.isArray(s.names) ? s.names.join('\n') : '') } : {}) }));
   BIDA.nextId = Math.max(Number.isInteger(BIDA.nextId) ? BIDA.nextId : 1, ...BIDA.program.map(s => s.id + 1));
   if (!BIDA_EVENTS.some(e => e.id === BIDA.event.type)) BIDA.event.type = 'reunion';
   if (!/^\d{2}:\d{2}$/.test(BIDA.event.start)) BIDA.event.start = '15:00';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(BIDA.event.date || '')) BIDA.event.date = '';
+  BIDA.event.name = String(BIDA.event.name || '').slice(0, 90); BIDA.event.venue = String(BIDA.event.venue || '').slice(0, 90);
+  BIDA.setupDone = BIDA.setupDone === true || !!BIDA.event.date;      // older users who already set a date skip the welcome
   if (!BIDA.program.length) buildProgram(BIDA.event.type);
   BIDA.view = BIDA.view === 'tv' ? 'tv' : 'host';
   const r = BIDA.remote;
-  BIDA.remote = r && /^[A-Za-z0-9]{24}$/.test(r.id) && typeof r.owner === 'string' && r.exp > Date.now() ? { id: r.id, owner: r.owner.slice(0, 128), exp: +r.exp } : null;
+  BIDA.remote = r && /^[A-Za-z0-9]{24}$/.test(r.id) && typeof r.owner === 'string' && r.exp > Date.now() ? { id: r.id, owner: r.owner.slice(0, 128), exp: +r.exp, pin: /^\d{6}$/.test(r.pin || '') ? r.pin : '' } : null;
 }
 
 /* ---------- In-app dialogs (never native confirm/prompt: they freeze the page and can pause music) ---------- */
@@ -234,6 +239,7 @@ async function braveCopy() {
 }
 function enterApp(tab) {
   BIDA.seenLanding = true; saveState();
+  if (!BIDA.setupDone && !isTV() && (!tab || tab === 'plan')) { openWelcome(); return; }
   $('#landing').hidden = true; $('#app').hidden = false; document.body.classList.add('in-app');
   goTab(tab || BIDA.tab || 'plan');
   requestAnimationFrame(renderAllBunting);
@@ -255,6 +261,76 @@ function offlineSetup() {
   const sync = () => { bar.hidden = navigator.onLine || isTV(); };
   addEventListener('online', sync); addEventListener('offline', sync); sync();
 }
+/* ---- Welcome: event details first, THEN the suggested plan ----
+   3 short steps: what kind of event → name, date, time, venue (with a live invitation preview) → the plan is ready. */
+const EV_EMOJI = { reunion: '👨‍👩‍👧', xmas: '🎄', birthday: '🎂', barkada: '🍻', office: '💼', binyag: '👶', despedida: '✈️', fiesta: '🎉', custom: '✨' };
+const EV_NAME_HINT = { reunion: 'Reunion ng Pamilya Santos', xmas: 'Christmas Party 2026', birthday: "Ika-7 Birthday ni Bea", barkada: 'Barkada Night', office: 'Team Christmas Party', binyag: 'Binyag ni Baby Lucas', despedida: 'Despedida ni Kuya Mark', fiesta: 'Fiesta sa Barangay', custom: 'Pangalan ng event' };
+const WEL = { step: 1 };
+function openWelcome() {
+  let el = $('#welcome');
+  if (!el) { el = document.createElement('section'); el.id = 'welcome'; el.className = 'wel'; el.setAttribute('aria-label', 'Event details'); document.body.appendChild(el); }
+  $('#landing').hidden = true; $('#app').hidden = true; el.hidden = false; document.body.classList.add('in-wel');
+  WEL.step = 1; renderWelcome();
+}
+function welDate(d) { if (!d) return 'Petsa'; const x = new Date(d + 'T00:00'); return isNaN(x) ? 'Petsa' : x.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function welPreview() {
+  const e = BIDA.event;
+  return `<div class="wel-prev" id="wel-prev"><small>${esc(welDate(e.date))} · ${e.start ? fmtTime(toMin(e.start)) : 'Oras'}</small>
+    <b>${esc(e.name || EV_NAME_HINT[e.type] || eventType().label)}</b>${e.venue ? `<small>${esc(e.venue)}</small>` : ''}</div>`;
+}
+function renderWelcome() {
+  const el = $('#welcome'), e = BIDA.event, s = WEL.step;
+  const dots = `<div class="wel-dots" aria-label="Step ${s} of 3">${[1, 2, 3].map(i => `<i class="${i <= s ? 'on' : ''}"></i>`).join('')}</div>`;
+  let body;
+  if (s === 1) body = `<p class="wel-hi">Hello, host!</p><h1>Anong handaan natin?</h1>
+    <div class="wel-types" role="radiogroup" aria-label="Uri ng event">${BIDA_EVENTS.map(x => `<button class="wel-type ${x.id === e.type ? 'on' : ''}" role="radio" aria-checked="${x.id === e.type}" onclick="welType('${x.id}')">
+      <span aria-hidden="true">${EV_EMOJI[x.id] || '🎉'}</span>${esc(x.label.split(' / ')[0])}</button>`).join('')}</div>
+    <button class="btn btn--magenta btn--lg btn--block" onclick="welGo(2)">Next ${ic('arrow')}</button>`;
+  else if (s === 2) body = `<h1>Kailan at saan?</h1>
+    <div class="field"><label for="wel-name">Pangalan ng event</label><input class="input" id="wel-name" maxlength="90" placeholder="${esc(EV_NAME_HINT[e.type] || '')}" value="${esc(e.name)}" oninput="welSet('name',this.value)"></div>
+    <div class="wel-row"><div class="field"><label for="wel-date">Petsa</label><input class="input" id="wel-date" type="date" value="${esc(e.date)}" oninput="welSet('date',this.value)"></div>
+      <div class="field"><label for="wel-start">Simula</label><input class="input" id="wel-start" type="time" value="${esc(e.start)}" oninput="welSet('start',this.value)"></div></div>
+    <div class="field"><label for="wel-venue">Saan <small class="muted">(optional)</small></label><input class="input" id="wel-venue" maxlength="90" placeholder="hal. Bahay ni Lola, Batangas" value="${esc(e.venue)}" oninput="welSet('venue',this.value)"></div>
+    <span class="field-label">Preview</span>${welPreview()}
+    <p class="wel-err" id="wel-err" role="alert"></p>
+    <button class="btn btn--magenta btn--lg btn--block" onclick="welGo(3)">Next ${ic('arrow')}</button>
+    <button class="btn btn--ghost btn--block" onclick="welGo(1)">Back</button>`;
+  else {
+    const times = segTimes(), end = toMin(e.start) + totalMin();
+    body = `<div class="wel-pop" aria-hidden="true">🎉</div><h1 style="text-align:center">Ready na ang plan mo!</h1>
+    <p class="muted" style="text-align:center">Para sa ${esc(eventType().label)}, ${fmtTime(toMin(e.start))} – ${fmtTime(end)}</p>
+    <ol class="wel-plan">${BIDA.program.slice(0, 6).map((p, i) => `<li><span>${fmtTime(times[i])}</span>${esc(p.title)}</li>`).join('')}
+      ${BIDA.program.length > 6 ? `<li class="muted"><span></span>+ ${BIDA.program.length - 6} pa</li>` : ''}</ol>
+    <p class="muted" style="text-align:center">Puwede mong baguhin lahat mamaya.</p>
+    <button class="btn btn--magenta btn--lg btn--block" onclick="welDone()">Tingnan ang plan ${ic('arrow')}</button>
+    <button class="btn btn--ghost btn--block" onclick="welGo(2)">Back</button>`;
+  }
+  el.innerHTML = `<div class="bunting" aria-hidden="true"></div><div class="wel-in">${dots}${body}</div>`;
+  requestAnimationFrame(renderAllBunting);
+  if (s === 2) setTimeout(() => { const f = !e.date ? $('#wel-date') : $('#wel-name'); f?.focus({ preventScroll: true }); }, 60);
+}
+function welType(id) { BIDA.event.type = id; saveState(); renderWelcome(); }
+function welSet(k, v) {
+  BIDA.event[k] = String(v || '').slice(0, 90); saveState();
+  const p = $('#wel-prev'); if (p) p.outerHTML = welPreview();
+  const er = $('#wel-err'); if (er) er.textContent = '';
+}
+function welGo(step) {
+  if (step === 3) {
+    const e = BIDA.event;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date)) { $('#wel-err').textContent = 'Ilagay ang petsa ng event'; $('#wel-date').focus(); return; }
+    if (!/^\d{2}:\d{2}$/.test(e.start)) { $('#wel-err').textContent = 'Ilagay kung anong oras magsisimula'; $('#wel-start').focus(); return; }
+    buildProgram(e.type); saveState();                           // the template comes only after the details
+  }
+  WEL.step = step; renderWelcome(); $('#welcome').scrollTop = 0;
+}
+function welDone() {
+  BIDA.setupDone = true; saveState();
+  $('#welcome').hidden = true; document.body.classList.remove('in-wel');
+  $('#app').hidden = false; document.body.classList.add('in-app');
+  goTab('plan'); renderHead(); requestAnimationFrame(renderAllBunting); braveNudge();
+  toast(`Plan para sa ${BIDA.event.name || eventType().label}: ready na!`);
+}
 function showLanding() {
   $('#landing').hidden = false; $('#app').hidden = true; document.body.classList.remove('in-app');
   requestAnimationFrame(renderAllBunting);
@@ -264,8 +340,18 @@ function showLanding() {
    TV view is what the audience sees: only Games and Videoke, no setup, no controls, no pop-up messages.
    The card goes on the TV from the host or the phone remote; the Card tab itself stays host-only. */
 const TV_TABS = ['games', 'videoke'];
-const isTV = () => BIDA.view === 'tv';
+// Phone = the host app runs on a phone: no TV view and no remote (the phone IS the remote).
+// Laptops, desktops and tablets (iPad, Android tablets) keep both.
+const IS_PHONE = (() => {
+  const ua = navigator.userAgent;
+  if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile;
+  if (/iPad|Tablet|PlayBook|Silk/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return false;
+  if (/iPhone|iPod|Android.+Mobile|Windows Phone|Mobile Safari/i.test(ua)) return true;
+  return matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
+})();
+const isTV = () => BIDA.view === 'tv' && !IS_PHONE;
 function applyView() {
+  document.body.classList.toggle('is-phone', IS_PHONE);
   document.body.classList.toggle('tv-mode', isTV());
   const b = $('#view-btn'); if (b) b.innerHTML = isTV() ? `${ic('people')}<span>Host view</span>` : `${ic('tv')}<span>TV view</span>`;
 }
@@ -349,6 +435,8 @@ function renderPlan() {
         <input class="input" id="ev-date" type="date" value="${esc(e.date)}" oninput="setEv('date',this.value)"></div>
       <div class="field"><label for="ev-start">Simula</label>
         <input class="input" id="ev-start" type="time" value="${esc(e.start)}" onchange="setEv('start',this.value)"></div>
+      <div class="field"><label for="ev-venue">Saan</label>
+        <input class="input" id="ev-venue" maxlength="90" placeholder="hal. Bahay ni Lola" value="${esc(e.venue || '')}" oninput="setEv('venue',this.value.slice(0,90))"></div>
     </div>
     <div class="type-strip" role="radiogroup" aria-label="Uri ng event">${BIDA_EVENTS.map(t => `
       <button class="type-chip ${t.id === e.type ? 'on' : ''}" role="radio" aria-checked="${t.id === e.type}" onclick="pickEventType('${t.id}')">${esc(t.label)}</button>`).join('')}</div>
@@ -364,10 +452,11 @@ function renderPlan() {
           ${isNext ? '<span class="act-next-tag">Susunod</span>' : ''}
           <span class="act-time">${fmtTime(times[i])}</span>
           <span class="act-title">${esc(s.title)}</span>
-          <span class="act-min">${s.min} min${g ? ' · laro' : ''}</span>
+          <span class="act-min">${s.min} min${g ? ' · laro' : ''}${s.kind === 'raffle' ? ` · ${(s.names || []).length} kasali` : ''}</span>
           ${s.note ? `<span class="act-note">${ic('edit')}${esc(s.note)}</span>` : ''}
         </button>
         ${g ? `<button class="act-game" onclick="openGame('${g.id}')" aria-label="How to play ${esc(g.name)}">${ic('games')}</button>` : ''}
+        ${s.kind === 'raffle' ? `<button class="act-game" onclick="actRaffle(${s.id})" aria-label="I-raffle: ${esc(s.title)}">${ic('play')}</button>` : ''}
         <span class="act-move">
           <button onclick="moveSeg(${i},-1)" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button>
           <button onclick="moveSeg(${i},1)" aria-label="Move down" ${i === BIDA.program.length - 1 ? 'disabled' : ''}>${ic('down')}</button>
@@ -383,6 +472,7 @@ function nextIdx() { return BIDA.program.findIndex(s => !s.done); }
 function toggleDone(id) {
   const s = BIDA.program.find(x => x.id === id); if (!s) return;
   s.done = !s.done; saveState(); renderPlan();
+  if (!$('#live').hidden) renderLive(true);        // the live view updates right away (timer keeps running)
   if (s.done) { const n = BIDA.program[nextIdx()]; toast(n ? `Next: ${n.title}` : 'Done na lahat — palakpakan!'); }
 }
 function setEv(k, v) {
@@ -403,6 +493,8 @@ async function resetProgram() {
   if (!await askConfirm('Ibalik sa suggested activities ng ' + eventType().label + '? Mabubura ang notes at checks.', 'I-reset')) return;
   buildProgram(BIDA.event.type); saveState(); renderPlan(); toast('Na-reset');
 }
+// Raffle participants: one per line (or comma), max 300 names of 30 characters
+function cleanNames(v) { return String(v || '').split(/\n|,/).map(s => s.replace(/\s+/g, ' ').trim().slice(0, 30)).filter(Boolean).slice(0, 300); }
 let segDraft = null;
 function editSeg(id) {
   const s = id ? BIDA.program.find(x => x.id === id) : null;
@@ -421,6 +513,9 @@ function editSeg(id) {
         <select class="input" id="sg-game" onchange="if(this.value&&!$('#sg-title').value)$('#sg-title').value=this.options[this.selectedIndex].text">
           <option value="">— Sariling laro —</option>
           ${BIDA_GAMES.map(g => `<option value="${g.id}" ${g.id === segDraft.game ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>
+      <div class="field" id="sg-raffle-wrap" ${segDraft.kind === 'raffle' ? '' : 'hidden'}><label for="sg-names">Mga kasali <small class="muted" id="sg-names-n">(${(segDraft.names || []).length})</small></label>
+        <textarea class="input" id="sg-names" rows="6" placeholder="Isang pangalan bawat linya&#10;hal.&#10;Tita Baby&#10;Kuya Jun&#10;Lolo Ben" oninput="$('#sg-names-n').textContent='('+cleanNames(this.value).length+')'">${esc((segDraft.names || []).join('\n'))}</textarea>
+        <button class="btn btn--chili btn--block" style="margin-top:8px" onclick="saveSeg(${id || 0}, true)">${ic('play')}I-raffle na</button></div>
       <div class="field"><label for="sg-note">Note</label>
         <textarea class="input" id="sg-note" rows="3" maxlength="300" placeholder="hal. Si Tito Ben ang may dala ng prizes · I-shoutout yung galing Dubai">${esc(segDraft.note || '')}</textarea></div>
       ${id ? `<label class="toggle"><input type="checkbox" id="sg-done" ${segDraft.done ? 'checked' : ''}>Done na 'tong activity</label>` : ''}
@@ -435,22 +530,34 @@ function pickKind(k, el) {
   segDraft.kind = k;
   $$('#sheet .chips .chip').forEach(c => c.classList.toggle('on', c === el));
   $('#sg-game-wrap').hidden = !(k === 'game' || k === 'icebreak');
+  $('#sg-raffle-wrap').hidden = k !== 'raffle';
   const t = $('#sg-title'); if (!t.value || QUICK_ADD.some(q => BIDA_KINDS[q].label === t.value)) t.value = k === 'game' ? '' : BIDA_KINDS[k].label;
 }
 function pickMin(m, el) {
   $('#sg-min').value = m;
   $$('#sheet .min-row .chip').forEach(c => c.classList.toggle('on', c === el));
 }
-function saveSeg(id) {
+function saveSeg(id, thenRaffle) {
   const kind = segDraft.kind, game = (kind === 'game' || kind === 'icebreak') ? $('#sg-game').value : '';
   let title = $('#sg-title').value.trim();
   if (!title) title = game ? gameById(game).name : BIDA_KINDS[kind].label;
   const min = clamp(parseInt($('#sg-min').value, 10) || 5, 1, 300);
   const note = $('#sg-note').value.trim().slice(0, 300);
   title = title.slice(0, 80);
-  if (id) Object.assign(BIDA.program.find(x => x.id === id), { kind, title, min, game, note, done: !!$('#sg-done')?.checked });
-  else BIDA.program.push({ id: BIDA.nextId++, kind, title, min, game, note, done: false });
-  saveState(); closeSheet(); renderPlan(); toast('Na-save!');
+  const extra = kind === 'raffle' ? { names: cleanNames($('#sg-names')?.value) } : {};
+  if (thenRaffle && !extra.names.length) { toast('Ilagay muna ang mga kasali'); $('#sg-names').focus(); return; }
+  let s = id && BIDA.program.find(x => x.id === id);
+  if (s) { Object.assign(s, { kind, title, min, game, note, done: !!$('#sg-done')?.checked }, extra); if (kind !== 'raffle') delete s.names; }
+  else { s = { id: BIDA.nextId++, kind, title, min, game, note, done: false, ...extra }; BIDA.program.push(s); }
+  saveState(); closeSheet(); renderPlan();
+  if (thenRaffle) actRaffle(s.id); else toast('Na-save!');
+}
+// Start the raffle game with this activity's names
+function actRaffle(id) {
+  const s = BIDA.program.find(x => x.id === id); if (!s) return;
+  if (!(s.names || []).length) { editSeg(id); toast('Ilagay muna ang mga kasali'); return; }
+  toolsState().names = s.names.slice(); saveState();
+  closeSheet(); raffleShow();
 }
 function deleteSeg(id) {
   BIDA.program = BIDA.program.filter(s => s.id !== id);
@@ -610,7 +717,7 @@ function cardOwnHTML() {
 function cardDefaults() {
   const e = BIDA.event, et = eventType();
   const theme = (CARD_THEMES.find(t => t.for.includes(e.type)) || CARD_THEMES[2]).id;
-  return { theme, size: 'post', ownPanel: '1', intro: 'Imbitado ka sa', title: e.name || et.label, sub: '', date: e.date || '', time: e.start || '', venue: '', msg: 'Kainan, games at kwentuhan — mas masaya kapag nandito ka!', rsvp: '' };
+  return { theme, size: 'post', ownPanel: '1', intro: 'Imbitado ka sa', title: e.name || et.label, sub: '', date: e.date || '', time: e.start || '', venue: e.venue || '', msg: 'Kainan, games at kwentuhan — mas masaya kapag nandito ka!', rsvp: '' };
 }
 function ensureCard() {
   const d = cardDefaults(), c = BIDA.card && typeof BIDA.card === 'object' ? BIDA.card : {};
@@ -1425,9 +1532,6 @@ function renderSounds() {
     <div class="panel-head"><div><h2>Sound pads</h2>
       <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : 'Tap lang para tumunog. Pwede ka ring mag-upload ng sarili mong sounds.'}</p></div>
       ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}Unlock all</button>`}</div>
-    <h3 class="pads-sub">Emcee</h3>
-    <div class="pads" id="emcee-pads">${emceePadsHTML()}</div>
-    <h3 class="pads-sub">Sounds</h3>
     <div class="pads" id="pads">${padsHTML()}
       <button class="pad pad--add" onclick="addSoundClick()">${ic('upload')}<span class="pad-name">Upload</span>
         <small>${leftLabel(uploadsLeft(), 'max 3 seg')}</small></button></div>
@@ -3263,65 +3367,6 @@ function vkNoise(t0, dur, vol) {
   g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
   src.connect(f).connect(g).connect(SFX_BUS); src.start(t0);
 }
-// Filtered noise burst (claps, crowd, cymbals)
-function emNoise(t0, dur, vol, freq, q = 1, type = 'bandpass', attack = .005) {
-  const x = ac(), len = Math.ceil(x.sampleRate * (dur + .05)), buf = x.createBuffer(1, len, x.sampleRate), ch = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
-  const src = x.createBufferSource(), f = x.createBiquadFilter(), g = x.createGain();
-  src.buffer = buf; f.type = type; f.frequency.value = freq; f.Q.value = q;
-  g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(vol, t0 + attack); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
-  src.connect(f).connect(g).connect(SFX_BUS); src.start(t0); src.stop(t0 + dur + .05);
-}
-/* ---- Emcee pads: made in the browser (no files, no licenses, work offline) ---- */
-const EMCEE = [
-  { id: 'drum', name: 'Drumroll', free: true }, { id: 'tada', name: 'Ta-da!', free: true },
-  { id: 'ding', name: 'Tama! (ding)', free: true }, { id: 'buzz', name: 'Mali! (buzzer)', free: true },
-  { id: 'clap', name: 'Palakpakan' }, { id: 'cheer', name: 'Hiyawan' }, { id: 'horn', name: 'Airhorn' },
-  { id: 'rim', name: 'Ba-dum-tss' }, { id: 'sad', name: 'Wah-wah' }, { id: 'sus', name: 'Suspense' }
-];
-function emceeSfx(id) {
-  const t = ac().currentTime + .02;
-  if (id === 'drum') {                                             // snare roll that builds, then a crash
-    for (let i = 0; i < 40; i++) emNoise(t + i * .05, .06, .05 + i * .004, 1800, .7);
-    emNoise(t + 2.05, 1.4, .35, 5000, .5, 'highpass'); vkTone(80, t + 2.05, .5, 'sine', .4);
-  } else if (id === 'tada') {
-    vkTone(523.25, t, .14, 'square', .08); vkTone(659.25, t + .12, .14, 'square', .08);
-    [523.25, 659.25, 783.99, 1046.5].forEach(f => vkTone(f, t + .26, 1.1, 'sawtooth', .05)); vkTone(2093, t + .26, .7, 'triangle', .08);
-  } else if (id === 'ding') {
-    vkTone(1318.5, t, 1.2, 'sine', .3); vkTone(1760, t + .12, 1.4, 'sine', .25); vkTone(3520, t + .12, .4, 'sine', .05);
-  } else if (id === 'buzz') {
-    vkTone(98, t, .7, 'sawtooth', .22); vkTone(147, t, .7, 'square', .1);
-  } else if (id === 'clap') {                                      // a crowd clapping: many short claps, swelling then fading
-    for (let i = 0; i < 140; i++) { const at = t + Math.random() * 2.6, k = 1 - Math.abs(at - t - 1.1) / 1.6; emNoise(at, .05, .04 + .1 * Math.max(.1, k), 1200 + Math.random() * 1400, 1.2, 'bandpass', .002); }
-  } else if (id === 'cheer') {                                     // crowd roar + a few "woo!"s
-    emNoise(t, 2.6, .22, 900, .5, 'bandpass', .35);
-    [0, .35, .8, 1.3].forEach((d, i) => vkSlide(380 + i * 60, 820 + i * 50, t + d, .55, 'triangle', .06));
-  } else if (id === 'horn') {                                      // three airhorn blasts
-    [0, .32, .64].forEach((d, i) => { const len = i === 2 ? .9 : .24; [466.16, 469, 932.33].forEach(f => vkTone(f, t + d, len, 'sawtooth', .07)); });
-  } else if (id === 'rim') {                                       // ba-dum-tss
-    vkSlide(220, 130, t, .18, 'sine', .45); vkSlide(170, 100, t + .2, .22, 'sine', .45);
-    emNoise(t + .42, 1, .3, 7000, .5, 'highpass');
-  } else if (id === 'sad') { vkSfx('down');
-  } else if (id === 'sus') {                                       // rising tension
-    const x = ac(), o = x.createOscillator(), g = x.createGain(), lfo = x.createOscillator(), lg = x.createGain();
-    o.type = 'sawtooth'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(440, t + 2.6);
-    lfo.frequency.setValueAtTime(5, t); lfo.frequency.linearRampToValueAtTime(14, t + 2.6); lg.gain.value = .04; lfo.connect(lg).connect(g.gain);
-    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.08, t + 2.4); g.gain.exponentialRampToValueAtTime(.0008, t + 2.8);
-    o.connect(g).connect(SFX_BUS); o.start(t); lfo.start(t); o.stop(t + 2.9); lfo.stop(t + 2.9);
-    emNoise(t, 2.6, .12, 3000, .4, 'highpass', 2.4);
-  }
-}
-function playEmcee(id, el) {
-  const e = EMCEE.find(x => x.id === id); if (!e) return;
-  if (!e.free && !BIDA.premium) { openPremium('Emcee sounds'); return; }
-  if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 120); }
-  try { emceeSfx(id); } catch (err) { }
-}
-function emceePadsHTML() {
-  return EMCEE.map((e, i) => { const ok = e.free || BIDA.premium;
-    return `<button class="pad pc-${['gold', 'magenta', 'leaf', 'chili', 'turq'][i % 5]} ${ok ? '' : 'disabled'}" onpointerdown="event.preventDefault();playEmcee('${e.id}',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playEmcee('${e.id}',this)}">
-      ${ok ? '' : `<svg class="ic pad-lock"><use href="#i-lock"/></svg>`}<span class="pad-name">${esc(e.name)}</span></button>`; }).join('');
-}
 // A tone that slides from one pitch to another (for the sad "wah-wah")
 function vkSlide(f0, f1, t0, dur, type = 'sawtooth', vol = .12) {
   const x = ac(), o = x.createOscillator(), g = x.createGain();
@@ -3852,32 +3897,42 @@ function timerDrag() {
    The app on the TV keeps a Firestore doc vk_remotes/{24 random chars} up to date
    (plan, sound pads, videoke queue, music). remote.html?k=<id> shows it and sends
    small commands back; the TV checks each command and runs it.
-   The link is the key: only share it with co-hosts. It ends after 24 hours.
+   The link + a 6-digit PIN are the key. Each phone enters the PIN once (checked by firestore.rules) and shows
+   up in the host's "connected" list, where the host can remove it. It ends after 24 hours.
    ============================================================ */
-const RMT = { unsub: null, pubT: 0, seen: new Set(), last: '' };
+const RMT = { unsub: null, devUnsub: null, devices: [], devReady: false, pubT: 0, seen: new Set(), last: '' };
 const REMOTE_HOURS = 24;
 function rmtValid() {
   BIDA.view = BIDA.view === 'tv' ? 'tv' : 'host';
   const r = BIDA.remote;
-  return !!(r && /^[A-Za-z0-9]{24}$/.test(r.id) && r.owner === AUTH.user?.uid && r.exp > Date.now());
+  return !!(r && /^[A-Za-z0-9]{24}$/.test(r.id) && /^\d{6}$/.test(r.pin || '') && r.owner === AUTH.user?.uid && r.exp > Date.now());
 }
 function rmtUrl() { return new URL('remote.html?k=' + BIDA.remote.id, location.href).href; }
 function rmtSheet() {
   const on = rmtValid();
   openSheet(`<div class="sheet-head" data-rmt><h3>Remote para sa host</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-    <p class="muted">Naka-connect ba sa TV 'tong laptop o tablet? I-scan ang QR sa phone mo para ma-control ang sounds, videoke, music at plan, kahit malayo ka sa TV.</p>
+    <p class="muted">I-scan sa phone para ma-control ang sounds, videoke, music at plan mula malayo.</p>
     ${on ? `<div class="qr-box" id="rmt-qr"><p class="muted">Ginagawa ang QR…</p></div>
-      <p class="note" style="margin-top:12px"><b>Para sa co-host lang.</b> Kahit sino may link ay makakapag-control, kaya 'wag i-send sa GC. Mag-e-expire in ${Math.max(1, Math.round((BIDA.remote.exp - Date.now()) / 36e5))} hours.</p>
+      <div class="rmt-pin"><span>PIN</span><b>${esc(BIDA.remote.pin.replace(/(\d{3})(\d{3})/, '$1 $2'))}</b></div>
+      <p class="pro-small">Ibigay lang ang PIN sa co-host. Expire in ${Math.max(1, Math.round((BIDA.remote.exp - Date.now()) / 36e5))} hours.</p>
+      <div class="rmt-devs"><span class="field-label">Naka-connect (${RMT.devices.length})</span>
+        ${RMT.devices.length ? `<ul>${RMT.devices.map(d => `<li><div><b>${esc(d.name)}</b><small>${esc(d.ua)}${d.at ? ' · ' + esc(new Date(d.at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })) : ''}</small></div>
+          <button class="btn btn--ghost btn--sm" onclick="rmtKick('${d.id}')">Alisin</button></li>`).join('')}</ul>` : '<p class="muted">Wala pang naka-connect.</p>'}</div>
       <div class="qr-btns"><button class="btn btn--ink" onclick="rmtCopy()">${ic('share')}Copy link</button>
-        <button class="btn btn--ghost" onclick="rmtStop()">Close remote</button></div>
-      <p class="muted" style="margin-top:12px;text-align:center">Tip: mag-tap muna kahit once sa device na 'to para gumana ang sounds. 'Wag i-minimize ang app sa TV.</p>`
-    : `<button class="btn btn--chili btn--block" style="margin-top:14px" onclick="rmtStart()">${ic('qr')}${AUTH.user ? 'Create remote link' : 'Sign in para maka-create'}</button>`}`);
+        <button class="btn btn--ghost" onclick="rmtStop()">Close remote</button></div>`
+    : `<div class="field" style="margin-top:14px"><label for="rmt-pin">Gumawa ng 6-digit PIN</label>
+        <input class="input pin-in" id="rmt-pin" inputmode="numeric" maxlength="6" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,6)"></div>
+      <p class="pro-small">Kailangan 'to ng phone bago maka-connect.</p>
+      <button class="btn btn--chili btn--block" style="margin-top:10px" onclick="rmtStart()">${ic('qr')}${AUTH.user ? 'Create remote' : 'Sign in para maka-create'}</button>`}`);
   if (on) qrCanvas(rmtUrl(), 520).then(c => { c.className = 'qr-img'; const b = $('#rmt-qr'); if (b) { b.innerHTML = ''; b.appendChild(c); } })
     .catch(() => { const b = $('#rmt-qr'); if (b) b.innerHTML = '<p class="muted">Hindi ma-load ang QR. I-copy na lang ang link.</p>'; });
 }
 async function rmtStart() {
   if (!authReady()) { toast('Hindi pa ready ang sign-in'); return; }
   if (!AUTH.user) { await signIn('remote'); if (!AUTH.user) return; }
+  const pin = ($('#rmt-pin')?.value || '').trim();
+  if (!/^\d{6}$/.test(pin)) { toast('Gumawa muna ng 6-digit PIN'); $('#rmt-pin')?.focus(); return; }
+  if (/^(\d)\1{5}$/.test(pin) || '0123456789'.includes(pin) || '9876543210'.includes(pin)) { toast('Masyadong madali ang PIN. Iba naman.'); return; }
   const fs = vkFs(); if (!fs) { toast('Hindi ma-load ang remote. I-refresh mo.'); return; }
   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   const id = [...crypto.getRandomValues(new Uint8Array(24))].map(b => abc[b % abc.length]).join('');
@@ -3885,9 +3940,10 @@ async function rmtStart() {
   try {
     await fs.collection('vk_remotes').doc(id).set({ owner: AUTH.user.uid, open: true, expires: firebase.firestore.Timestamp.fromMillis(exp),
       state: rmtClean(rmtState()), updated: firebase.firestore.FieldValue.serverTimestamp() });
+    await fs.collection('vk_remotes').doc(id).collection('lock').doc('pin').set({ pin });
   } catch (e) { toast(/permission/i.test(e.message) ? 'Hindi pa naka-publish ang bagong Firestore rules' : 'Hindi nagawa ang remote. Try ulit.'); return; }
-  BIDA.remote = { id, owner: AUTH.user.uid, exp }; saveState();
-  rmtListen(); rmtSheet();
+  BIDA.remote = { id, owner: AUTH.user.uid, exp, pin }; saveState();
+  RMT.devices = []; rmtListen(); rmtSheet();
 }
 async function rmtCopy() {
   if (!rmtValid()) return;
@@ -3896,7 +3952,15 @@ async function rmtCopy() {
 async function rmtStop() {
   if (!await askConfirm('Close ang remote? Hindi na gagana ang link sa phone.', 'Close')) return;
   const fs = vkFs(); if (fs && rmtValid()) fs.collection('vk_remotes').doc(BIDA.remote.id).delete().catch(() => { });      // gone, not just closed
-  RMT.unsub?.(); RMT.unsub = null; BIDA.remote = null; saveState(); closeSheet(); toast('Closed na ang remote');
+  RMT.unsub?.(); RMT.unsub = null; RMT.devUnsub?.(); RMT.devUnsub = null; RMT.devices = [];
+  BIDA.remote = null; saveState(); closeSheet(); toast('Closed na ang remote');
+}
+// Remove a phone: it can't read or control anything until it enters the PIN again
+async function rmtKick(id) {
+  const d = RMT.devices.find(x => x.id === id); if (!d || !rmtValid()) return;
+  if (!await askConfirm(`Alisin si ${d.name} (${d.ua})?`, 'Alisin')) return;
+  try { await vkFs().collection('vk_remotes').doc(BIDA.remote.id).collection('devices').doc(id).delete(); toast('Inalis na'); }
+  catch (e) { toast('Hindi naalis. Try ulit.'); }
 }
 // What the phone sees. Names and titles only: no account details, no links.
 function rmtState() {
@@ -3944,6 +4008,14 @@ function rmtListen() {
   RMT.unsub?.(); RMT.unsub = null;
   const fs = vkFs(); if (!fs || !rmtValid()) return;
   RMT.last = ''; rmtPublish(); setTimeout(rmtPublish, 4000);   // again once the sound pads have loaded
+  RMT.devUnsub?.(); RMT.devReady = false;
+  RMT.devUnsub = fs.collection('vk_remotes').doc(BIDA.remote.id).collection('devices').onSnapshot(snap => {
+    RMT.devices = snap.docs.map(d => { const x = d.data() || {}; return { id: d.id, name: String(x.name || 'Co-host').slice(0, 24), ua: String(x.ua || '').slice(0, 40), at: x.at && x.at.toMillis ? x.at.toMillis() : 0 }; })
+      .sort((a, b) => a.at - b.at);
+    if (RMT.devReady) snap.docChanges().forEach(ch => { if (ch.type === 'added') { const x = ch.doc.data() || {}; toast(`Naka-connect sa remote: ${String(x.name || 'Co-host').slice(0, 24)}`); } });
+    RMT.devReady = true;
+    if (!$('#sheet-wrap').hidden && $('#sheet [data-rmt]')) rmtSheet();
+  }, () => { });
   RMT.unsub = fs.collection('vk_remotes').doc(BIDA.remote.id).collection('cmds').orderBy('at').onSnapshot(snap => {
     snap.docChanges().forEach(ch => {
       if (ch.type !== 'added' || RMT.seen.has(ch.doc.id)) return;
@@ -4658,15 +4730,16 @@ function closeLive() {
   $('#live').hidden = true; document.body.style.overflow = ''; document.body.classList.remove('in-live'); clearInterval(LIVE.iv);
   LIVE.lock?.release?.(); LIVE.lock = null;
 }
-function renderLive() {
+function renderLive(keepTimer) {
   const i = BIDA.liveIdx, s = BIDA.program[i], k = BIDA_KINDS[s.kind] || BIDA_KINDS.opening, times = segTimes();
   const g = s.game && gameById(s.game);
   $('#live-count').textContent = `${i + 1} / ${BIDA.program.length}`;
   $('#live-now').className = 'live-now ks-' + k.color;
   $('#live-now').innerHTML = `<div class="ln-kind">${esc(k.label)} · ${fmtTime(times[i])}</div><h2>${esc(s.title)}</h2>
     <div class="ln-meta"><span class="ln-timer" id="ln-timer">${s.min}:00</span><span class="pill">${s.min} min</span>
-      <button class="pill ${s.done ? 'pill--done' : ''}" onclick="toggleDone(${s.id});renderLive()">${s.done ? ic('check') + 'Done' : 'Mark as done'}</button></div>
-    ${s.note ? `<p class="ln-note">${ic('edit')}${esc(s.note)}</p>` : ''}`;
+      <button class="pill ${s.done ? 'pill--done' : ''}" onclick="toggleDone(${s.id})">${s.done ? ic('check') + 'Done' : 'Mark as done'}</button></div>
+    ${s.note ? `<p class="ln-note">${ic('edit')}${esc(s.note)}</p>` : ''}
+    ${s.kind === 'raffle' ? `<button class="btn btn--gold" style="margin-top:12px" onclick="actRaffle(${s.id})">${ic('play')}${(s.names || []).length ? `I-raffle (${s.names.length} kasali)` : 'Ilagay ang mga kasali'}</button>` : ''}`;
   const upcoming = BIDA.program.slice(i + 1, i + 4);
   $('#live-script').innerHTML = (g ? `
     <div class="lg-head"><b>${esc(g.name)}</b><button class="btn btn--gold btn--sm" onclick="openGame('${g.id}')">${ic('play')}Animated how-to</button></div>
@@ -4677,7 +4750,8 @@ function renderLive() {
     <div class="sec-title" ${g ? '' : 'style="margin-top:0"'}>${ic('clock')}Susunod</div>
     ${upcoming.length ? `<ol class="up-list">${upcoming.map((u, j) => `<li><span>${fmtTime(times[i + 1 + j])}</span><b>${esc(u.title)}</b><small>${u.min} min</small></li>`).join('')}</ol>` : '<p class="muted">Last activity na — palakpakan!</p>'}`;
   $('#live-pads').innerHTML = `<div class="sec-title" style="margin-top:0">${ic('sound')}Sound pads</div><div class="pads">${padsHTML()}</div>`;
-  LIVE.running = false; LIVE.elapsed = 0; updateTimerBtn();
+  if (!keepTimer) { LIVE.running = false; LIVE.elapsed = 0; }
+  updateTimerBtn(); if (keepTimer) tickLive();
 }
 function liveStep(d) {
   if (d > 0) { const cur = BIDA.program[BIDA.liveIdx]; if (cur) cur.done = true; }   // Next = this one is done
@@ -4795,7 +4869,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
-  openReceipt, copyRefLink, playEmcee, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  openReceipt, copyRefLink, actRaffle, rmtKick, welType, welSet, welGo, welDone, cleanNames, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,

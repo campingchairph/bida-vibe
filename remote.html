@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116v">
+<link rel="stylesheet" href="bida.css?v=20261117a">
 <style>
   :root { --rs-h: calc(150px + env(safe-area-inset-bottom)); }
   html, body { overflow-x: clip; }
@@ -117,6 +117,9 @@
   .rp-note { font: 700 12.5px/1.4 var(--f); color: var(--ink-3); margin-top: 8px; }
   .rm-closed { text-align: center; padding: 40px 10px; }
   .rm-closed h2 { font: 800 24px/1.2 var(--f2); }
+  .rm-pin { max-width: 360px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; text-align: left; }
+  .rm-pin .pin-in { font: 800 30px/1 var(--f2); letter-spacing: .35em; text-align: center; }
+  .rm-pin .err { color: #B3261E; font-weight: 800; min-height: 1.2em; text-align: center; }
   .rm-avs { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 4px; }
   .rm-avs button { flex: none; border: 2.5px solid transparent; border-radius: 50%; background: none; padding: 1px; cursor: pointer; }
   .rm-avs button.on { border-color: var(--ink); background: var(--gold); }
@@ -203,8 +206,9 @@
 
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" integrity="sha384-lI+CxEx/bCvWP1b0OK13j5HTrTZP7yf1xle8TVOFq2smz6KC1RChTarRV/RHP5PP" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116v"></script>
+<script src="vk-avatars.js?v=20261117a"></script>
 <script>
 /* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
    Home = big category pads. Each game page puts that game on the TV and has its settings + a big trigger.
@@ -244,8 +248,9 @@
   }
   if (!/^[A-Za-z0-9]{24}$/.test(key)) { closed('Mali ang remote link'); return; }
 
-  let db;
-  try { firebase.initializeApp(FIREBASE); db = firebase.firestore(); } catch (e) { closed('Hindi ma-load ang remote'); return; }
+  // Its own Firebase app ("remote"), so the phone's anonymous remote sign-in never touches a Google sign-in in the host app
+  let db, auth;
+  try { const app = firebase.initializeApp(FIREBASE, 'remote'); db = app.firestore(); auth = app.auth(); } catch (e) { closed('Hindi ma-load ang remote'); return; }
 
   // Send one command to the TV. The exact same command twice within 250 ms is a double tap: ignore it.
   async function send(k, v = '', n = -1, s = '', av = '', ph = '', mo = '') {
@@ -557,13 +562,56 @@
     .then(j => { S.mlib = (j.songs || []).filter(s => s && s.c >= 1 && /^[\w-]{11}$/.test(s.y)).map(s => ({ c: +s.c, y: s.y, t: String(s.t || 'Song').slice(0, 80), a: String(s.a || '').slice(0, 60), g: String(s.g || '').slice(0, 20) }))
       .sort((a, b) => norm(a.t) < norm(b.t) ? -1 : 1); if (S.sheet === 'mlib') renderSheet(); }).catch(() => { });
 
-  db.collection('vk_remotes').doc(key).onSnapshot(d => {
-    if (!d.exists) { closed('Walang ganitong remote'); return; }
-    const data = d.data();
-    if (!data.open || !(data.expires && data.expires.toMillis() > Date.now())) { closed('Closed na ang remote'); return; }
-    S.st = data.state || {}; S.recvAt = Date.now(); S.updAt = data.updated && data.updated.toMillis ? data.updated.toMillis() : Date.now();
-    render();
-  }, () => closed('Ayaw bumukas ng remote. Baka closed na.'));
+  /* PIN: the host sets a 6-digit PIN. This phone enters it once; the database (firestore.rules) checks it and adds
+     this phone to the host's "connected" list. Without that, the phone can't read or control anything.
+     If the host removes this phone, it's asked for the PIN again. */
+  const devLabel = () => { const u = navigator.userAgent;
+    const dev = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : 'Phone';
+    const br = /CriOS|Chrome/.test(u) && !/Edg/.test(u) ? (navigator.brave ? 'Brave' : 'Chrome') : /FxiOS|Firefox/.test(u) ? 'Firefox' : /Edg/.test(u) ? 'Edge' : /Safari/.test(u) ? 'Safari' : 'Browser';
+    return dev + ' · ' + br; };
+  let unsub = null;
+  function pinScreen(msg) {
+    unsub?.(); unsub = null; S.st = null;
+    ['#rs', '#rtop'].forEach(s => $(s).hidden = true); $('#rsh').hidden = true;
+    $('#rm').innerHTML = `<div class="card rm-closed"><div class="rm-pin">${vkAvatar('dj', 70)}
+      <h2>Ilagay ang PIN</h2><p class="muted">Ibibigay ng host ang 6-digit PIN. Makikita ka ng host sa list ng naka-connect.</p>
+      <input class="input pin-in" id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" aria-label="6-digit PIN">
+      <input class="input" id="pin-name" maxlength="24" placeholder="Pangalan mo (hal. Kuya Jun)" value="${esc(S.who.name || '')}" aria-label="Pangalan mo">
+      <p class="err" id="pin-err">${esc(msg || '')}</p>
+      <button class="btn btn--magenta btn--block" id="pin-go">Connect</button></div></div>`;
+    const inp = $('#pin'), go = $('#pin-go');
+    inp.oninput = () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 6); $('#pin-err').textContent = ''; };
+    inp.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+    go.onclick = async () => {
+      const pin = inp.value, name = $('#pin-name').value.replace(/\s+/g, ' ').trim().slice(0, 24);
+      if (!/^\d{6}$/.test(pin)) { $('#pin-err').textContent = '6 numbers ang PIN'; return; }
+      go.disabled = true; go.textContent = 'Connecting…';
+      try {
+        await db.collection('vk_remotes').doc(key).collection('devices').doc(auth.currentUser.uid)
+          .set({ name: name || 'Co-host', ua: devLabel(), pin, at: firebase.firestore.FieldValue.serverTimestamp() });
+        if (name) { S.who.name = name; store.set('bv_rm_who', S.who); }
+        $('#rm').innerHTML = ''; listen();
+      } catch (e) { go.disabled = false; go.textContent = 'Connect'; $('#pin-err').textContent = 'Mali ang PIN, o closed na ang remote.'; buzz(80); }
+    };
+    setTimeout(() => inp.focus(), 50);
+  }
+  function listen() {
+    unsub?.();
+    unsub = db.collection('vk_remotes').doc(key).onSnapshot(d => {
+      if (!d.exists) { closed('Walang ganitong remote'); return; }
+      const data = d.data();
+      if (!data.open || !(data.expires && data.expires.toMillis() > Date.now())) { closed('Closed na ang remote'); return; }
+      S.st = data.state || {}; S.recvAt = Date.now(); S.updAt = data.updated && data.updated.toMillis ? data.updated.toMillis() : Date.now();
+      render();
+    }, e => {
+      // not connected yet, removed by the host, or the link ended: ask for the PIN (a closed link will refuse it)
+      if (e && e.code === 'permission-denied') pinScreen(S.st ? 'Tinanggal ka ng host, o nag-expire ang remote.' : '');
+      else closed('Ayaw bumukas ng remote. Baka closed na.');
+    });
+  }
+  auth.signInAnonymously().then(listen).catch(e => {
+    closed(/operation-not-allowed|admin-restricted/.test((e && e.code) || '') ? 'Hindi pa naka-on ang remote sign-in (Anonymous) sa Firebase.' : 'Hindi ma-connect. Check ang internet at i-refresh.');
+  });
 })();
 </script>
 </body>

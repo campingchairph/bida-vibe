@@ -74,6 +74,6 @@ In `bida-app.js`, set `BIDA_CONFIG.workerUrl: 'https://bida-pay.YOU.workers.dev'
 
 ## Notes
 - **Who's paid:** Cloudflare → KV → `bida-premium`. Each `pro:<uid>` entry has `until` (9999-12-31 for lifetime), `plan` (`month`/`life`), the last payment date, amount, method and email, and `refRewards` if they earned referral days. Referral keys: `seen:<uid>`, `refby:<uid>`, `refn:<uid>`. To refund/revoke, delete the entry or set `until` to 0.
-- **Free without an account:** activities, all games and game tools, the first sound pads, 2 sound uploads, 8 free songs from the music library, 5 own music files (saved on the device only) and 20 videoke songs (unlimited plays). The Premium page lists them in a short Free vs Premium comparison. Emcee pads: Drumroll, Ta-da, Ding and Buzzer are free; the other 6 are Premium. Everything else unlocks with either plan.
+- **Free without an account:** activities, all games and game tools, the first sound pads, 2 sound uploads, 8 free songs from the music library, 5 own music files (saved on the device only) and 20 videoke songs (unlimited plays). The Premium page lists them in a short Free vs Premium comparison. Everything else unlocks with either plan.
 - **Test code:** `BIDATEST` only works on `localhost`.
 - Security details and console settings: [SECURITY.md](SECURITY.md).

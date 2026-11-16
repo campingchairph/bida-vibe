@@ -76,6 +76,12 @@ Not applicable here: SQL injection, CSRF, session cookies, password hashing, ser
    - Keep the old `campingchairph.github.io` entries for a while; they are harmless.
    - Browser data (playlists, scores, settings) is saved per address, so hosts start fresh on the new address. Premium comes back on sign-in because it belongs to the Gmail.
 
+12. **Remote PIN** (needed before the remote works again):
+   - Firebase Console → bidavibe → **Authentication → Sign-in method → Add new provider → Anonymous → Enable → Save**. Co-host phones use it to join the remote without a Google account.
+   - Publish the new `firestore.rules`.
+   - How it works: the host sets a 6-digit PIN, stored at `vk_remotes/{id}/lock/pin`, which nobody can read. A phone must create `devices/{its anonymous uid}` with the right PIN, and the rules compare it. Only connected phones can read the remote or send commands. The host sees every connected phone (name, device, time) and can remove one; a removed phone has to enter the PIN again.
+   - Limit: the rules can't count wrong guesses. The 24-character link is still needed, the host gets a toast for every new phone, and the host can remove phones.
+
 ## When something changes
 - **Rules change**: edit `firestore.rules`, paste it into the Console, Publish, and re-run the Playground checks above.
 - **Price change**: Worker variable `PRICE_CENTAVOS` **and** `price` in `BIDA_CONFIG` (display only).

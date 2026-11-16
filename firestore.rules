@@ -84,12 +84,19 @@ service cloud.firestore {
       }
     }
 
-    // Host remote: the TV app (signed-in host) keeps a snapshot here; the host's phone opens
+    // Host remote: the TV app (signed-in host) keeps a snapshot here; a co-host's phone opens
     // remote.html with the long random id. Only the owner can change the doc.
+    // PIN: the host sets a 6-digit PIN (lock/pin, which nobody can read). A phone signs in anonymously and
+    // must create devices/{its uid} with the right PIN. Only connected phones can read the remote or send
+    // commands; the host sees every connected phone and can remove it.
     match /vk_remotes/{rid} {
-      // Same: the phone can read it only while it's open and not expired
+      function remoteDoc() { return get(/databases/$(database)/documents/vk_remotes/$(rid)).data; }
+      function isOwner() { return request.auth != null && remoteDoc().owner == request.auth.uid; }
+      function isLive() { return remoteDoc().open == true && remoteDoc().expires > request.time; }
+      function isDevice() { return request.auth != null && exists(/databases/$(database)/documents/vk_remotes/$(rid)/devices/$(request.auth.uid)); }
+      // A connected phone can read it only while it's open and not expired; the host always can
       allow get: if rid.matches('^[A-Za-z0-9]{24}$')
-        && ((resource.data.open == true && resource.data.expires > request.time)
+        && ((resource.data.open == true && resource.data.expires > request.time && isDevice())
             || (request.auth != null && resource.data.owner == request.auth.uid));
       allow list: if false;
       allow create: if request.auth != null
@@ -108,12 +115,34 @@ service cloud.firestore {
         && request.resource.data.state is map;
       allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
 
+      // The PIN. Only the host can set it; NOBODY can read it (the rules below compare against it).
+      match /lock/{doc} {
+        allow read: if false;
+        allow create, update: if doc == 'pin' && isOwner()
+          && request.resource.data.keys().hasOnly(['pin'])
+          && request.resource.data.pin is string && request.resource.data.pin.matches('^[0-9]{6}$');
+        allow delete: if isOwner();
+      }
+
+      // A connected phone (document ID = that phone's anonymous sign-in). Created only with the right PIN.
+      match /devices/{uid} {
+        allow create: if request.auth != null && request.auth.uid == uid && isLive()
+          && request.resource.data.keys().hasOnly(['name', 'ua', 'pin', 'at'])
+          && request.resource.data.pin == get(/databases/$(database)/documents/vk_remotes/$(rid)/lock/pin).data.pin
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 24
+          && request.resource.data.ua is string && request.resource.data.ua.size() <= 40
+          && request.resource.data.at == request.time;
+        allow read, delete: if isOwner();                    // the host's "connected" list and the Remove button
+        allow update: if false;
+      }
+
       // A command from the phone (play a pad, skip a song…). It can only be ADDED, only while the
       // remote is open, and only in this small shape. The TV reads it, checks it, runs it, deletes it.
       match /cmds/{cmd} {
         function rr() { return get(/databases/$(database)/documents/vk_remotes/$(rid)).data; }
         allow create: if rr().open == true
           && rr().expires > request.time
+          && isDevice()
           && request.resource.data.keys().hasOnly(['k', 'v', 'n', 's', 'av', 'ph', 'mo', 'at'])
           && request.resource.data.k in ['pad', 'stop', 'music', 'plan', 'vk', 'score', 'show']
           && okPhoto(request.resource.data) && okMouth(request.resource.data)
