@@ -33,7 +33,7 @@ Custom sounds are stored in IndexedDB (`bidavibe_media`).
 
 ## Free vs Premium
 
-| | Free | Premium (₱150 one-time, sign-in required, no auto-charge) |
+| | Free | Premium (₱49 / 30 days or ₱149 lifetime, sign-in required, no auto-charge) |
 |---|---|---|
 | Plan, games, Live mode | ✓ | ✓ |
 | Free pads (admin uploads, max 8) | ✓ | ✓ |

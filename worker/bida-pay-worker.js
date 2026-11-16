@@ -4,17 +4,20 @@
    Checkout Sessions, verifies PayMongo webhooks, and stores who
    has an active Premium pass in Cloudflare KV.
 
-   Premium = a one-time payment (₱150). Paid once, unlocked for good on that
-   Google account. No subscription, no auto-charge.
+   Premium has two plans, both tied to the Google account (never a device), no auto-charge:
+     month  ₱49  → 30 days. Buying again adds 30 days to the time left.
+     life   ₱149 → for good. Lifetime owners can't buy "month"; month owners can upgrade.
+   Prices live HERE (or in the variables below), never in the browser.
 
    Bindings (Worker → Settings):
      KV namespace   PREMIUM                  (Variables → KV Namespace Bindings)
      Secret         PAYMONGO_SECRET_KEY      sk_test_… / sk_live_…
      Secret         PAYMONGO_WEBHOOK_SECRET  whsk_…  (from the webhook you create)
      Variable       FIREBASE_PROJECT_ID      bidavibe
-     Variable       APP_URL                  https://campingchairph.github.io/bida-vibe/
-     Variable       ALLOWED_ORIGINS          comma list, e.g. https://campingchairph.github.io,http://localhost:8102
-     Variable       PRICE_CENTAVOS           15000  (₱150.00)
+     Variable       APP_URL                  https://bida.vows-and-petals.com/
+     Variable       ALLOWED_ORIGINS          comma list, e.g. https://bida.vows-and-petals.com,http://localhost:8102
+     Variable       PRICE_MONTH_CENTAVOS     4900   (₱49.00 / 30 days)   optional
+     Variable       PRICE_LIFE_CENTAVOS      14900  (₱149.00 lifetime)   optional
 
    Admin test accounts live in Firestore: collection "admins", document ID = the
    Google email in lowercase. The Worker asks Firestore *as the signed-in user*;
@@ -23,7 +26,7 @@
 
    Routes:
      GET    /status       (Bearer <Firebase ID token>) → { premium, admin, until }
-     POST   /checkout     (Bearer token)               → { url }
+     POST   /checkout     (Bearer token) { plan: "month" | "life" } → { url }
      POST   /webhook      (from PayMongo, signed)      → 200
      GET    /pads                                        → list of sound pads (names only)
      GET    /pads/:id     free pad: anyone · premium pad: Bearer token of an active pass or admin
@@ -34,7 +37,14 @@
    ============================================================ */
 
 const DAY = 86400000;
-const PRICE_DEFAULT = '15000';                 // ₱150.00, one-time
+const MONTH_DAYS = 30;
+// plan → price in centavos (server-side only) and what the line item says
+function plans(env) {
+  return {
+    month: { amount: parseInt(env.PRICE_MONTH_CENTAVOS || '4900', 10), name: 'Bida-Vibe Premium · 30 days', desc: '30 days ng Premium. Walang auto-charge.' },
+    life: { amount: parseInt(env.PRICE_LIFE_CENTAVOS || '14900', 10), name: 'Bida-Vibe Premium · Lifetime', desc: "Isang bayad lang, sa'yo na for good. Walang auto-charge." }
+  };
+}
 const LIFETIME_UNTIL = 253402300799000;        // 9999-12-31: "for good". Kept as a date so older 30-day passes still work.
 // Admin test account fingerprint (SHA-256 of the lowercase Google email). Override with ADMIN_EMAIL_HASHES.
 const DEFAULT_ADMIN_HASHES = '291b86481ed2c63b356ae7c2bf0649292169d535f061785fc88a829d26cb50bd';
@@ -48,6 +58,7 @@ export default {
       if (url.pathname === '/webhook' && req.method === 'POST') return await handleWebhook(req, env);
       if (url.pathname === '/status' && req.method === 'GET') return await handleStatus(req, env, cors);
       if (url.pathname === '/checkout' && req.method === 'POST') return await handleCheckout(req, env, cors);
+      if (url.pathname === '/referral' && req.method === 'POST') return await handleReferral(req, env, cors);
       const pm = url.pathname.match(/^\/pads(?:\/(p[a-f0-9]{12}))?$/);
       if (pm) return await handlePads(req, env, cors, pm[1], url);
       return json({ error: 'not_found' }, 404, cors);
@@ -62,9 +73,48 @@ export default {
 async function handleStatus(req, env, cors) {
   const user = await requireUser(req, env);
   if (await isAdmin(user, env)) return json({ premium: true, admin: true, until: null }, 200, cors);
+  await markSeen(env, user.uid);
   const rec = await env.PREMIUM.get('pro:' + user.uid, 'json');
   const until = rec?.until || 0;
-  return json({ premium: until > Date.now(), admin: false, until: until || null, lifetime: until >= LIFETIME_UNTIL }, 200, cors);
+  // The latest payment, for the receipt screen (only this account's own record)
+  const receipt = rec?.sessionId ? { plan: rec.plan || 'life', amount: rec.amount || 0, paidAt: rec.lastPaidAt || '', ref: rec.sessionId, method: rec.method || '' } : null;
+  const refs = parseInt(await env.PREMIUM.get('refn:' + user.uid) || '0', 10);
+  return json({ premium: until > Date.now(), admin: false, until: until || null, lifetime: until >= LIFETIME_UNTIL, receipt, refs, refGoal: REF_GOAL, refMax: REF_MAX_REWARDS }, 200, cors);
+}
+
+/* ---------- Referral: 3 NEW Google accounts sign in through your link → 7 days of Premium (max 2 times) ----------
+   "New" = this Worker has never seen the account before. The app calls /referral BEFORE its first /status,
+   so an account that ever used the app (with payments live) can't be counted later.
+   It can't stop one person making extra Gmail accounts (nothing can without phone checks), so the reward
+   is capped at REF_MAX_REWARDS × 7 days per account. */
+const REF_GOAL = 3, REF_DAYS = 7, REF_MAX_REWARDS = 2;
+async function markSeen(env, uid) {
+  if (await env.PREMIUM.get('seen:' + uid)) return true;
+  await env.PREMIUM.put('seen:' + uid, '1');
+  return false;
+}
+async function handleReferral(req, env, cors) {
+  const user = await requireUser(req, env);
+  if (user.provider !== 'google.com' || !user.emailVerified) throw err(403, 'google_only');
+  const ref = String((await req.json().catch(() => ({})))?.ref || '');
+  const wasSeen = await markSeen(env, user.uid);
+  if (!/^[A-Za-z0-9]{20,40}$/.test(ref) || ref === user.uid) return json({ ok: false, reason: 'bad_ref' }, 200, cors);
+  if (wasSeen) return json({ ok: false, reason: 'not_new' }, 200, cors);
+  if (!(await env.PREMIUM.get('seen:' + ref))) return json({ ok: false, reason: 'unknown_ref' }, 200, cors);   // the referrer must be a real user
+  if (await env.PREMIUM.get('refby:' + user.uid)) return json({ ok: false, reason: 'already' }, 200, cors);
+  await env.PREMIUM.put('refby:' + user.uid, ref);
+  const n = parseInt(await env.PREMIUM.get('refn:' + ref) || '0', 10) + 1;
+  await env.PREMIUM.put('refn:' + ref, String(n));
+  // Every REF_GOAL new sign-ups = 7 more days, up to REF_MAX_REWARDS times. Lifetime owners stay lifetime.
+  if (n % REF_GOAL === 0 && n / REF_GOAL <= REF_MAX_REWARDS) {
+    const rec = (await env.PREMIUM.get('pro:' + ref, 'json')) || {};
+    if ((rec.until || 0) < LIFETIME_UNTIL) {
+      rec.until = Math.max(Date.now(), rec.until || 0) + REF_DAYS * DAY;
+      rec.refRewards = (rec.refRewards || 0) + 1;
+      await env.PREMIUM.put('pro:' + ref, JSON.stringify(rec));
+    }
+  }
+  return json({ ok: true }, 200, cors);
 }
 
 // Admin = verified Google email with a document at admins/{email} in Firestore.
@@ -90,7 +140,10 @@ async function handleCheckout(req, env, cors) {
   // Premium belongs to a Google account (never a device): only verified Google sign-ins can buy
   if (user.provider !== 'google.com' || !user.emailVerified) throw err(403, 'google_only');
   if (await isAdmin(user, env)) return json({ already: true, admin: true }, 200, cors);
-  // Already paid the one-time price: never charge twice
+  const planId = String((await req.json().catch(() => ({})))?.plan || '');
+  const plan = plans(env)[planId];
+  if (!plan || !(plan.amount >= 2000)) throw err(400, 'bad_plan');           // PayMongo's minimum is ₱20
+  // Lifetime owners are never charged again (for either plan)
   const have = await env.PREMIUM.get('pro:' + user.uid, 'json');
   if ((have?.until || 0) >= LIFETIME_UNTIL) return json({ already: true }, 200, cors);
 
@@ -98,21 +151,21 @@ async function handleCheckout(req, env, cors) {
   if (await env.PREMIUM.get('rl:' + user.uid)) throw err(429, 'slow_down');
   await env.PREMIUM.put('rl:' + user.uid, '1', { expirationTtl: 60 });
 
-  const amount = parseInt(env.PRICE_CENTAVOS || PRICE_DEFAULT, 10);
+  const amount = plan.amount;
   const appUrl = env.APP_URL;
   const body = {
     data: {
       attributes: {
-        line_items: [{ name: 'Bida-Vibe Premium (one-time)', amount, currency: 'PHP', quantity: 1 }],
+        line_items: [{ name: plan.name, amount, currency: 'PHP', quantity: 1 }],
         payment_method_types: ['gcash', 'paymaya', 'card'],
-        description: 'Isang bayad lang: lahat ng sound pads, music, Talk at Fade, for good. Walang monthly, walang auto-charge.',
+        description: plan.desc,
         reference_number: user.uid.slice(0, 20) + '-' + Date.now().toString(36),
         send_email_receipt: true,
         show_description: true,
         show_line_items: true,
         success_url: appUrl + '?paid=1',
         cancel_url: appUrl + '?paid=0',
-        metadata: { uid: user.uid, email: user.email || '' }
+        metadata: { uid: user.uid, email: user.email || '', plan: planId }
       }
     }
   };
@@ -128,7 +181,7 @@ async function handleCheckout(req, env, cors) {
   const j = await r.json();
   if (!r.ok) { console.log('paymongo error', JSON.stringify(j)); throw err(502, 'paymongo_error'); }
   const s = j.data;
-  await env.PREMIUM.put('session:' + s.id, JSON.stringify({ uid: user.uid, created: Date.now() }), { expirationTtl: 60 * 60 * 24 * 3 });
+  await env.PREMIUM.put('session:' + s.id, JSON.stringify({ uid: user.uid, plan: planId, created: Date.now() }), { expirationTtl: 60 * 60 * 24 * 3 });
   return json({ url: s.attributes.checkout_url }, 200, cors);
 }
 
@@ -155,20 +208,26 @@ async function handleWebhook(req, env) {
   // PayMongo retries deliveries: each checkout session may add days only once
   if (await env.PREMIUM.get('paid:' + session.id)) return new Response('already processed', { status: 200 });
 
-  let uid = attrs.metadata?.uid;
-  if (!uid) uid = (await env.PREMIUM.get('session:' + session.id, 'json'))?.uid;
+  const saved = await env.PREMIUM.get('session:' + session.id, 'json');
+  const uid = attrs.metadata?.uid || saved?.uid;
   if (!uid) return new Response('no uid', { status: 200 });
+  // The plan was written by this Worker when the session was made; the amount check below still applies
+  const planId = saved?.plan || attrs.metadata?.plan || 'life';
+  const plan = plans(env)[planId];
+  if (!plan) return new Response('bad plan', { status: 200 });
 
   const paid = (attrs.payments || [])[0]?.attributes || {};
-  const expectedAmount = parseInt(env.PRICE_CENTAVOS || PRICE_DEFAULT, 10);
+  const expectedAmount = plan.amount;
   const amount = paid.amount ?? attrs.line_items?.[0]?.amount ?? 0;
   const currency = String(paid.currency || attrs.line_items?.[0]?.currency || 'PHP').toUpperCase();
   if (amount < expectedAmount || currency !== 'PHP') return new Response('amount mismatch', { status: 200 });
 
-  // One-time payment: unlocked for good
   const prev = await env.PREMIUM.get('pro:' + uid, 'json');
+  const prevUntil = prev?.until || 0;
+  // life → for good. month → 30 days added on top of any time still left (a lifetime owner stays lifetime)
+  const until = planId === 'life' || prevUntil >= LIFETIME_UNTIL ? LIFETIME_UNTIL : Math.max(Date.now(), prevUntil) + MONTH_DAYS * DAY;
   await env.PREMIUM.put('pro:' + uid, JSON.stringify({
-    until: LIFETIME_UNTIL, lifetime: true, lastPaidAt: new Date().toISOString(), sessionId: session.id, amount,
+    until, lifetime: until >= LIFETIME_UNTIL, plan: planId, lastPaidAt: new Date().toISOString(), sessionId: session.id, amount,
     method: attrs.payment_method_used || paid.source?.type || '', email: attrs.metadata?.email || '',
     payments: (prev?.payments || 0) + 1
   }));

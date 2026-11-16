@@ -8,7 +8,10 @@
 
 /* ---------- Config (edit before launch) ---------- */
 const BIDA_CONFIG = {
-  price: '₱150',      // Premium is a one-time payment: pay once, unlocked for good on that Google account (display only; the Worker sets the real price)
+  // Premium plans (display only: the Worker sets the real prices). Both tied to the Google account, no auto-charge.
+  plans: { month: '₱49', life: '₱149' },
+  // Trust details shown on the Premium page. Fill in when you have them (leave '' to hide).
+  about: { dti: '', facebook: '' },
   // Payments (see PAYMENTS.md): URL of the deployed Cloudflare Worker, e.g. 'https://bida-pay.yourname.workers.dev'
   workerUrl: '',
   // Firebase web config (Project settings → Your apps → Web app). Used for Google sign-in (buyers + admin).
@@ -58,6 +61,7 @@ function defaultState() {
     premium: false,
     premiumUid: '',   // Google account the Premium unlock belongs to (cached for offline use)
     premiumUntil: 0,  // end of the paid pass (ms); 0 = none
+    receipt: null,    // latest payment of that account (plan, amount, paidAt, ref) for the receipt screen
     proKind: '',      // 'admin' | 'pass' | '' — cached so the venue works offline
     devPro: false,    // localhost-only test unlock
     // duck = how low Talk takes the music · fade = Talk speed (same down and back up)
@@ -204,6 +208,12 @@ function renderAllBunting() { $$('.bunting').forEach(el => { if (el.offsetParent
 /* ---------- Landing / app ---------- */
 /* Brave suggestion: shown ONCE per device to hosts on another browser (never in TV view, never to guests).
    Note: YouTube's API terms frown on steering people around ads, so the wording stays soft (owner's decision). */
+function braveLink() {
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return 'https://play.google.com/store/apps/details?id=com.brave.browser';
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'https://apps.apple.com/app/brave-private-web-browser/id1052879175';
+  return 'https://brave.com/download/';
+}
 function braveNudge() {
   if (navigator.brave || isTV()) return;
   try { if (localStorage.getItem('bv_brave_seen')) return; } catch (e) { return; }
@@ -212,8 +222,8 @@ function braveNudge() {
     try { localStorage.setItem('bv_brave_seen', '1'); } catch (e) { }
     openSheet(`<div class="sheet-head"><h3>Walang YouTube Premium?</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
       <div class="brave-pop"><img src="https://brave.com/static-assets/images/brave-logo-sans-text.svg" alt="Brave" width="64" height="64" referrerpolicy="no-referrer">
-        <p>Subukan ang <b>Brave browser</b>. Libre siya, at mas tuloy-tuloy ang music at videoke. I-download, tapos buksan ulit ang Bida-Vibe doon.</p></div>
-      <div class="qr-btns"><a class="btn btn--chili" href="https://brave.com/download/" target="_blank" rel="noopener noreferrer">Get Brave</a>
+        <p>Subukan ang <b>Brave browser</b>: libre, at mas kaunti ang ads sa music at videoke. Buksan ulit ang Bida-Vibe doon.</p></div>
+      <div class="qr-btns"><a class="btn btn--chili" href="${braveLink()}" target="_blank" rel="noopener noreferrer">Get Brave</a>
         <button class="btn btn--ink" onclick="braveCopy()">Copy Bida-Vibe link</button></div>
       <button class="btn btn--ghost btn--block" style="margin-top:8px" onclick="closeSheet()">Later</button>`);
   }, 2500);
@@ -228,6 +238,22 @@ function enterApp(tab) {
   goTab(tab || BIDA.tab || 'plan');
   requestAnimationFrame(renderAllBunting);
   braveNudge();
+}
+/* ---- Offline mode ----
+   sw.js keeps a copy of the app, so games, plan, timer, scoreboard, raffle and pads open with no signal.
+   Songs stream from YouTube, so a short bar says so while offline. */
+let OFFLINE_READY = false;
+function offlineSetup() {
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').then(r => r.active || r.installing || r.waiting)
+      .then(() => navigator.serviceWorker.ready).then(() => { OFFLINE_READY = true; }).catch(() => { });
+  }
+  const bar = document.createElement('div');
+  bar.id = 'offline-bar'; bar.className = 'offline-bar'; bar.setAttribute('role', 'status'); bar.hidden = true;
+  bar.textContent = 'Offline ka. Gumagana pa rin ang games, plan, timer at pads. Kailangan ng internet para sa songs.';
+  document.body.appendChild(bar);
+  const sync = () => { bar.hidden = navigator.onLine || isTV(); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
 }
 function showLanding() {
   $('#landing').hidden = false; $('#app').hidden = true; document.body.classList.remove('in-app');
@@ -666,7 +692,7 @@ function renderCard() {
     : `<input class="input" id="cd-${k}" type="${type}" maxlength="90" placeholder="${esc(ph)}" value="${esc(c[k])}" oninput="setCard('${k}',this.value)">`}</div>`;
   $('#panel-card').innerHTML = `
     <div class="panel-head"><div><h2>Invitation card</h2>
-      <p>Lahat ng details ng event sa isang card. Pili ng theme, tapos i-download o i-share.</p></div></div>
+      <p>Lahat ng details sa isang card. Pili ng theme, i-download o i-share.</p></div></div>
     <div class="card-layout">
       <div class="card-preview-wrap">
         <canvas id="card-canvas" class="card-canvas card-canvas--${c.size}" aria-label="Preview ng invitation card"></canvas>
@@ -1120,7 +1146,7 @@ function renderGames() {
   const list = BIDA_GAMES.filter(gameMatch);
   $('#panel-games').innerHTML = `
     <div class="panel-head"><div><h2>Mga Laro</h2>
-      <p>Bawat game may animation, gamit at steps. I-tap para makita, tapos i-add sa activities.</p></div></div>
+      <p>I-tap ang game para makita ang steps, tapos i-add sa activities.</p></div></div>
     <div class="tools-row" role="group" aria-label="Game tools">
       <button onclick="sbSetup()"><span class="tr-ic" style="background:var(--gold)">${ic('trophy')}</span>Scoreboard</button>
       <button onclick="raffleSetup()"><span class="tr-ic" style="background:var(--magenta)">🎟️</span>Raffle</button>
@@ -1399,6 +1425,9 @@ function renderSounds() {
     <div class="panel-head"><div><h2>Sound pads</h2>
       <p>${BIDA.premium ? 'Lahat ng sounds naka-unlock.' : 'Tap lang para tumunog. Pwede ka ring mag-upload ng sarili mong sounds.'}</p></div>
       ${BIDA.premium ? '' : `<button class="btn btn--gold btn--sm" onclick="openPremium('Sound pads')">${ic('lock')}Unlock all</button>`}</div>
+    <h3 class="pads-sub">Emcee</h3>
+    <div class="pads" id="emcee-pads">${emceePadsHTML()}</div>
+    <h3 class="pads-sub">Sounds</h3>
     <div class="pads" id="pads">${padsHTML()}
       <button class="pad pad--add" onclick="addSoundClick()">${ic('upload')}<span class="pad-name">Upload</span>
         <small>${leftLabel(uploadsLeft(), 'max 3 seg')}</small></button></div>
@@ -1804,7 +1833,7 @@ function talkControls(where) {
       <input type="range" class="spd-r" id="spd-${where}" min="100" max="3000" step="100" value="${m.fade}" oninput="setTalkSpeed(+this.value)"></div>
     <label class="toggle"><input type="checkbox" class="ar-cb" ${m.mode === 'hold' ? 'checked' : ''} onchange="setAutoReturn(this.checked)">
       Babalik ang music pag binitawan ang Talk</label>
-    <p class="muted ar-hint">${m.mode === 'hold' ? 'I-hold ang Talk habang nagsasalita. Pag binitawan, balik ang music.' : 'I-tap ang Talk para humina, tap ulit para bumalik.'} Same speed pahina at pabalik.</p>`;
+    <p class="muted ar-hint">${m.mode === 'hold' ? 'I-hold ang Talk habang nagsasalita. Bitaw, balik ang music.' : 'Tap ang Talk para humina, tap ulit para bumalik.'}</p>`;
 }
 function setTalkSpeed(ms) {
   BIDA.music.fade = ms; saveState();
@@ -1815,7 +1844,7 @@ function setAutoReturn(on) {
   BIDA.music.mode = on ? 'hold' : 'toggle'; saveState();
   if (on && M.ducked) duckUp();
   $$('input.ar-cb').forEach(c => c.checked = on);
-  $$('.ar-hint').forEach(p => p.textContent = (on ? 'I-hold ang Talk habang nagsasalita. Pag binitawan, balik ang music.' : 'I-tap ang Talk para humina, tap ulit para bumalik.') + ' Same speed pahina at pabalik.');
+  $$('.ar-hint').forEach(p => p.textContent = (on ? 'I-hold ang Talk habang nagsasalita. Bitaw, balik ang music.' : 'Tap ang Talk para humina, tap ulit para bumalik.'));
 }
 
 /* ---- YouTube (IFrame API: full volume control) ---- */
@@ -2384,7 +2413,7 @@ function renderMusic() {
   if (!ML.loaded) mlLoad().then(() => { if (BIDA.tab === 'music') renderMusic(); });
   $('#panel-music').innerHTML = `
     <div class="panel-head"><div><h2>Music setup</h2>
-      <p>Dito i-set ang music. Yung play, next, fade at Talk, nasa music bar sa baba kahit anong tab ka.</p></div></div>
+      <p>Dito i-set ang music. Play, fade at Talk: nasa bar sa baba.</p></div></div>
     <div class="src-tabs" role="tablist">
       ${[['youtube', 'Music library', ''], ['spotify', 'Spotify', BIDA.premium ? '' : 'Premium'], ['local', 'Sariling files', '']].map(([id, l, s]) =>
         `<button class="src-tab ${m.src === id ? 'on' : ''}" role="tab" aria-selected="${m.src === id}" onclick="setMusicSrc('${id}')">${l}${s ? `<small>${s}</small>` : ''}</button>`).join('')}
@@ -2413,7 +2442,7 @@ function renderMusic() {
         <input type="file" id="local-files" accept="audio/*" multiple hidden onchange="loadLocal(this.files);this.value=''">
         <div class="yt-head" style="margin-top:12px"><span class="field-label">Naka-save sa device na 'to</span></div>
         ${musicFilesHTML()}
-        <p class="note" style="margin-top:10px">${ic('check')}<span>Mp3 o m4a galing sa phone o laptop mo. Naka-save lang sa browser ng device na 'to, <b>hindi ina-upload</b> sa amin o kahit saan. Kapag nag-clear ka ng browser data, mabubura rin sila.</span></p>
+        <p class="note" style="margin-top:10px">${ic('check')}<span>Mp3 o m4a galing sa device mo. Dito lang naka-save, <b>hindi ina-upload</b>. Gamitin lang ang files na sa'yo.</span></p>
       </div>
     </div>
     <div class="card stack">
@@ -2463,7 +2492,7 @@ function mlResultsHTML() {
   if (!BIDA.premium) {                                     // free: the free songs play; everything else waits behind the unlock box
     const open = res.filter(s => mlFree(s.y)), locked = res.filter(s => !mlFree(s.y));
     return (open.length ? mlRowsHTML(open) : '') + (locked.length ? unlockBoxHTML(locked.slice(0, 12), { icon: 'music', title: 'Gusto mo pa ng ibang songs?', feature: 'Music library',
-      text: `Free ang ${open.length ? 'mga songs sa taas' : 'ilang songs'}. Unlock all songs para buong music library ang magamit mo: party, OPM, love songs at marami pa. Pwede ring i-play by category.` }) : '');
+      text: 'I-unlock ang buong music library + play by category.' }) : '');
   }
   return mlRowsHTML(page) + mlPagerHTML(pages);
 }
@@ -2794,16 +2823,18 @@ const VK_FREE_CODES = new Set([10637, 10667, 10672, 10684, 11066, 10669, 10587, 
 const vkIsFree = c => VK_FREE_CODES.has(c);
 const vkCanSing = c => BIDA.premium || vkIsFree(c);
 // Without Premium, locked songs sit faded behind this card (a peek at what's waiting)
-const UNLOCK_DEV = 'Isang developer lang ang gumawa ng Bida-Vibe — ang ₱150 mo ay tulong para mas gumanda pa ito.';
+const UNLOCK_DEV = 'Gawa ng isang developer. Salamat sa suporta!';
+const priceLine = () => `${esc(BIDA_CONFIG.plans.month)} / 30 days · ${esc(BIDA_CONFIG.plans.life)} lifetime`;
 function unlockBoxHTML(peek, { icon = 'mic', title, text, feature }) {
   return `<div class="vk-more"><ul class="vk-list vk-peek" aria-hidden="true">${peek.map(s => `<li><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div><span class="vk-add">${ic('lock')}</span></li>`).join('')}</ul>
     <div class="vk-more-card">${ic(icon)}<h3>${title}</h3>
-      <p>${text}</p><p class="vk-more-dev">${UNLOCK_DEV}</p>
-      <button class="btn btn--magenta" onclick="openPremium('${feature}')">${ic('star')}Unlock all songs · ${esc(BIDA_CONFIG.price)}</button></div></div>`;
+      <p>${text}</p><p class="vk-more-price">${priceLine()}</p>
+      <button class="btn btn--magenta" onclick="openPremium('${feature}')">${ic('star')}Tingnan ang Premium</button>
+      <p class="vk-more-dev">${UNLOCK_DEV}</p></div></div>`;
 }
 function vkUnlockHTML(peek) {
-  return unlockBoxHTML(peek, { icon: 'mic', title: 'Bitin pa? Marami pang kanta dito!', feature: 'Videoke',
-    text: 'Unlock all songs para tuloy-tuloy ang kantahan: OPM, love songs, 90s hits at marami pa. Kasama na rin ang QR para makapag-reserve ang guests sa phone nila.' });
+  return unlockBoxHTML(peek, { icon: 'mic', title: 'Bitin pa? Marami pang kanta dito.', feature: 'Videoke',
+    text: 'I-unlock lahat ng kanta + QR para makapag-reserve ang guests.' });
 }
 // How many times each song is already in the queue (shown on its + button)
 function vkQCounts() { const m = new Map(); vkState().queue.forEach(q => m.set(q.c, (m.get(q.c) || 0) + 1)); return m; }
@@ -2825,7 +2856,7 @@ function vkRoomHTML() {
 // Shown in Videoke and Music. YouTube's API terms don't allow telling people to block its ads,
 // so we only point to YouTube's own ad-free option (and to YouTube's terms, which apply to these videos).
 function braveTipHTML() {
-  return `<p class="note brave-tip" style="margin-top:16px"><span>Videos at songs galing sa YouTube; sakop sila ng <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a>. <b>Ayaw ng ads?</b> Kung may YouTube Premium ka, mag-sign in sa YouTube sa browser na 'to sa parehong device.</span></p>`;
+  return `<p class="note brave-tip" style="margin-top:16px"><span>Songs galing YouTube (<a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms</a>). May YouTube Premium? Mag-sign in sa YouTube dito para walang ads.</span></p>`;
 }
 function vkResultsHTML(shown, total) {
   if (!VK.lib.length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang songs sa library.' : 'Loading ang library…'}</p>`;
@@ -3231,6 +3262,65 @@ function vkNoise(t0, dur, vol) {
   src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = .8;
   g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
   src.connect(f).connect(g).connect(SFX_BUS); src.start(t0);
+}
+// Filtered noise burst (claps, crowd, cymbals)
+function emNoise(t0, dur, vol, freq, q = 1, type = 'bandpass', attack = .005) {
+  const x = ac(), len = Math.ceil(x.sampleRate * (dur + .05)), buf = x.createBuffer(1, len, x.sampleRate), ch = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+  const src = x.createBufferSource(), f = x.createBiquadFilter(), g = x.createGain();
+  src.buffer = buf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(vol, t0 + attack); g.gain.exponentialRampToValueAtTime(.0008, t0 + dur);
+  src.connect(f).connect(g).connect(SFX_BUS); src.start(t0); src.stop(t0 + dur + .05);
+}
+/* ---- Emcee pads: made in the browser (no files, no licenses, work offline) ---- */
+const EMCEE = [
+  { id: 'drum', name: 'Drumroll', free: true }, { id: 'tada', name: 'Ta-da!', free: true },
+  { id: 'ding', name: 'Tama! (ding)', free: true }, { id: 'buzz', name: 'Mali! (buzzer)', free: true },
+  { id: 'clap', name: 'Palakpakan' }, { id: 'cheer', name: 'Hiyawan' }, { id: 'horn', name: 'Airhorn' },
+  { id: 'rim', name: 'Ba-dum-tss' }, { id: 'sad', name: 'Wah-wah' }, { id: 'sus', name: 'Suspense' }
+];
+function emceeSfx(id) {
+  const t = ac().currentTime + .02;
+  if (id === 'drum') {                                             // snare roll that builds, then a crash
+    for (let i = 0; i < 40; i++) emNoise(t + i * .05, .06, .05 + i * .004, 1800, .7);
+    emNoise(t + 2.05, 1.4, .35, 5000, .5, 'highpass'); vkTone(80, t + 2.05, .5, 'sine', .4);
+  } else if (id === 'tada') {
+    vkTone(523.25, t, .14, 'square', .08); vkTone(659.25, t + .12, .14, 'square', .08);
+    [523.25, 659.25, 783.99, 1046.5].forEach(f => vkTone(f, t + .26, 1.1, 'sawtooth', .05)); vkTone(2093, t + .26, .7, 'triangle', .08);
+  } else if (id === 'ding') {
+    vkTone(1318.5, t, 1.2, 'sine', .3); vkTone(1760, t + .12, 1.4, 'sine', .25); vkTone(3520, t + .12, .4, 'sine', .05);
+  } else if (id === 'buzz') {
+    vkTone(98, t, .7, 'sawtooth', .22); vkTone(147, t, .7, 'square', .1);
+  } else if (id === 'clap') {                                      // a crowd clapping: many short claps, swelling then fading
+    for (let i = 0; i < 140; i++) { const at = t + Math.random() * 2.6, k = 1 - Math.abs(at - t - 1.1) / 1.6; emNoise(at, .05, .04 + .1 * Math.max(.1, k), 1200 + Math.random() * 1400, 1.2, 'bandpass', .002); }
+  } else if (id === 'cheer') {                                     // crowd roar + a few "woo!"s
+    emNoise(t, 2.6, .22, 900, .5, 'bandpass', .35);
+    [0, .35, .8, 1.3].forEach((d, i) => vkSlide(380 + i * 60, 820 + i * 50, t + d, .55, 'triangle', .06));
+  } else if (id === 'horn') {                                      // three airhorn blasts
+    [0, .32, .64].forEach((d, i) => { const len = i === 2 ? .9 : .24; [466.16, 469, 932.33].forEach(f => vkTone(f, t + d, len, 'sawtooth', .07)); });
+  } else if (id === 'rim') {                                       // ba-dum-tss
+    vkSlide(220, 130, t, .18, 'sine', .45); vkSlide(170, 100, t + .2, .22, 'sine', .45);
+    emNoise(t + .42, 1, .3, 7000, .5, 'highpass');
+  } else if (id === 'sad') { vkSfx('down');
+  } else if (id === 'sus') {                                       // rising tension
+    const x = ac(), o = x.createOscillator(), g = x.createGain(), lfo = x.createOscillator(), lg = x.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(440, t + 2.6);
+    lfo.frequency.setValueAtTime(5, t); lfo.frequency.linearRampToValueAtTime(14, t + 2.6); lg.gain.value = .04; lfo.connect(lg).connect(g.gain);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.08, t + 2.4); g.gain.exponentialRampToValueAtTime(.0008, t + 2.8);
+    o.connect(g).connect(SFX_BUS); o.start(t); lfo.start(t); o.stop(t + 2.9); lfo.stop(t + 2.9);
+    emNoise(t, 2.6, .12, 3000, .4, 'highpass', 2.4);
+  }
+}
+function playEmcee(id, el) {
+  const e = EMCEE.find(x => x.id === id); if (!e) return;
+  if (!e.free && !BIDA.premium) { openPremium('Emcee sounds'); return; }
+  if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 120); }
+  try { emceeSfx(id); } catch (err) { }
+}
+function emceePadsHTML() {
+  return EMCEE.map((e, i) => { const ok = e.free || BIDA.premium;
+    return `<button class="pad pc-${['gold', 'magenta', 'leaf', 'chili', 'turq'][i % 5]} ${ok ? '' : 'disabled'}" onpointerdown="event.preventDefault();playEmcee('${e.id}',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playEmcee('${e.id}',this)}">
+      ${ok ? '' : `<svg class="ic pad-lock"><use href="#i-lock"/></svg>`}<span class="pad-name">${esc(e.name)}</span></button>`; }).join('');
 }
 // A tone that slides from one pitch to another (for the sad "wah-wah")
 function vkSlide(f0, f1, t0, dur, type = 'sawtooth', vol = .12) {
@@ -3777,7 +3867,7 @@ function rmtSheet() {
   openSheet(`<div class="sheet-head" data-rmt><h3>Remote para sa host</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <p class="muted">Naka-connect ba sa TV 'tong laptop o tablet? I-scan ang QR sa phone mo para ma-control ang sounds, videoke, music at plan, kahit malayo ka sa TV.</p>
     ${on ? `<div class="qr-box" id="rmt-qr"><p class="muted">Ginagawa ang QR…</p></div>
-      <p class="note" style="margin-top:12px"><b>Para sa co-host lang 'to.</b> Kahit sino ang may link, pwedeng mag-control, kaya 'wag i-send sa GC. Mag-e-expire in ${Math.max(1, Math.round((BIDA.remote.exp - Date.now()) / 36e5))} hours.</p>
+      <p class="note" style="margin-top:12px"><b>Para sa co-host lang.</b> Kahit sino may link ay makakapag-control, kaya 'wag i-send sa GC. Mag-e-expire in ${Math.max(1, Math.round((BIDA.remote.exp - Date.now()) / 36e5))} hours.</p>
       <div class="qr-btns"><button class="btn btn--ink" onclick="rmtCopy()">${ic('share')}Copy link</button>
         <button class="btn btn--ghost" onclick="rmtStop()">Close remote</button></div>
       <p class="muted" style="margin-top:12px;text-align:center">Tip: mag-tap muna kahit once sa device na 'to para gumana ang sounds. 'Wag i-minimize ang app sa TV.</p>`
@@ -4238,7 +4328,7 @@ async function vkAdminDelete(c) {
 /* ============================================================
    ACCOUNT · PREMIUM PASS · ADMIN
    - Everyone must sign in with Google to pay.
-   - Premium = ₱150 one-time payment; unlocked for good on that Google account (no auto-charge).
+   - Premium = ₱49 for 30 days or ₱149 lifetime, on that Google account (no auto-charge).
    - Admin test accounts = Google-verified email with a document at
      Firestore admins/{email}. firestore.rules only lets a user read their
      own document; the Worker re-checks it server-side.
@@ -4284,13 +4374,13 @@ function initAuth() {
       AUTH.user = u; AUTH.ready = true;
       if (u) {
         // A different Google account on this device must not inherit the last user's unlock
-        if (BIDA.premiumUid && BIDA.premiumUid !== u.uid) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; applyEntitlement(); }
+        if (BIDA.premiumUid && BIDA.premiumUid !== u.uid) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; BIDA.receipt = null; applyEntitlement(); }
         await refreshPremium();
         vkState(); vkListen(); rmtListen();   // pick up guest songs and remote commands again after a reload
       } else {
         VKR.unsub?.(); VKR.unsub = null; RMT.unsub?.(); RMT.unsub = null;
         AUTH.admin = false;
-        BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = '';
+        BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; BIDA.receipt = null;
         applyEntitlement(); saveState(); rerenderPremiumViews();
       }
       // every open sheet that had a sign-in button redraws for the signed-in account
@@ -4337,10 +4427,14 @@ async function refreshPremium() {
   AUTH.admin = await checkAdmin(u).catch(() => false);
   try {
     if (paymentsReady()) {
+      let ref = ''; try { ref = localStorage.getItem('bv_ref') || ''; } catch (e) { }
+      if (ref) { await workerFetch('/referral', { method: 'POST', body: JSON.stringify({ ref }) }).catch(() => { }); try { localStorage.removeItem('bv_ref'); } catch (e) { } }
       const j = await workerFetch('/status');
+      BIDA.refs = j.refs || 0;
       if (j.admin) AUTH.admin = true;
       BIDA.premiumUntil = j.until || 0;
       BIDA.premiumUid = BIDA.premiumUntil ? u.uid : '';
+      BIDA.receipt = j.receipt || null;
     }
   } catch (e) { /* offline at the venue: keep this account's cached pass until its end date */ }
   BIDA.proKind = AUTH.admin ? 'admin' : passActive() && BIDA.premiumUid === u.uid ? 'pass' : '';
@@ -4398,7 +4492,7 @@ async function signIn(after = '') {
   if (AUTH.user) { AUTH.after = after; signInContinue(); return; }               // already signed in: just continue
   if (isInAppBrowser) {                                                          // Google blocks sign-in inside Messenger/Facebook/TikTok
     openSheet(`<div class="sheet-head"><h3>Buksan sa browser</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
-      <p>Hindi pinapayagan ng Google ang sign-in sa loob ng Messenger, Facebook o TikTok. I-tap ang <b>⋯</b> o <b>⋮</b> sa taas, tapos <b>Open in browser</b> (Safari o Chrome), at doon mag-sign in.</p>
+      <p>Bawal mag-sign in sa loob ng Messenger, Facebook o TikTok. I-tap ang <b>⋯</b> o <b>⋮</b> sa taas → <b>Open in browser</b>.</p>
       <button class="btn btn--ink btn--block" style="margin-top:12px" onclick="braveCopy()">Copy Bida-Vibe link</button>`);
     return;
   }
@@ -4415,19 +4509,20 @@ async function signIn(after = '') {
   }
 }
 function signOut() { firebase.auth().signOut(); toast('Signed out na'); }
-async function startCheckout() {
+async function startCheckout(plan) {
   if (!AUTH.user) { await signIn('unlock'); return; }       // sign-in is required before paying
+  if (!BIDA_CONFIG.plans[plan]) return;
   if (!paymentsReady()) { toast('Hindi pa ready ang payments — soon!'); return; }
   if (AUTH.busy) return; AUTH.busy = true;
-  const b = $('#pay-btn'); if (b) { b.disabled = true; b.querySelector('span').textContent = 'Opening PayMongo…'; }
+  const b = $('#pay-' + plan), was = b?.textContent; if (b) { b.disabled = true; b.textContent = 'Binubuksan…'; }
   try {
-    const j = await workerFetch('/checkout', { method: 'POST', body: '{}' });
+    const j = await workerFetch('/checkout', { method: 'POST', body: JSON.stringify({ plan }) });
     if (j.already) { await refreshPremium(); closeSheet(); toast(j.admin ? 'Admin account — lahat naka-unlock' : 'Bayad ka na. Unlocked na ang Premium.'); return; }
     saveState();
     location.href = j.url;
   } catch (e) {
-    toast(e.message === 'slow_down' ? 'Sandali lang — try ulit after 1 minute.' : e.message === 'google_only' ? 'Gmail account lang ang pwedeng mag-Premium. Mag-sign in with Google.' : 'Ayaw bumukas ng checkout — try ulit');
-    if (b) { b.disabled = false; b.querySelector('span').textContent = 'Bayaran'; }
+    toast(e.message === 'slow_down' ? 'Sandali lang — try ulit after 1 minute.' : e.message === 'google_only' ? 'Gmail lang ang pwede sa Premium. Mag-sign in with Google.' : 'Ayaw bumukas ng checkout — try ulit');
+    if (b) { b.disabled = false; b.textContent = was; }
   } finally { AUTH.busy = false; }
 }
 async function handlePaidReturn() {
@@ -4439,7 +4534,7 @@ async function handlePaidReturn() {
   const before = BIDA.premiumUntil;
   for (let i = 0; i < 30 && !AUTH.ready; i++) await new Promise(r => setTimeout(r, 300));
   for (let i = 0; i < 15; i++) {
-    if (AUTH.user) { await refreshPremium(); if (BIDA.premiumUntil > before) { toast(isLifetime() ? 'Unlocked na ang Premium, for good. Party na!' : `Premium hanggang ${fmtDay(BIDA.premiumUntil)}. Party na!`); return; } }
+    if (AUTH.user) { await refreshPremium(); if (BIDA.premiumUntil > before) { toast(isLifetime() ? 'Premium na, for good. Party na!' : `Premium hanggang ${fmtDay(BIDA.premiumUntil)}. Party na!`); openReceipt(); return; } }
     await new Promise(r => setTimeout(r, 2000));
   }
   toast('Received na ang payment pero hindi pa nag-u-unlock. I-refresh mamaya.');
@@ -4458,35 +4553,61 @@ function passLine() {
 let PRO_FEATURE = '';
 function openPremium(feature) {
   PRO_FEATURE = feature || PRO_FEATURE;
-  const u = AUTH.user, admin = isAdmin();
-  let action;
-  if (admin || (u && passActive() && isLifetime())) action = `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`;
-  else if (!u) action = `<button class="btn btn--ink btn--lg btn--block" onclick="signIn('unlock')">${googleG()}Sign in with Google para ma-unlock</button>
-      <p class="muted" style="margin-top:10px;text-align:center">Naka-save ang Premium sa Google account mo, kaya gagana sa phone, tablet o computer.</p>
-      <p class="legal-line">Sa pag-sign in, sang-ayon ka sa <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> at <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>`;
-  else action = `${passActive() ? `<div class="note" style="background:var(--leaf-soft);margin-bottom:12px">${passLine()}</div>` : ''}
-      <button class="btn btn--magenta btn--lg btn--block" id="pay-btn" onclick="startCheckout()"><span>${passActive() ? 'Gawing for good' : 'Bayaran'} · ${esc(BIDA_CONFIG.price)}</span>${ic('arrow')}</button>
-      <p class="muted" style="margin-top:10px;text-align:center">GCash · Maya · Card — secure checkout sa PayMongo</p>
-      <p class="legal-line">Sa pagbayad, sang-ayon ka sa <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> at <a href="legal.html#refunds" target="_blank" rel="noopener">Refund Policy</a>. One-time digital purchase: refund lang para sa double charge o bayad na hindi nag-unlock.</p>`;
+  const u = AUTH.user, admin = isAdmin(), P = BIDA_CONFIG.plans, A = BIDA_CONFIG.about || {};
+  const done = admin || (u && passActive() && isLifetime());
+  const plan = (id, label, best) => `<div class="pro-plan${best ? ' best' : ''}">${best ? '<span class="pro-tag">Best value</span>' : ''}
+      <small>${label}</small><b>${esc(P[id])}</b>
+      <button class="btn ${best ? 'btn--magenta' : 'btn--ghost'} btn--block" id="pay-${id}" onclick="startCheckout('${id}')">${id === 'month' && passActive() ? '+30 days' : best && passActive() ? 'Gawing lifetime' : 'Piliin'}</button></div>`;
+  const action = done ? `<div class="note" style="background:var(--leaf-soft)">${passLine()}</div>`
+    : `${passActive() ? `<div class="note" style="background:var(--leaf-soft);margin-bottom:10px">${passLine()}</div>` : ''}
+      <div class="pro-plans">${plan('month', '30 days')}${plan('life', 'Lifetime', true)}</div>
+      <p class="pro-small">Walang auto-charge. Naka-save sa Gmail mo, hindi sa device.${u ? '' : ' Mag-sign in with Google muna.'}</p>
+      ${paymentsReady() ? '<p class="pro-small">Secure payment sa PayMongo: GCash, Maya o card.</p>' : ''}
+      <p class="legal-line">Sa pagbayad, sang-ayon ka sa <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> at <a href="legal.html#refunds" target="_blank" rel="noopener">Refund Policy</a>.</p>`;
   openSheet(`
     <div class="sheet-head"><h3>Bida-Vibe Premium</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
     <div class="pro-hero">
-      ${PRO_FEATURE ? `<span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE)}</span>` : ''}
-      <h4>One-time payment, unlocked lahat ng features.</h4>
-      <ul class="pro-list">
-        <li>${ic('star')}Videoke: lahat ng ${VK.lib.length ? VK.lib.length.toLocaleString() + ' ' : ''}songs, QR para sa guests, sariling YouTube songs</li>
-        <li>${ic('star')}Lahat ng sound pads + unlimited sariling sounds</li>
-        <li>${ic('star')}Music: unlimited songs, playlist by category, Spotify at music files</li>
-        <li>${ic('star')}Talk + Fade in/out kahit anong tab</li>
-      </ul>
-      <p style="margin-top:14px;font:800 30px/1 var(--f2);letter-spacing:-.03em">${esc(BIDA_CONFIG.price)} <small style="font:700 14px/1 var(--f)">one-time · walang monthly, walang auto-charge</small></p>
+    ${PRO_FEATURE ? `<span class="kicker" style="color:var(--ink)">${esc(PRO_FEATURE)}</span>` : ''}
+    <div class="pro-compare">
+      <div><small>Free</small><ul class="pro-list pro-free">
+        <li>${ic('check')}Lahat ng games</li><li>${ic('check')}Plan at programme</li><li>${ic('check')}20 videoke songs</li><li>${ic('check')}8 music, 8 pads</li></ul></div>
+      <div><small>Premium</small><ul class="pro-list">
+        <li>${ic('star')}Lahat ng songs</li><li>${ic('star')}QR para sa guests</li><li>${ic('star')}Lahat ng pads</li><li>${ic('star')}Talk + Fade</li></ul></div>
+    </div></div>
+    <div style="margin-top:14px">${action}</div>
+    <div class="pro-facts">
+      <p>${ic('wifi')}<span>Songs galing YouTube: kailangan ng internet, puwedeng may ads.</span></p>
+      ${navigator.brave ? '' : `<p>${ic('shield')}<span>Tip: mas kaunti ang ads sa <a href="${braveLink()}" target="_blank" rel="noopener noreferrer">Brave browser</a>.</span></p>`}
+      <p>${ic('heart')}<span>Gawa ng isang developer sa PH. Salamat sa suporta!${A.dti ? ` · ${esc(A.dti)}` : ''}</span></p>
     </div>
-    <p class="note pro-dev" style="margin-top:14px">${ic('heart')}<span>Isang developer lang ang gumawa ng Bida-Vibe. Yung ${esc(BIDA_CONFIG.price)} mo, pang-unlock ng lahat ng features <b>at</b> tulong para ma-improve ko pa ang app: more songs, more games, more updates. Salamat sa support!</span></p>
-    <div style="margin-top:18px">${action}</div>
-    ${u ? `<p class="muted" style="margin-top:14px;text-align:center">Naka-sign in: ${esc(u.email || '')} · <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="signOut()">Sign out</button></p>` : ''}
+    <p class="legal-line"><a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> · <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy</a> · <a href="legal.html#refunds" target="_blank" rel="noopener">Refunds</a> · <a href="mailto:morphiicreate@gmail.com">Contact</a>${A.facebook ? ` · <a href="${esc(A.facebook)}" target="_blank" rel="noopener noreferrer">Facebook</a>` : ''}</p>
+    ${u ? `<p class="muted" style="margin-top:10px;text-align:center">${esc(u.email || '')} · <button class="btn btn--ghost btn--sm" style="min-height:30px" onclick="signOut()">Sign out</button></p>` : ''}
     ${IS_LOCAL && !BIDA.premium ? `<div class="field" style="margin-top:20px"><label for="pro-code">Test code (localhost lang)</label>
       <div style="display:flex;gap:8px"><input class="input" id="pro-code" placeholder="CODE" autocapitalize="characters">
       <button class="btn btn--ink" onclick="redeem()">Gamitin</button></div></div>` : ''}`);
+}
+// Receipt the buyer can screenshot (an official receipt needs a registered business; this is a payment record)
+function openReceipt() {
+  const r = BIDA.receipt, u = AUTH.user; if (!r || !u) return;
+  const row = (k, v) => `<div class="rc-row"><span>${k}</span><b>${v}</b></div>`;
+  openSheet(`<div class="sheet-head"><h3>Resibo</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <div class="rc card">
+      <p class="rc-ok">${ic('check')}Bayad na. Salamat!</p>
+      ${row('Plan', r.plan === 'month' ? 'Premium · 30 days' : 'Premium · Lifetime')}
+      ${row('Halaga', '₱' + (Math.round(r.amount) / 100).toFixed(2))}
+      ${row('Petsa', r.paidAt ? esc(fmtDay(Date.parse(r.paidAt))) : '—')}
+      ${row('Gmail', esc(u.email || ''))}
+      ${row('Hanggang', isLifetime() ? 'Lifetime' : esc(fmtDay(BIDA.premiumUntil)))}
+      ${r.method ? row('Paraan', esc(r.method)) : ''}
+      ${row('Reference', `<code>${esc(String(r.ref).slice(-12))}</code>`)}
+    </div>
+    <p class="pro-small">I-screenshot para sa records mo. May email receipt din galing PayMongo.</p>
+    <p class="legal-line">May problema sa bayad? <a href="mailto:morphiicreate@gmail.com">I-email kami</a> kasama ang reference.</p>`);
+}
+async function copyRefLink() {
+  if (!AUTH.user) return;
+  const url = location.origin + location.pathname + '?ref=' + AUTH.user.uid;
+  try { await navigator.clipboard.writeText(url); toast('Na-copy! I-share sa friends mo.'); } catch (e) { askText('I-copy ang link', url, 300); }
 }
 function openAccount() {
   const u = AUTH.user, line = passLine();
@@ -4495,11 +4616,17 @@ function openAccount() {
     <div class="card stack">
       ${u ? `<div><b>${esc(u.displayName || u.email)}</b><p class="muted">${esc(u.email || '')}</p></div>` : ''}
       ${u && line ? `<p>${line}</p>` : ''}
+      ${u && BIDA.receipt ? `<button class="btn btn--ghost btn--block" onclick="openReceipt()">Tingnan ang resibo</button>` : ''}
+      ${OFFLINE_READY ? `<p class="muted offline-ok">${ic('check')}Offline ready: games, plan at pads gumagana kahit walang signal.</p>` : ''}
+      ${u && paymentsReady() && !isAdmin() && !(passActive() && isLifetime()) && (BIDA.refs || 0) < 6 ? `<div class="note ref-box">
+        <p><b>Libreng 7 days:</b> 3 bagong friends na mag-sign in gamit ang link mo. Hanggang 2 beses.</p>
+        <p class="muted">${(BIDA.refs || 0) % 3}/3 friends</p>
+        <button class="btn btn--ink btn--sm" onclick="copyRefLink()">Copy link ko</button></div>` : ''}
       ${!authReady() ? '<p class="note">Hindi pa ready ang Google sign-in — soon!</p>'
         : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
           : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Sign in with Google</button>
             <p class="legal-line">Sa pag-sign in, sang-ayon ka sa <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> at <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>`}
-      ${!isAdmin() && !(passActive() && isLifetime()) ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">Unlock Premium · ${esc(BIDA_CONFIG.price)} one-time</button>` : ''}
+      ${!isAdmin() && !(passActive() && isLifetime()) ? `<button class="btn btn--magenta btn--block" onclick="openPremium()">Premium · ${priceLine()}</button>` : ''}
     </div>
     <p class="legal-line"><a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> · <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy</a> · <a href="legal.html#refunds" target="_blank" rel="noopener">Refunds</a> · <a href="mailto:morphiicreate@gmail.com">Contact</a></p>`);
 }
@@ -4637,12 +4764,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Show the landing page / app FIRST, then do the slower background work
   applyView();
   const startTab = new URLSearchParams(location.search).get('tab');
+  const refQ = new URLSearchParams(location.search).get('ref');
+  if (refQ) {
+    try { if (/^[A-Za-z0-9]{20,40}$/.test(refQ) && !localStorage.getItem('bv_ref')) localStorage.setItem('bv_ref', refQ); } catch (e) { }
+    const q = new URLSearchParams(location.search); q.delete('ref'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : ''));
+  }
   if (new URLSearchParams(location.search).get('unlock') === '1') {          // from the phone remote's "Unlock" button
     history.replaceState(null, '', location.pathname); setTimeout(() => openPremium('Premium'), 600);
   }
   if (BIDA.seenLanding || startTab) enterApp(startTab || BIDA.tab);
   else { $('#landing').hidden = false; requestAnimationFrame(renderAllBunting); }
   updateBar();
+  offlineSetup();
   if (BIDA.tab === 'videoke' || BIDA.tab === 'music' || !$('#landing').hidden) loadVkLibrary();   // warm up while they look around
   loadFirebase().then(() => { FB_READY = true; initAuth(); }).catch(() => { AUTH.ready = true; });
   setTimeout(() => { ytApi(); }, 1500);
@@ -4662,7 +4795,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
-  vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  openReceipt, copyRefLink, playEmcee, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,

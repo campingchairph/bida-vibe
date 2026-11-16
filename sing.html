@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116u">
+<link rel="stylesheet" href="bida.css?v=20261116v">
 <style>
   body { background: var(--cream); min-height: 100vh; }
   .sg { max-width: 640px; margin: 0 auto; padding: 14px 12px 50px; }
@@ -66,6 +66,7 @@
   .sg-count { font: 700 12.5px/1.2 var(--f); color: var(--ink-3); margin-top: 8px; }
   .sg-closed { text-align: center; padding: 40px 10px; }
   .sg-closed h2 { font: 800 24px/1.2 var(--f2); }
+  .sg-credit { display: block; margin: 18px auto 0; width: fit-content; max-width: 100%; text-align: center; padding: 10px 16px; border: 2px solid var(--ink); border-radius: 99px; background: var(--gold); color: var(--ink); font: 700 13px/1.3 var(--f); text-decoration: none; }
   .sg-foot { text-align: center; margin-top: 20px; font: 700 12px/1.4 var(--f); color: var(--ink-3); }
   .sg-foot a, .sg-privacy a { color: inherit; font-weight: 800; }
   .sg-privacy { margin-top: 8px; font: 700 12px/1.4 var(--f); color: rgba(255,246,229,.85); }
@@ -78,7 +79,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116u"></script>
+<script src="vk-avatars.js?v=20261116v"></script>
 <script>
 /* Bida-Vibe guest page: a family member opens the host's link, sets a name and a selfie/avatar,
    and adds songs. They can't see or change anything else in the host's app — the Firestore rules
@@ -123,7 +124,7 @@
           <div class="sg-me"><button class="face" id="sg-face" aria-label="Palitan ang picture o avatar"></button>
             <div class="nm"><small>Name mo</small><input id="sg-name" maxlength="24" placeholder="Type ang name mo" autocomplete="nickname"></div></div>
           <div class="sg-avs" id="sg-avs" hidden></div>
-          <p class="sg-privacy">Makikita ng host at sa TV ang name at picture mo. Pansamantala lang: nabubura pag sinara ng host ang link. Pwede ring avatar na lang. <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy</a></p></section>
+          <p class="sg-privacy">Makikita sa TV ang name at picture mo. Nabubura pag sinara ng host ang link. Pwede ring avatar. <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy</a></p></section>
         <section class="card sg-card"><h3>Kanta ko</h3><div id="sg-mine"></div></section>
         <section class="card sg-card"><h3>Pili ng song</h3>
           <div class="sg-find">
@@ -132,7 +133,8 @@
             <select class="input" id="sg-val" aria-label="Pili" hidden></select>
           </div>
           <div id="sg-res"></div></section>
-        <p class="sg-foot">Bida-Vibe Videoke · Si host lang ang may control ng screen at pila.<br>
+        <a class="sg-credit" href="./${S.room && S.room.owner ? "?ref=" + encodeURIComponent(S.room.owner) : ""}" target="_blank" rel="noopener"><b>Gawa ng Bida-Vibe</b> · I-host ang sarili mong party →</a>
+        <p class="sg-foot">Si host lang ang may control ng screen at pila.<br>
           Songs galing sa YouTube (<a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms</a>) · <a href="legal.html#terms" target="_blank" rel="noopener">Terms</a> · <a href="legal.html#privacy" target="_blank" rel="noopener">Privacy</a></p></div>`;
       bind();
     }

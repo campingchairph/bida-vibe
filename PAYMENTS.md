@@ -1,14 +1,16 @@
 # Premium setup — PayMongo (GCash · Maya · Card)
 
-**Price:** ₱150 one-time, tied to the buyer's Google account. Pay once and Premium stays unlocked for good: no monthly fee, no auto-charge, no expiry. Users **must sign in with Google** to pay. It works on every device they sign in on, and offline at the venue. Someone who already paid can't be charged again (the Worker refuses a second checkout).
+**Plans:** ₱49 for 30 days, or ₱149 lifetime. Both are tied to the buyer's Google account, with no auto-charge. Buying 30 days again adds 30 days to the time left; a 30-day buyer can upgrade to lifetime; a lifetime owner can't be charged again (the Worker refuses). Users **must sign in with Google** to pay. Premium works on every device they sign in on, and offline at the venue until its end date.
+
+**Referral:** 3 new Google accounts that sign in through someone's link (`?ref=<uid>`, from Account → Copy link ko, or the credit on the guest videoke page) give that person 7 days of Premium, up to 2 times. Judged by the Worker (`/referral`); only works once the Worker is live.
 
 ```
-Buyer signs in with Google → taps "Bayaran · ₱150"
-  → app asks the Worker for a checkout
+Buyer signs in with Google → picks "30 days · ₱49" or "Lifetime · ₱149"
+  → app asks the Worker for a checkout for that plan (only the plan name is sent, never a price)
   → Worker creates a PayMongo Checkout Session (price + secret key stay on the Worker)
   → buyer pays with GCash / Maya / card on PayMongo's page
   → PayMongo sends "checkout_session.payment.paid" to the Worker's /webhook
-  → Worker checks the signature + amount (at least ₱150), unlocks that Google account for good (once per payment)
+  → Worker checks the signature + amount (at least the price of the plan it stored for that session), then adds 30 days or unlocks lifetime (once per payment)
   → buyer lands back on the app (?paid=1), app polls /status and unlocks
 ```
 
@@ -40,9 +42,10 @@ To change the admin: hash the new Gmail (lowercase) with SHA-256 and replace the
    | `FIREBASE_PROJECT_ID` | `bidavibe` |
    | `APP_URL` | `https://bida.vows-and-petals.com/` (keep the trailing `/`) |
    | `ALLOWED_ORIGINS` | `https://bida.vows-and-petals.com,https://campingchairph.github.io,http://localhost:8102` |
-   | `PRICE_CENTAVOS` | `15000` (₱150.00) |
+   | `PRICE_MONTH_CENTAVOS` | `4900` (₱49.00 for 30 days; optional, this is the default) |
+   | `PRICE_LIFE_CENTAVOS` | `14900` (₱149.00 lifetime; optional, this is the default) |
 
-   If you had added `PASS_DAYS` before, you can delete it: it isn't used anymore.
+   If you had added `PASS_DAYS` or `PRICE_CENTAVOS` before, you can delete them: they aren't used anymore.
 
    And as Type *Secret*: `PAYMONGO_SECRET_KEY` = your `sk_test_…` key.
 
@@ -61,7 +64,7 @@ curl https://api.paymongo.com/v1/webhooks -u "sk_test_YOURKEY:" -H "Content-Type
 In `bida-app.js`, set `BIDA_CONFIG.workerUrl: 'https://bida-pay.YOU.workers.dev'` and push.
 
 ## 6. Test, then go live
-1. On the live site: sign in with a **non-admin** Google account → Account → **Unlock Premium · ₱150 one-time** → **Bayaran · ₱150** → on PayMongo's test checkout pick GCash and authorize → you're sent back and Premium shows "Bayad na. Sa'yo na 'to for good."
+1. On the live site: sign in with a **non-admin** Google account → Account → **Premium** → **30 days · Piliin** → on PayMongo's test checkout pick GCash and authorize → you're sent back, the receipt opens and Premium shows the end date. Then try **Gawing lifetime** the same way.
 2. When PayMongo approves your business and live keys appear:
    - Swap `PAYMONGO_SECRET_KEY` to `sk_live_…`.
    - Create the webhook again with the top bar on **Live Mode** (same URL and event).
@@ -70,7 +73,7 @@ In `bida-app.js`, set `BIDA_CONFIG.workerUrl: 'https://bida-pay.YOU.workers.dev'
    The Worker picks the live or test signature automatically based on the key.
 
 ## Notes
-- **Who's paid:** Cloudflare → KV → `bida-premium`. Each `pro:<uid>` entry has `lifetime: true`, `until` (9999-12-31 for one-time buyers), the payment date, amount, method and email. To refund/revoke, delete the entry or set `until` to 0.
-- **Free without an account:** activities, all games and game tools, the first sound pads, 2 sound uploads, 8 free songs from the music library, 5 own music files (saved on the device only) and 20 videoke songs (unlimited plays). The app never shows these numbers; it only asks for Premium when someone reaches a limit. Everything else unlocks with the one-time ₱150.
+- **Who's paid:** Cloudflare → KV → `bida-premium`. Each `pro:<uid>` entry has `until` (9999-12-31 for lifetime), `plan` (`month`/`life`), the last payment date, amount, method and email, and `refRewards` if they earned referral days. Referral keys: `seen:<uid>`, `refby:<uid>`, `refn:<uid>`. To refund/revoke, delete the entry or set `until` to 0.
+- **Free without an account:** activities, all games and game tools, the first sound pads, 2 sound uploads, 8 free songs from the music library, 5 own music files (saved on the device only) and 20 videoke songs (unlimited plays). The Premium page lists them in a short Free vs Premium comparison. Emcee pads: Drumroll, Ta-da, Ding and Buzzer are free; the other 6 are Premium. Everything else unlocks with either plan.
 - **Test code:** `BIDATEST` only works on `localhost`.
 - Security details and console settings: [SECURITY.md](SECURITY.md).

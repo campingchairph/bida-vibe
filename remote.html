@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261116u">
+<link rel="stylesheet" href="bida.css?v=20261116v">
 <style>
   :root { --rs-h: calc(150px + env(safe-area-inset-bottom)); }
   html, body { overflow-x: clip; }
@@ -204,7 +204,7 @@
 <!-- Pinned versions with SRI: the browser refuses these files if they were ever altered -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" integrity="sha384-nwX2Qpkhc2sv6L0ZPkLefLGguao67toSowvePuQvGF6cG+8MUphGI2uI94Ls3JF7" crossorigin="anonymous"></script>
-<script src="vk-avatars.js?v=20261116u"></script>
+<script src="vk-avatars.js?v=20261116v"></script>
 <script>
 /* Bida-Vibe host remote: control the TV laptop/tablet from a phone.
    Home = big category pads. Each game page puts that game on the TV and has its settings + a big trigger.
@@ -260,12 +260,12 @@
   }
   const tv = () => (S.st && S.st.tv) || {};
   // Premium is tied to the Google account: buying in the app on this phone, signed in as the host, unlocks the display too
-  const UNLOCK = `<a class="btn btn--magenta btn--sm" href="./?unlock=1" target="_blank" rel="noopener">${'<svg class="ic"><use href="#i-star"/></svg>'}Unlock · ₱150</a>`;
-  const proBar = what => `<div class="rp-pro"><span><b>Premium:</b> ${what}. Gamitin ang parehong Google account ng host.</span>${UNLOCK}</div>`;
+  const UNLOCK = `<a class="btn btn--magenta btn--sm" href="./?unlock=1" target="_blank" rel="noopener">${'<svg class="ic"><use href="#i-star"/></svg>'}Premium</a>`;
+  const proBar = what => `<div class="rp-pro"><span><b>Premium:</b> ${what}.</span>${UNLOCK}</div>`;
   const lockCard = (title, text) => `<div class="rp-more-card"><h3>${title}</h3><p>${text}</p>
-      <p class="rp-more-dev">Isang developer lang ang gumawa ng Bida-Vibe. Ang ₱150 mo ay tulong para mas gumanda pa ito.</p>
-      <a class="btn btn--magenta" href="./?unlock=1" target="_blank" rel="noopener"><svg class="ic"><use href="#i-star"/></svg>Unlock all songs · ₱150</a>
-      <p class="rp-note">Mag-sign in gamit ang parehong Google account ng host para ma-unlock din ang display.</p></div>`;
+      <p><b>₱49 / 30 days · ₱149 lifetime</b></p>
+      <a class="btn btn--magenta" href="./?unlock=1" target="_blank" rel="noopener"><svg class="ic"><use href="#i-star"/></svg>Tingnan ang Premium</a>
+      <p class="rp-note">Gamitin ang Google account ng host. Gawa ng isang developer, salamat sa suporta!</p></div>`;
   const onTV = id => id === 'timer' ? !!(S.st && S.st.timer && S.st.timer.on) : tv().screen === id;
 
   window.RM = {
@@ -378,7 +378,7 @@
     if (!fr) return res.length ? rows(res) : '<p class="muted">Walang lumabas.</p>';
     const open = all.filter(s => fr.has(s.y)), locked = all.filter(s => !fr.has(s.y)).slice(0, 8);   // every free song shows, whatever its letter
     return (open.length ? rows(open) : '') + (locked.length ? `<div class="rp-more" style="margin-top:8px;min-height:340px"><ul class="rp-rows rp-peek" aria-hidden="true">${locked.concat(locked).slice(0, 12).map(s => `<li><span class="t">${esc(s.t)}<small>${esc(s.a)}</small></span><span class="rp-ib">${ic('lock')}</span></li>`).join('')}</ul>
-      ${lockCard('Gusto mo pa ng ibang songs?', 'Unlock all songs para buong music library ang magamit mo: party, OPM, love songs at marami pa.')}</div>` : (open.length ? '' : '<p class="muted">Walang lumabas.</p>'));
+      ${lockCard('Gusto mo pa ng ibang songs?', 'I-unlock ang buong music library + play by category.')}</div>` : (open.length ? '' : '<p class="muted">Walang lumabas.</p>'));
   }
   function musicHTML(st) {
     const m = st.music || {};
@@ -477,7 +477,7 @@
     const rows = res.length ? `<ul class="rp-rows">${res.map(s => { const n = cnt.get(s.c) || 0; return `<li><span class="t">${esc(s.t)}${n ? ' ✓' : ''}<small>${esc(s.a)}</small></span>
       <button class="rp-ib ${n ? 'on' : ''}" onclick="RM.add(${s.c})" aria-label="${n ? 'Nakapila na ×' + n + '. Reserve ulit' : 'Reserve'}">${n ? n : ic('plus')}</button></li>`; }).join('')}</ul>` : '';
     box.innerHTML = rows + (locked.length ? `<div class="rp-more" style="margin-top:8px;min-height:340px"><ul class="rp-rows rp-peek" aria-hidden="true">${locked.map(s => `<li><span class="t">${esc(s.t)}<small>${esc(s.a)}</small></span><span class="rp-ib">${ic('lock')}</span></li>`).join('')}</ul>
-      ${lockCard('Bitin pa? Marami pang kanta dito!', 'Unlock all songs para tuloy-tuloy ang kantahan, kasama ang QR para makapag-reserve ang guests sa phone nila.')}</div>` : '')
+      ${lockCard('Bitin pa? Marami pang kanta dito.', 'I-unlock lahat ng kanta + QR para makapag-reserve ang guests.')}</div>` : '')
       || '<p class="muted">Walang lumabas.</p>';
   }
 

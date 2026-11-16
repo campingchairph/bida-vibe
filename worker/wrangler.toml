@@ -7,7 +7,8 @@ compatibility_date = "2026-10-01"
 FIREBASE_PROJECT_ID = "bidavibe"
 APP_URL = "https://bida.vows-and-petals.com/"
 ALLOWED_ORIGINS = "https://bida.vows-and-petals.com,https://campingchairph.github.io,http://localhost:8102"
-PRICE_CENTAVOS = "15000"   # ₱150.00, one-time
+PRICE_MONTH_CENTAVOS = "4900"    # ₱49.00 for 30 days
+PRICE_LIFE_CENTAVOS = "14900"    # ₱149.00 lifetime
 
 [[kv_namespaces]]
 binding = "PREMIUM"
