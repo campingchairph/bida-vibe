@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261117a">
+<link rel="stylesheet" href="bida.css?v=20261118a">
 <style>
   body { background: var(--cream); }
   .lg { max-width: 760px; margin: 0 auto; padding: 18px 16px 70px; font: 600 15.5px/1.65 var(--f); color: var(--ink); }
@@ -73,7 +73,7 @@
     <li>Premium has two plans: <b>₱49 for 30 days</b> or <b>₱149 lifetime</b>. Each is a single payment. There is no subscription and no automatic charge.</li>
     <li>30 days: buying it again adds 30 days to the time you have left. When it ends, the app goes back to the free version; nothing is charged.</li>
     <li>Lifetime ("for good") means for as long as Bida-Vibe is operated. If we ever have to shut Bida-Vibe down, we will announce it on the app at least 30 days before. You can upgrade from 30 days to lifetime by paying the lifetime price.</li>
-    <li>Referral reward: when 3 new Google accounts sign in to Bida-Vibe through your link, you get 7 days of Premium, up to 2 times per account. Lifetime owners don't need it. We may remove rewards earned with fake or duplicate accounts.</li>
+    <li>3-day free Premium: when 1 Google account that has never used Bida-Vibe signs in through your link, you and that friend each get 3 days of full Premium. Each Google account can get it only once. After 3 days the app goes back to the free version; nothing is charged. We may end trials earned with fake or duplicate accounts.</li>
     <li>Payments are processed by PayMongo (GCash, Maya, cards). We never receive or store your card number, GCash or Maya login, or PIN.</li>
     <li>Prices are checked on our server. A price shown in an old or modified copy of the page is not an offer.</li>
     <li>Refunds follow the <a href="#refunds">Refund Policy</a>.</li>
@@ -139,6 +139,8 @@
     <tbody>
       <tr><td>Google account basics when you sign in: name, email, account ID</td><td>Google Firebase Authentication</td><td>To sign you in and tie Premium to your account</td><td>Until you ask us to delete your account</td></tr>
       <tr><td>Premium record: account ID, email, payment date, amount, payment method type (for example "gcash"), and PayMongo session ID</td><td>Our payment server (Cloudflare)</td><td>To unlock Premium, prevent double charges, and handle refunds</td><td>As long as Premium is active, plus what tax and accounting law requires</td></tr>
+      <tr><td>Referral record: your account ID, who invited you (their account ID), when you first signed in, a random device code, and your 3-day trial dates</td><td>Google Firebase (Firestore)</td><td>So the 3-day free Premium is given only once per account. Only the app owner can see who invited whom.</td><td>As long as your account exists, or until you ask us to delete your account</td></tr>
+      <tr><td>Your email and name, for checking referral abuse</td><td>Google Firebase (Firestore), visible only to the app owner</td><td>To spot fake or duplicate accounts</td><td>Deleted automatically about 93 days after your first sign-in</td></tr>
       <tr><td>Your event data: plan, card, scores, raffle names, sound pads, music files, card background, settings</td><td><b>Only your browser</b> (localStorage and IndexedDB on your device)</td><td>To run the app</td><td>Until you delete it or clear your browser data</td></tr>
       <tr><td>Guest song requests: the name a guest types, the avatar or selfie they choose (a small photo), mouth style and song</td><td>Google Firebase (Firestore), in the host's private room</td><td>To add the guest to the videoke queue</td><td>Deleted when the host closes the link. Links expire after 48 hours.</td></tr>
       <tr><td>Phone remote data: event title, activity list, queue (singer names and photos), current screen, and game settings such as raffle names</td><td>Google Firebase (Firestore)</td><td>To show the host's own phone what's on the TV</td><td>Deleted when the host closes the remote. Remotes expire after 24 hours.</td></tr>

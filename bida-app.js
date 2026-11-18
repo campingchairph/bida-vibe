@@ -63,6 +63,8 @@ function defaultState() {
     premiumUid: '',   // Google account the Premium unlock belongs to (cached for offline use)
     premiumUntil: 0,  // end of the paid pass (ms); 0 = none
     receipt: null,    // latest payment of that account (plan, amount, paidAt, ref) for the receipt screen
+    trial: null,      // 3-day free Premium: { uid, start (server ms), revoked } or { uid, none: true }. Cached for offline.
+    srvNow: 0,        // last known server time (ms), so turning the phone's clock back can't stretch a trial
     proKind: '',      // 'admin' | 'pass' | '' — cached so the venue works offline
     devPro: false,    // localhost-only test unlock
     // duck = how low Talk takes the music · fade = Talk speed (same down and back up)
@@ -123,7 +125,10 @@ function loadState() {
   if (!/^\d{2}:\d{2}$/.test(BIDA.event.start)) BIDA.event.start = '15:00';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(BIDA.event.date || '')) BIDA.event.date = '';
   BIDA.event.name = String(BIDA.event.name || '').slice(0, 90); BIDA.event.venue = String(BIDA.event.venue || '').slice(0, 90);
-  BIDA.setupDone = BIDA.setupDone === true || !!BIDA.event.date;      // older users who already set a date skip the welcome
+  BIDA.setupDone = BIDA.setupDone === true || !!BIDA.event.date;
+  const tr = BIDA.trial;
+  BIDA.trial = tr && typeof tr.uid === 'string' ? (tr.none ? { uid: tr.uid.slice(0, 128), none: true } : { uid: tr.uid.slice(0, 128), start: +tr.start || 0, revoked: tr.revoked === true }) : null;
+  BIDA.srvNow = +BIDA.srvNow || 0;      // older users who already set a date skip the welcome
   if (!BIDA.program.length) buildProgram(BIDA.event.type);
   BIDA.view = BIDA.view === 'tv' ? 'tv' : 'host';
   const r = BIDA.remote;
@@ -2914,7 +2919,10 @@ function renderVideokeTV() {
       ${q.length ? `<ol class="tvl-q">${q.slice(0, 8).map((it, i) => { const s = vkSong(it.c); return `<li><span class="n">${i + 1}</span>${face(it, 44)}<div><b>${esc(it.singer || 'Bisita')}</b><em>${esc(s ? s.t : '')}</em></div></li>`; }).join('')}</ol>
         ${q.length > 8 ? `<p class="tvl-more">+${q.length - 8} pa</p>` : ''}` : '<p class="tvl-empty">Wala pang nakapila. Ikaw na mauna!</p>'}
     </div>
-    ${BIDA.premium ? '<div class="tvl-qr" id="tvl-qr"><p class="tvl-empty">Loading ang QR…</p></div>' : ''}</div>`;      // the guest QR is Premium: no empty box for free accounts
+    ${BIDA.premium ? '<div class="tvl-qr" id="tvl-qr"><p class="tvl-empty">Loading ang QR…</p></div>'
+      : `<div class="tvl-qr tvl-lock">${ic('lock')}<b>Unlock ${VK.lib.length ? VK.lib.length.toLocaleString() + ' songs' : 'lahat ng songs'}</b>
+        <small>at hayaang pumili ng kanta ang guests sa phone nila</small>
+        <button class="btn btn--magenta" onclick="openPremium('Videoke')">${ic('star')}Premium</button></div>`}</div>`;      // free: what the guest QR would give, in its place
   if (!BIDA.premium) return;
   const paint = () => qrCanvas(vkRoomUrl(BIDA.vk.room.id), 640).then(c => { const b = $('#tvl-qr'); if (!b) return; b.innerHTML = '<b>Gusto mong kumanta?</b><small>I-scan para pumili ng kanta</small>'; b.prepend(c); }).catch(() => { });
   if (vkRoomValid()) paint();
@@ -4419,7 +4427,141 @@ function passActive() { return BIDA.premiumUntil > Date.now(); }
 function applyEntitlement() {
   const u = AUTH.user;
   const ownPass = !!(u && BIDA.premiumUid === u.uid && passActive());
-  BIDA.premium = !!AUTH.admin || ownPass || (IS_LOCAL && !!BIDA.devPro);
+  BIDA.premium = !!AUTH.admin || ownPass || trialActive() || (IS_LOCAL && !!BIDA.devPro);
+}
+/* ---- 3-day free Premium (referral trial) ----
+   1 NEW friend signs in with your link = 3 days of full Premium for you, and 3 days for them. Once per Gmail, ever.
+   firestore.rules is the lock:
+   - bv_users/{uid}: the one-time "joined" record, written at an account's FIRST sign-in, with who invited it (ref).
+     It can never be changed, so existing users can't be "invited" later and can't swap invites.
+   - bv_trials/{uid}: created once, never edited or deleted (only the admin can revoke). start = server time.
+   - The trial is allowed only if that friend's joined record names you (or yours names them).
+   The end is start + 3 days, checked against SERVER time, never the phone's clock. Then it's the free version again. */
+const TRIAL_MS = 3 * 864e5;
+let SRV_OFF = 0;                                   // server time − phone time
+function srvNow() { return Math.max(Date.now() + SRV_OFF, BIDA.srvNow || 0); }
+async function syncServerTime() {
+  try {
+    const r = await fetch(location.pathname + '?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' });
+    const d = Date.parse(r.headers.get('date') || ''); if (!d) return;
+    SRV_OFF = d - Date.now(); BIDA.srvNow = Math.max(BIDA.srvNow || 0, d);
+  } catch (e) { }                                  // offline: the last known server time still stops a clock rollback
+}
+function trialEnd() { const tr = BIDA.trial; return tr && !tr.none ? tr.start + TRIAL_MS : 0; }
+function trialActive() {
+  const u = AUTH.user, tr = BIDA.trial;
+  return !!(u && tr && tr.uid === u.uid && !tr.none && !tr.revoked && srvNow() < trialEnd());
+}
+function trialUsed() { const u = AUTH.user, tr = BIDA.trial; return !!(u && tr && tr.uid === u.uid && !tr.none); }
+function trialLeft() {
+  const ms = Math.max(0, trialEnd() - srvNow()), d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.ceil(ms % 36e5 / 6e4);
+  return d ? `${d} day${d > 1 ? 's' : ''} ${h} hr${h === 1 ? '' : 's'}` : h ? `${h} hr${h === 1 ? '' : 's'} ${m} min` : `${m} min`;
+}
+function devId() {
+  try { let d = localStorage.getItem('bv_dev'); if (!/^[A-Za-z0-9]{8,32}$/.test(d || '')) { d = rnd().slice(0, 20); localStorage.setItem('bv_dev', d); } return d; }
+  catch (e) { return rnd().slice(0, 20); }
+}
+const isGoogleUser = u => !!(u && u.emailVerified && (u.providerData || []).some(p => p && p.providerId === 'google.com'));
+async function trialSync() {
+  const u = AUTH.user, db = vkFs(); if (!isGoogleUser(u) || !db) return;
+  await syncServerTime();
+  const wasActive = trialActive();
+  try {
+    const meRef = db.collection('bv_users').doc(u.uid);
+    let me = await meRef.get();
+    if (!me.exists) {                                                  // first sign-in ever: write the joined record (once)
+      let ref = ''; try { ref = localStorage.getItem('bv_ref') || ''; } catch (e) { }
+      if (ref === u.uid || !/^[A-Za-z0-9]{10,128}$/.test(ref)) ref = '';
+      const ts = firebase.firestore.FieldValue.serverTimestamp(), dev = devId();
+      try { await meRef.set({ at: ts, ref, dev }); }
+      catch (e) { if (!ref) throw e; await meRef.set({ at: ts, ref: '', dev }); }   // an unknown inviter: join without one
+      const ua = (/iPhone/.test(UA) ? 'iPhone' : /iPad/.test(UA) ? 'iPad' : /Android/.test(UA) ? 'Android' : /Mac/.test(UA) ? 'Mac' : /Windows/.test(UA) ? 'Windows' : 'Device');
+      db.collection('bv_who').doc(u.uid).set({ em: u.email || '', nm: String(u.displayName || '').slice(0, 40), ua, at: ts, exp: firebase.firestore.Timestamp.fromMillis(srvNow() + 93 * 864e5) }).catch(() => { });
+      me = await meRef.get();
+    }
+    try { localStorage.removeItem('bv_ref'); } catch (e) { }
+    const trRef = db.collection('bv_trials').doc(u.uid);
+    let tr = await trRef.get();
+    if (!tr.exists) {
+      // I joined with someone's link (friend bonus), or a new friend joined with mine
+      let via = (me.data() || {}).ref || '';
+      if (!via) { const q = await db.collection('bv_users').where('ref', '==', u.uid).limit(1).get(); if (!q.empty) via = q.docs[0].id; }
+      if (via) { await trRef.set({ start: firebase.firestore.FieldValue.serverTimestamp(), via, revoked: false }); tr = await trRef.get(); }
+    }
+    const d = tr.exists ? tr.data() || {} : null;
+    BIDA.trial = d ? { uid: u.uid, start: d.start && d.start.toMillis ? d.start.toMillis() : 0, revoked: d.revoked === true } : { uid: u.uid, none: true };
+    if (d && BIDA.trial.start) BIDA.srvNow = Math.max(BIDA.srvNow || 0, BIDA.trial.start);
+  } catch (e) { console.warn('trial', e && e.code); }                 // offline or rules not published: keep the cached trial
+  applyEntitlement(); saveState();
+  if (!wasActive && trialActive()) { rerenderPremiumViews(); toast('3 days Premium, unlocked! Salamat sa pag-share.'); if (!$('#sheet-wrap').hidden && $('#sheet .pro-hero')) openPremium(PRO_FEATURE); }
+}
+// When the 3 days end while the app is open: back to the free version (checked every minute)
+setInterval(() => {
+  if (!BIDA.trial || BIDA.trial.none) return;
+  const was = BIDA.premium; applyEntitlement();
+  if (was && !BIDA.premium) { saveState(); rerenderPremiumViews(); toast('Tapos na ang 3-day Premium. Balik sa free version.'); }
+}, 60000);
+/* ---- Admin: Referrals (only the admin Gmail; firestore.rules refuses everyone else) ---- */
+async function openReferrals() {
+  if (!isAdmin()) return;
+  openSheet(`<div class="sheet-head"><h3>Referrals</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div><p class="muted">Loading…</p>`);
+  const db = vkFs(); if (!db) return;
+  let users, trials, who;
+  try {
+    [users, trials, who] = await Promise.all([
+      db.collection('bv_users').orderBy('at', 'desc').limit(400).get(),
+      db.collection('bv_trials').orderBy('start', 'desc').limit(400).get(),
+      db.collection('bv_who').limit(800).get()]);
+  } catch (e) { $('#sheet').innerHTML = `<div class="sheet-head"><h3>Referrals</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div><p class="note">Hindi ma-load (${esc(e.code || 'error')}). I-publish ang bagong firestore.rules.</p>`; return; }
+  const ms = x => x && x.toMillis ? x.toMillis() : 0;
+  const W = {}; who.docs.forEach(d => { W[d.id] = d.data() || {}; });
+  const name = id => esc((W[id] && (W[id].nm || W[id].em)) || id.slice(0, 8));
+  const mail = id => esc((W[id] && W[id].em) || '');
+  const U = users.docs.map(d => ({ id: d.id, ...(d.data() || {}), at: ms((d.data() || {}).at) }));
+  const T = {}; trials.docs.forEach(d => { const x = d.data() || {}; T[d.id] = { start: ms(x.start), via: x.via || '', revoked: x.revoked === true }; });
+  // Warning flags: 3+ new friends within 10 minutes for one inviter; several "new" accounts from one device
+  const byRef = {}, byDev = {};
+  U.forEach(u => { if (u.ref) (byRef[u.ref] = byRef[u.ref] || []).push(u); if (u.dev) (byDev[u.dev] = byDev[u.dev] || []).push(u); });
+  const flags = {};
+  Object.entries(byRef).forEach(([r, list]) => { const at = list.map(x => x.at).sort((a, b) => a - b); for (let i = 2; i < at.length; i++) if (at[i] - at[i - 2] < 6e5) { (flags[r] = flags[r] || []).push(`${list.length} new friends, 3 within 10 min`); break; } });
+  Object.values(byDev).forEach(list => { if (list.length > 1) list.forEach(u => (flags[u.ref || u.id] = flags[u.ref || u.id] || []).push(`${list.length} accounts, same device`)); });
+  const now = srvNow();
+  const status = id => { const x = T[id]; if (!x) return '<span class="rf-tag">Walang trial</span>';
+    return x.revoked ? '<span class="rf-tag bad">Revoked</span>' : now < x.start + TRIAL_MS ? '<span class="rf-tag ok">Active</span>' : '<span class="rf-tag">Ended</span>'; };
+  const rows = U.filter(u => u.ref).map(u => `<li>
+      <div><b>${name(u.ref)}</b> invited <b>${name(u.id)}</b><small>${mail(u.id)} · ${u.at ? esc(new Date(u.at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) : ''}</small>
+        ${(flags[u.ref] || []).length ? `<small class="rf-flag">${esc([...new Set(flags[u.ref])].join(' · '))}</small>` : ''}</div>
+      <div class="rf-act">${status(u.ref)}${T[u.ref] && !T[u.ref].revoked && now < T[u.ref].start + TRIAL_MS ? `<button class="btn btn--ghost btn--sm" onclick="revokeTrial('${u.ref}')">Revoke</button>` : ''}</div></li>`).join('');
+  const active = Object.values(T).filter(x => !x.revoked && now < x.start + TRIAL_MS).length;
+  $('#sheet').innerHTML = `<div class="sheet-head"><h3>Referrals</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <p class="muted">${U.length} accounts · ${U.filter(u => u.ref).length} invited · ${active} active trials · ${Object.keys(flags).length} flagged</p>
+    ${rows ? `<ul class="rf-list">${rows}</ul>` : '<p class="muted" style="margin-top:12px">Wala pang referral.</p>'}
+    <p class="pro-small">Revoke ends the inviter's trial now. It can't be restarted on that Gmail.</p>`;
+}
+async function revokeTrial(uid) {
+  if (!isAdmin() || !/^[A-Za-z0-9]{10,128}$/.test(uid)) return;
+  if (!await askConfirm('I-revoke ang trial na ito? Matatapos agad, at hindi na makakakuha ulit ang Gmail na ito.', 'Revoke')) return;
+  try { await vkFs().collection('bv_trials').doc(uid).update({ revoked: true, revokedAt: firebase.firestore.FieldValue.serverTimestamp() }); toast('Na-revoke'); openReferrals(); }
+  catch (e) { toast('Hindi na-revoke (' + (e.code || 'error') + ')'); }
+}
+async function shareTrialLink() {
+  if (!AUTH.user) { await signIn('unlock'); return; }
+  const url = location.origin + location.pathname + '?ref=' + AUTH.user.uid;
+  const text = 'Gamit ko ang Bida-Vibe para sa party: games, videoke at sound pads. Libre! Subukan mo:';
+  if (navigator.share) { try { await navigator.share({ title: 'Bida-Vibe', text, url }); toast('Salamat! Bubukas ang Premium pag may friend na nag-sign in.'); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  copyRefLink();
+}
+function trialCardHTML() {
+  const u = AUTH.user;
+  if (isAdmin() || (passActive() && isLifetime())) return '';
+  if (trialActive()) return `<div class="trial-card on">${ic('star')}<div><b>Premium trial</b><span>${esc(trialLeft())} left</span></div></div>`;
+  if (trialUsed()) return '';                                           // one trial per Gmail
+  return `<div class="trial-card">
+    <h4>3 days Premium, libre!</h4>
+    <ol><li>I-share ang link mo</li><li>1 bagong friend mag-sign in gamit ito</li><li>Bukas ang lahat ng Premium for 3 days, sa inyong dalawa</li></ol>
+    <button class="btn btn--magenta btn--block" onclick="shareTrialLink()">${ic('share')}${u ? 'Share link ko' : 'Sign in para makuha ang link'}</button>
+    ${u ? '<button class="btn btn--ghost btn--block" onclick="copyRefLink()">Copy link</button>' : ''}
+    <p class="pro-small">Isang beses lang bawat Gmail. Pagkatapos, balik sa free version.</p></div>`;
 }
 // Firebase SDK, loaded in the background once the page is usable. Same pinned versions + SRI hashes as before:
 // the browser refuses a file whose contents don't match.
@@ -4447,12 +4589,13 @@ function initAuth() {
       if (u) {
         // A different Google account on this device must not inherit the last user's unlock
         if (BIDA.premiumUid && BIDA.premiumUid !== u.uid) { BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; BIDA.receipt = null; applyEntitlement(); }
+        if (BIDA.trial && BIDA.trial.uid !== u.uid) BIDA.trial = null;
         await refreshPremium();
         vkState(); vkListen(); rmtListen();   // pick up guest songs and remote commands again after a reload
       } else {
         VKR.unsub?.(); VKR.unsub = null; RMT.unsub?.(); RMT.unsub = null;
         AUTH.admin = false;
-        BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; BIDA.receipt = null;
+        BIDA.proKind = ''; BIDA.premiumUntil = 0; BIDA.premiumUid = ''; BIDA.receipt = null; BIDA.trial = null;
         applyEntitlement(); saveState(); rerenderPremiumViews();
       }
       // every open sheet that had a sign-in button redraws for the signed-in account
@@ -4499,17 +4642,15 @@ async function refreshPremium() {
   AUTH.admin = await checkAdmin(u).catch(() => false);
   try {
     if (paymentsReady()) {
-      let ref = ''; try { ref = localStorage.getItem('bv_ref') || ''; } catch (e) { }
-      if (ref) { await workerFetch('/referral', { method: 'POST', body: JSON.stringify({ ref }) }).catch(() => { }); try { localStorage.removeItem('bv_ref'); } catch (e) { } }
       const j = await workerFetch('/status');
-      BIDA.refs = j.refs || 0;
       if (j.admin) AUTH.admin = true;
       BIDA.premiumUntil = j.until || 0;
       BIDA.premiumUid = BIDA.premiumUntil ? u.uid : '';
       BIDA.receipt = j.receipt || null;
     }
   } catch (e) { /* offline at the venue: keep this account's cached pass until its end date */ }
-  BIDA.proKind = AUTH.admin ? 'admin' : passActive() && BIDA.premiumUid === u.uid ? 'pass' : '';
+  await trialSync();
+  BIDA.proKind = AUTH.admin ? 'admin' : passActive() && BIDA.premiumUid === u.uid ? 'pass' : trialActive() ? 'trial' : '';
   applyEntitlement(); saveState(); rerenderPremiumViews();
   return BIDA.premium;
 }
@@ -4619,6 +4760,7 @@ function passLine() {
   if (isAdmin()) return '<span class="badge-pro">Admin</span> Test account — lahat naka-unlock';
   if (passActive() && isLifetime()) return '<span class="badge-pro">Premium</span> Bayad na. Sa\'yo na \'to for good.';
   if (passActive()) return `<span class="badge-pro">Premium</span> Hanggang <b>${esc(fmtDay(BIDA.premiumUntil))}</b>`;
+  if (trialActive()) return `<span class="badge-pro">Trial</span> Premium, ${esc(trialLeft())} pa`;
   if (BIDA.premiumUntil) return `Nag-expire ang Premium noong ${esc(fmtDay(BIDA.premiumUntil))}`;
   return '';
 }
@@ -4646,6 +4788,7 @@ function openPremium(feature) {
       <div><small>Premium</small><ul class="pro-list">
         <li>${ic('star')}Lahat ng songs</li><li>${ic('star')}QR para sa guests</li><li>${ic('star')}Lahat ng pads</li><li>${ic('star')}Talk + Fade</li></ul></div>
     </div></div>
+    ${trialCardHTML()}
     <div style="margin-top:14px">${action}</div>
     <div class="pro-facts">
       <p>${ic('wifi')}<span>Songs galing YouTube: kailangan ng internet, puwedeng may ads.</span></p>
@@ -4690,10 +4833,8 @@ function openAccount() {
       ${u && line ? `<p>${line}</p>` : ''}
       ${u && BIDA.receipt ? `<button class="btn btn--ghost btn--block" onclick="openReceipt()">Tingnan ang resibo</button>` : ''}
       ${OFFLINE_READY ? `<p class="muted offline-ok">${ic('check')}Offline ready: games, plan at pads gumagana kahit walang signal.</p>` : ''}
-      ${u && paymentsReady() && !isAdmin() && !(passActive() && isLifetime()) && (BIDA.refs || 0) < 6 ? `<div class="note ref-box">
-        <p><b>Libreng 7 days:</b> 3 bagong friends na mag-sign in gamit ang link mo. Hanggang 2 beses.</p>
-        <p class="muted">${(BIDA.refs || 0) % 3}/3 friends</p>
-        <button class="btn btn--ink btn--sm" onclick="copyRefLink()">Copy link ko</button></div>` : ''}
+      ${u ? trialCardHTML() : ''}
+      ${isAdmin() ? `<button class="btn btn--ghost btn--block" onclick="openReferrals()">${ic('people')}Referrals (admin)</button>` : ''}
       ${!authReady() ? '<p class="note">Hindi pa ready ang Google sign-in — soon!</p>'
         : u ? `<button class="btn btn--ghost" onclick="signOut()">Sign out</button>`
           : `<button class="btn btn--ink btn--block" onclick="signIn()">${googleG()}Sign in with Google</button>
@@ -4853,7 +4994,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (BIDA.tab === 'videoke' || BIDA.tab === 'music' || !$('#landing').hidden) loadVkLibrary();   // warm up while they look around
   loadFirebase().then(() => { FB_READY = true; initAuth(); }).catch(() => { AUTH.ready = true; });
   setTimeout(() => { ytApi(); }, 1500);
-  setInterval(() => { if (AUTH.user && !BIDA.premium && paymentsReady() && !document.hidden) refreshPremium().then(() => { if (BIDA.premium) { rerenderPremiumViews(); rmtPublish(); } }).catch(() => { }); }, 120000);                   // YouTube's player code loads in the background, so the first song starts fast
+  setInterval(() => { if (AUTH.user && !BIDA.premium && !document.hidden) refreshPremium().then(() => { if (BIDA.premium) { rerenderPremiumViews(); rmtPublish(); } }).catch(() => { }); }, 120000);                   // YouTube's player code loads in the background, so the first song starts fast
   handlePaidReturn();
   await spHandleRedirect();
   await loadCustom();
@@ -4869,7 +5010,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
-  openReceipt, copyRefLink, actRaffle, rmtKick, welType, welSet, welGo, welDone, cleanNames, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  openReceipt, copyRefLink, shareTrialLink, openReferrals, revokeTrial, actRaffle, rmtKick, welType, welSet, welGo, welDone, cleanNames, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,

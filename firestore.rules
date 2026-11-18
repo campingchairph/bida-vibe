@@ -156,6 +156,70 @@ service cloud.firestore {
       }
     }
 
+    // ---------- 3-day free Premium (referral trial) ----------
+    // 1 NEW friend signs in with your link = 3 days Premium for you and for them. Once per Gmail, ever.
+    function isGoogle() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function joinedPath(u) { return /databases/$(database)/documents/bv_users/$(u); }
+
+    // The one-time "joined" record, written at an account's FIRST sign-in. ref = who invited it ('' = nobody).
+    // It can never be changed or deleted, so an existing user can't be "invited" later and invites can't be swapped.
+    match /bv_users/{uid} {
+      allow get: if (request.auth != null && request.auth.uid == uid) || isBidaAdmin();
+      // the admin sees everyone; a user can list ONLY the friends who joined with their link
+      allow list: if isBidaAdmin() || (request.auth != null && resource.data.ref == request.auth.uid);
+      allow create: if isGoogle() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['at', 'ref', 'dev'])
+        && request.resource.data.at == request.time
+        && request.resource.data.dev is string && request.resource.data.dev.matches('^[A-Za-z0-9]{8,32}$')
+        && request.resource.data.ref is string
+        && (request.resource.data.ref == ''
+            || (request.resource.data.ref != uid && exists(joinedPath(request.resource.data.ref))));
+      allow update, delete: if false;
+    }
+
+    // Who the account is, for the admin's Referrals page only (nobody else can read it)
+    match /bv_who/{uid} {
+      allow create: if isGoogle() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['em', 'nm', 'ua', 'at', 'exp'])
+        && request.resource.data.em == request.auth.token.email
+        && request.resource.data.nm is string && request.resource.data.nm.size() <= 40
+        && request.resource.data.ua is string && request.resource.data.ua.size() <= 20
+        && request.resource.data.at == request.time
+        // deleted automatically by a Firestore TTL policy on 'exp' (about 93 days later)
+        && request.resource.data.exp is timestamp
+        && request.resource.data.exp > request.time + duration.value(90, 'd')
+        && request.resource.data.exp < request.time + duration.value(96, 'd');
+      allow read: if isBidaAdmin();
+      allow update, delete: if false;
+    }
+
+    // The trial: created ONCE per account, never edited or deleted by the user. start = server time;
+    // the app ends it at start + 3 days (server time). Allowed only if the friend's joined record names
+    // this account as the inviter, or this account's joined record names the friend.
+    match /bv_trials/{uid} {
+      allow get: if (request.auth != null && request.auth.uid == uid) || isBidaAdmin();
+      allow list: if isBidaAdmin();
+      allow create: if isGoogle() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['start', 'via', 'revoked'])
+        && request.resource.data.start == request.time
+        && request.resource.data.revoked == false
+        && request.resource.data.via is string && request.resource.data.via != uid
+        && request.resource.data.via.matches('^[A-Za-z0-9]{10,128}$')
+        && exists(joinedPath(uid))
+        && (get(joinedPath(request.resource.data.via)).data.ref == uid
+            || get(joinedPath(uid)).data.ref == request.resource.data.via);
+      // Only the admin can end a trial early (Revoke). It can never be restarted.
+      allow update: if isBidaAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked', 'revokedAt'])
+        && request.resource.data.revoked == true
+        && request.resource.data.revokedAt == request.time;
+      allow delete: if false;
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

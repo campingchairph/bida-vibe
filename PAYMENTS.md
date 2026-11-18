@@ -2,7 +2,7 @@
 
 **Plans:** ₱49 for 30 days, or ₱149 lifetime. Both are tied to the buyer's Google account, with no auto-charge. Buying 30 days again adds 30 days to the time left; a 30-day buyer can upgrade to lifetime; a lifetime owner can't be charged again (the Worker refuses). Users **must sign in with Google** to pay. Premium works on every device they sign in on, and offline at the venue until its end date.
 
-**Referral:** 3 new Google accounts that sign in through someone's link (`?ref=<uid>`, from Account → Copy link ko, or the credit on the guest videoke page) give that person 7 days of Premium, up to 2 times. Judged by the Worker (`/referral`); only works once the Worker is live.
+**3-day free Premium:** when 1 Google account that has never used Bida-Vibe signs in through someone's link (`?ref=<uid>`, from the Premium page / Account → Share link ko, or the credit on the guest videoke page), both get 3 days of full Premium, once per Gmail. Enforced by firestore.rules (`bv_users`, `bv_trials`, `bv_who`); works without the Worker or PayMongo. The Worker's old `/referral` route is no longer used by the app.
 
 ```
 Buyer signs in with Google → picks "30 days · ₱49" or "Lifetime · ₱149"

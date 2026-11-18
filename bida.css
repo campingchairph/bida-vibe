@@ -1099,6 +1099,28 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 .wel-plan li { display: flex; gap: 12px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: var(--r-sm); background: #fff; font-weight: 800; }
 .wel-plan li span { min-width: 72px; color: var(--ink-2); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .wel-pop { animation: none; } .wel-type { transition: none; } }
+/* 3-day trial */
+.trial-card { margin-top: 14px; padding: 14px; border: 2px solid var(--ink); border-radius: var(--r-md); background: var(--gold); box-shadow: 4px 4px 0 var(--ink); display: flex; flex-direction: column; gap: 8px; }
+.trial-card h4 { font: 800 22px/1.15 var(--f2); letter-spacing: -.02em; }
+.trial-card ol { margin: 0; padding-left: 20px; font-weight: 700; display: flex; flex-direction: column; gap: 4px; }
+.trial-card .pro-small { margin-top: 0; color: var(--ink); }
+.trial-card.on { flex-direction: row; align-items: center; gap: 10px; background: var(--leaf-soft); }
+.trial-card.on .ic { width: 22px; height: 22px; color: var(--magenta); flex: none; }
+.trial-card.on b { display: block; }
+.trial-card.on span { font-size: 14px; color: var(--ink-2); }
+.tvl-lock { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.tvl-lock > .ic { width: 44px; height: 44px; padding: 9px; border-radius: 14px; background: var(--gold); border: 3px solid var(--ink); }
+.tvl-lock b { margin-top: 0; }
+/* admin referrals */
+.rf-list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.rf-list li { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; padding: 10px; border: 2px solid var(--ink); border-radius: var(--r-sm); background: #fff; font-size: 14px; }
+.rf-list li > div:first-child { min-width: 0; }
+.rf-list small { display: block; color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.rf-list .rf-flag { color: #B3261E; font-weight: 800; }
+.rf-act { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.rf-tag { font: 800 11px/1 var(--f); padding: 4px 8px; border-radius: 99px; background: #0001; white-space: nowrap; }
+.rf-tag.ok { background: var(--leaf-soft); color: #1d5b2a; }
+.rf-tag.bad { background: #FCEBEB; color: #791F1F; }
 .pin-in { font: 800 26px/1 var(--f2); letter-spacing: .35em; text-align: center; }
 .rmt-pin { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin-top: 12px; }
 .rmt-pin span { font: 800 12px/1 var(--f); letter-spacing: .08em; color: var(--ink-2); }

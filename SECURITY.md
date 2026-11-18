@@ -82,6 +82,16 @@ Not applicable here: SQL injection, CSRF, session cookies, password hashing, ser
    - How it works: the host sets a 6-digit PIN, stored at `vk_remotes/{id}/lock/pin`, which nobody can read. A phone must create `devices/{its anonymous uid}` with the right PIN, and the rules compare it. Only connected phones can read the remote or send commands. The host sees every connected phone (name, device, time) and can remove one; a removed phone has to enter the PIN again.
    - Limit: the rules can't count wrong guesses. The 24-character link is still needed, the host gets a toast for every new phone, and the host can remove phones.
 
+13. **3-day free Premium (referral trial):**
+   - Publish the new `firestore.rules` (adds `bv_users`, `bv_who`, `bv_trials`).
+   - Firestore → **Time-to-live** → *Create policy*: collection group `bv_who`, timestamp field `exp`. This auto-deletes the email and name about 93 days after first sign-in, as the Privacy Policy says.
+   - How it's locked:
+     - `bv_users/{uid}` is written once at an account's first sign-in and can never change, so existing users can't be "invited" later and invites can't be swapped.
+     - `bv_trials/{uid}` can be created only once, with start = server time, and only if the friend's record names you (or yours names them).
+     - Users can't edit or delete it; only the admin can revoke.
+     - The app ends it at start + 3 days by server time (HTTP Date header, never lower than the last time it saw), so changing the phone clock doesn't help.
+   - Limit: making extra Gmail accounts still gets one trial per new account. The admin Referrals page flags 3+ new friends in 10 minutes and several accounts on one device.
+
 ## When something changes
 - **Rules change**: edit `firestore.rules`, paste it into the Console, Publish, and re-run the Playground checks above.
 - **Price change**: Worker variable `PRICE_CENTAVOS` **and** `price` in `BIDA_CONFIG` (display only).
