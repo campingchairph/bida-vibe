@@ -2697,7 +2697,8 @@ function renderMusic() {
         `<button class="src-tab ${src === id ? 'on' : ''}" role="tab" aria-selected="${src === id}" onclick="setMusicSrc('${id}')">${l}${s ? `<small>${s}</small>` : ''}</button>`).join('')}
     </div>
     <section class="jbx mu" aria-label="Music player">
-      <div class="jbx-body ${queue ? '' : 'jbx-body--one'}">
+      <div class="jbx-body">
+      <div class="jbx-player">
       <div class="jbx-center">
         <span class="jbx-now" id="mu-now">${muNowHTML()}</span>
         <div class="mu-ctrls">
@@ -2709,6 +2710,7 @@ function renderMusic() {
         <span class="jbx-sub">${src === 'spotify' ? 'Spotify ang tutugtog.' : 'Hihina ang music pag pinindot ang Talk sa baba.'}</span>
       </div>
       ${queue ? `<div class="jbx-panel vk-queue">${queue}</div>` : ''}
+      </div>
       <div class="jbx-panel jbx-lib">${lib}</div>
       </div>
     </section>
@@ -3059,6 +3061,7 @@ function renderVideoke() {
     <div class="panel-head"><div><h2>Videoke</h2><p>Pili ng kanta, i-reserve, tapos PLAY. ${VK.lib.length ? VK.lib.length.toLocaleString() + ' songs sa library.' : ''}</p></div></div>
     <section class="jbx" aria-label="Videoke">
       <div class="jbx-body">
+      <div class="jbx-player">
       <div class="jbx-center">
         <span class="jbx-now">${now ? `${ic('mic')}Kumakanta: <b>${esc(VK.cur.singer || 'Bisita')}</b>` : nxt ? `Susunod: <b>${esc(nxt.singer || 'Bisita')}</b>` : 'Wala pang nakapila'}</span>
         <button class="jbx-play ${ready ? 'is-ready' : ''}" onclick="vkPlayBtn()" aria-label="${VK.cur ? 'Buksan ang videoke screen' : 'Play: simulan ang videoke'}">
@@ -3074,6 +3077,7 @@ function renderVideoke() {
         <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkQMove(${i},-1)" ${i ? '' : 'disabled'} aria-label="Taas">${ic('up')}</button>
         <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
         : '<p class="muted jbx-empty">Wala pang nakapila. Pili ng song sa library.</p>'}
+    </div>
     </div>
     <div class="jbx-panel jbx-lib" id="vk-lib">
       <div class="vk-qhead"><h3>Song library</h3></div>

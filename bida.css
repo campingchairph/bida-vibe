@@ -1274,22 +1274,22 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 .brave-pop p { font: 700 15px/1.45 var(--f); }
 
 /* ============================================================
-   Videoke (host view): queue · PLAY in the centre · song library
+   Videoke + Music: same layout as the Card tab.
+   Left: one player card (what's playing, PLAY, queue), pinned while you scroll. Right: the library.
    ============================================================ */
-.jbx-body { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "center" "queue" "lib"; }
-.jbx-center { grid-area: center; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 12px;
-  border: 2.5px solid var(--ink); border-radius: 18px; background: var(--gold); box-shadow: var(--shadow-sm); }
+.jbx-body { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.jbx-player { background: #fff; border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: var(--shadow-sm); overflow: hidden; min-width: 0; }
+.jbx-center { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 12px; background: var(--gold); border-bottom: 2.5px solid var(--ink); }
+.jbx-player .jbx-panel { border: 0; border-radius: 0; box-shadow: none; padding: 12px; }
+.jbx-player .jbx-center:last-child { border-bottom: 0; }
 .jbx-panel { background: #fff; border: 2px solid var(--ink); border-radius: 16px; padding: 12px; min-width: 0; box-shadow: var(--shadow-sm); }
-.jbx-panel.vk-queue { grid-area: queue; }
-.jbx-lib { grid-area: lib; }
 .jbx-now { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 5px 12px; border-radius: 99px; background: var(--ink); color: var(--gold); font: 800 13px/1.2 var(--f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jbx-now b { color: #FFF6E5; overflow: hidden; text-overflow: ellipsis; }
 .jbx-now .ic { width: 15px; height: 15px; flex: none; }
-/* the PLAY button: a normal wide button, big enough that nobody misses it */
-.jbx-play { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 320px; min-height: 64px; padding: 12px 24px;
+.jbx-play { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 300px; min-height: 60px; padding: 12px 24px;
   border: 3px solid var(--ink); border-radius: 999px; background: #CFC2A6; color: var(--ink); cursor: pointer; box-shadow: 4px 4px 0 var(--ink);
-  font: 800 26px/1 var(--f2); letter-spacing: .02em; transition: transform .12s var(--ease-out), box-shadow .12s; }
-.jbx-play svg { width: 26px; height: 26px; flex: none; }
+  font: 800 25px/1 var(--f2); letter-spacing: .02em; transition: transform .12s var(--ease-out), box-shadow .12s; }
+.jbx-play svg { width: 24px; height: 24px; flex: none; }
 .jbx-play.is-ready { background: var(--chili); color: #fff; }
 .jbx-play:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
 .jbx-play:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
@@ -1303,13 +1303,11 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 .jbx-code { flex: none; min-width: 46px; padding: 3px 4px; border-radius: 6px; background: var(--turq); color: #fff; border: 1.5px solid var(--ink); font: 800 11.5px/1 var(--f); text-align: center; }
 .jbx-flash { animation: jbx-flash 1.2s ease-out; }
 @keyframes jbx-flash { 0%, 60% { box-shadow: 0 0 0 5px var(--turq); } 100% { box-shadow: none; } }
+/* tablet and up: side by side, same as the Card tab; the player card stays pinned */
 @media (min-width: 640px) {
-  .jbx-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-areas: "center center" "queue lib"; }
-  .jbx-panel { height: 520px; overflow-y: auto; overscroll-behavior: contain; }
-}
-@media (min-width: 1024px) {
-  .jbx-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
-  .jbx-panel { height: max(380px, min(600px, calc(100vh - 250px))); }
+  .jbx-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .jbx-player { position: sticky; top: 110px; max-height: calc(100vh - 130px); display: flex; flex-direction: column; }
+  .jbx-player .jbx-panel { overflow-y: auto; overscroll-behavior: contain; min-height: 0; flex: 1 1 auto; }
 }
 @media (prefers-reduced-motion: reduce) { .jbx-flash { animation: none; } }
 /* Music page: same layout as Videoke, with a plain player queue */
@@ -1318,8 +1316,6 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 .mu-skip { flex: none; width: 50px; height: 50px; border-radius: 50%; border: 2.5px solid var(--ink); background: #fff; color: var(--ink); display: grid; place-items: center; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
 .mu-skip .ic { width: 22px; height: 22px; }
 .mu-skip:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
-.jbx-body--one { grid-template-areas: "center" "lib" !important; grid-template-columns: minmax(0, 1fr) !important; }
-.jbx-body--one .jbx-panel { height: auto; }
 .mu-q { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; }
 .mu-q li { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #0001; }
 .mu-q li:last-child { border-bottom: 0; }
