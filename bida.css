@@ -213,6 +213,15 @@ textarea.input { min-height: 120px; resize: vertical; line-height: 1.5; font-wei
   box-shadow: var(--shadow-sm); transition: transform .2s var(--ease-out), box-shadow .2s; display: flex; flex-direction: column;
 }
 .gcard:hover { transform: translate(-2px,-2px); box-shadow: var(--shadow); }
+.gcard { position: relative; }
+.gcard-open { all: unset; display: flex; flex-direction: column; cursor: pointer; text-align: left; }
+.gcard-open:focus-visible { outline: 3px solid var(--turq); outline-offset: -3px; }
+.gcard-btns { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; z-index: 2; }
+.gcard-btn { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--ink); background: #fff; color: var(--ink); display: grid; place-items: center; cursor: pointer;
+  box-shadow: 2px 2px 0 var(--ink); font: 800 italic 18px/1 Georgia, serif; }
+.gcard-btn .ic { width: 18px; height: 18px; }
+.gcard-btn--add { background: var(--magenta); color: #fff; }
+.gcard-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
 .gcard .scene { border-bottom: 2px solid var(--ink); }
 .gcard-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
 .gcard-body b { font: 800 19px/1.1 var(--f2); letter-spacing: -.02em; }
@@ -713,12 +722,14 @@ body.in-sb .mbar, body.in-sb .pl-fab, body.in-sb .pl-panel { display: none !impo
 .cam-mouths small { font: 800 10.5px/1 var(--f); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .vk-mouth .jaw, .cam-mouth.talk .jaw { animation-duration: 1s; } }
 /* Game tools row (Games tab) */
-.tools-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 4px 0 14px; }
+.tools-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: clamp(4px, 1.2vw, 10px); margin: 4px 0 14px; }   /* always one line */
+.tr-l { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tools-row button { display: grid; justify-items: center; gap: 6px; padding: 10px 4px 8px; border: 2.5px solid var(--ink); border-radius: 16px; background: #fff; color: var(--ink); font: 800 13px/1.1 var(--f); cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
 .tools-row button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
 .tr-ic { width: 40px; height: 40px; border-radius: 12px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 22px; color: var(--ink); }
 .tr-ic .ic { width: 22px; height: 22px; }
-@media (max-width: 420px) { .tools-row { gap: 5px; } .tools-row button { font-size: 11.5px; padding: 8px 2px 6px; } .tr-ic { width: 34px; height: 34px; font-size: 19px; } }
+@media (max-width: 520px) { .tools-row button { font-size: 11px; padding: 7px 1px 6px; border-width: 2px; border-radius: 12px; box-shadow: 2px 2px 0 var(--ink); gap: 4px; } .tr-ic { width: 30px; height: 30px; font-size: 17px; border-radius: 9px; } .tr-ic .ic { width: 18px; height: 18px; } }
+@media (max-width: 350px) { .tools-row button { font-size: 10px; } .tr-ic { width: 26px; height: 26px; font-size: 15px; } }
 
 /* Big TV view for raffle / dice / colours */
 .tl-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(12px, 3vmin, 30px); padding: clamp(12px, 3vmin, 30px); min-height: 0; overflow: hidden; }
@@ -887,15 +898,36 @@ body.in-vk .mbar, body.in-vk .pl-fab, body.in-vk .pl-panel { display: none !impo
 .card-canvas--story { max-width: 320px; }
 .card-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .theme-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.theme-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 6px 14px 6px 6px; border: 2px solid var(--ink); border-radius: 999px; background: #fff; font: 800 13.5px/1 var(--f); }
-.theme-chip.on { background: var(--gold); box-shadow: var(--shadow-sm); }
+.theme-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 12px; border: 2px solid; border-radius: 999px; background: #fff; font: 800 12.5px/1 var(--f); cursor: pointer; }
+.theme-chip.on { outline: 3px solid var(--ink); outline-offset: 1px; box-shadow: var(--shadow-sm); }
+.theme-chip--pic { background-size: cover; background-position: center; border-color: var(--ink); }
+.theme-chip--pic span { padding: 2px 6px; border-radius: 99px; background: #fffd; color: var(--ink); }
+.theme-chip--up { border: 2px dashed var(--ink); color: var(--ink); background: var(--paper); }
+.theme-chip--up .ic { width: 14px; height: 14px; }
+.own-opts { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; }
+.card-sizes { width: 100%; max-width: 420px; }
+/* slightly tighter fields in the card form (still easy to tap) */
+.card-fields { margin-top: 14px; gap: 10px; }
+.card-fields .field label, .card-form > .field-label { font-size: 11.5px; }
+.card-fields .input { min-height: 40px; padding: 8px 12px; font-size: 14.5px; }
+.card-fields textarea.input { min-height: 64px; }
 .theme-sw { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--ink); display: grid; place-items: center; }
 .theme-sw span { width: 10px; height: 10px; border-radius: 50%; }
 .more-themes { margin-top: 10px; }
 .more-themes summary { cursor: pointer; font: 800 13px/1 var(--f); color: var(--ink-2); padding: 6px 0; }
-@media (min-width: 900px) {
+@media (min-width: 640px) {
   .card-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .card-preview-wrap { position: sticky; top: 110px; }
+}
+@media (max-width: 639px) {
+  .card-preview-wrap { position: sticky; top: 86px; z-index: 5; background: var(--cream); padding: 8px 0 10px; margin: 0 -4px; border-bottom: 2px solid var(--ink); }
+  .card-preview-wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; justify-items: center; }
+  .card-canvas { grid-column: 1 / -1; max-height: 24vh; width: auto; max-width: 100%; }
+  .card-sizes { max-width: none; }
+  .card-sizes button { padding: 6px 4px; font-size: 12px; }
+  .card-actions { flex-wrap: nowrap; gap: 6px; }
+  .card-actions .btn { min-height: 38px; width: 40px; padding: 0; font-size: 0; gap: 0; justify-content: center; }
+  .card-actions .btn .ic { width: 18px; height: 18px; }
 }
 
 /* Admin sound manager */
@@ -1240,3 +1272,73 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 .brave-pop { display: flex; gap: 14px; align-items: center; margin: 4px 0 14px; }
 .brave-pop img { flex: none; width: 64px; height: 64px; }
 .brave-pop p { font: 700 15px/1.45 var(--f); }
+
+/* ============================================================
+   Videoke (host view): queue · PLAY in the centre · song library
+   ============================================================ */
+.jbx-body { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "center" "queue" "lib"; }
+.jbx-center { grid-area: center; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 12px;
+  border: 2.5px solid var(--ink); border-radius: 18px; background: var(--gold); box-shadow: var(--shadow-sm); }
+.jbx-panel { background: #fff; border: 2px solid var(--ink); border-radius: 16px; padding: 12px; min-width: 0; box-shadow: var(--shadow-sm); }
+.jbx-panel.vk-queue { grid-area: queue; }
+.jbx-lib { grid-area: lib; }
+.jbx-now { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 5px 12px; border-radius: 99px; background: var(--ink); color: var(--gold); font: 800 13px/1.2 var(--f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jbx-now b { color: #FFF6E5; overflow: hidden; text-overflow: ellipsis; }
+.jbx-now .ic { width: 15px; height: 15px; flex: none; }
+/* the PLAY button: a normal wide button, big enough that nobody misses it */
+.jbx-play { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 320px; min-height: 64px; padding: 12px 24px;
+  border: 3px solid var(--ink); border-radius: 999px; background: #CFC2A6; color: var(--ink); cursor: pointer; box-shadow: 4px 4px 0 var(--ink);
+  font: 800 26px/1 var(--f2); letter-spacing: .02em; transition: transform .12s var(--ease-out), box-shadow .12s; }
+.jbx-play svg { width: 26px; height: 26px; flex: none; }
+.jbx-play.is-ready { background: var(--chili); color: #fff; }
+.jbx-play:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+.jbx-play:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.jbx-play:focus-visible { outline: 4px solid var(--turq); outline-offset: 4px; }
+.jbx-sub { font: 700 13.5px/1.35 var(--f); color: var(--ink-2); max-width: 32ch; }
+.jbx-score { font-size: 13px; }
+.jbx-empty { margin-top: 8px; }
+.jbx + * { margin-top: 16px; }
+.jbx .vk-list, .jbx .vk-q--slim { display: flex; flex-direction: column; }
+.jbx .vk-list li { gap: 8px; }
+.jbx-code { flex: none; min-width: 46px; padding: 3px 4px; border-radius: 6px; background: var(--turq); color: #fff; border: 1.5px solid var(--ink); font: 800 11.5px/1 var(--f); text-align: center; }
+.jbx-flash { animation: jbx-flash 1.2s ease-out; }
+@keyframes jbx-flash { 0%, 60% { box-shadow: 0 0 0 5px var(--turq); } 100% { box-shadow: none; } }
+@media (min-width: 640px) {
+  .jbx-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-areas: "center center" "queue lib"; }
+  .jbx-panel { height: 520px; overflow-y: auto; overscroll-behavior: contain; }
+}
+@media (min-width: 1024px) {
+  .jbx-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+  .jbx-panel { height: max(380px, min(600px, calc(100vh - 250px))); }
+}
+@media (prefers-reduced-motion: reduce) { .jbx-flash { animation: none; } }
+/* Music page: same layout as Videoke, with a plain player queue */
+.mu .jbx-play { max-width: 260px; }
+.mu-ctrls { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; }
+.mu-skip { flex: none; width: 50px; height: 50px; border-radius: 50%; border: 2.5px solid var(--ink); background: #fff; color: var(--ink); display: grid; place-items: center; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+.mu-skip .ic { width: 22px; height: 22px; }
+.mu-skip:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.jbx-body--one { grid-template-areas: "center" "lib" !important; grid-template-columns: minmax(0, 1fr) !important; }
+.jbx-body--one .jbx-panel { height: auto; }
+.mu-q { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; }
+.mu-q li { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #0001; }
+.mu-q li:last-child { border-bottom: 0; }
+.mu-row { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 4px; cursor: pointer; border-radius: 8px; }
+.mu-row:hover { background: var(--cream); }
+.mu-row:focus-visible { outline: 3px solid var(--turq); }
+.mu-n { flex: none; width: 26px; text-align: center; font: 800 13px/1 var(--f); color: var(--ink-3); display: grid; place-items: center; }
+.mu-n .ic { width: 16px; height: 16px; }
+.mu-t { min-width: 0; }
+.mu-t b { display: block; font: 800 14px/1.25 var(--f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-t small { display: block; font: 700 12px/1.3 var(--f); color: var(--ink-3); }
+.mu-q li.now { background: var(--leaf-soft); border-radius: 10px; }
+.mu-q li.now .mu-n { color: var(--leaf); }
+.mu-q li.locked .mu-t b { color: var(--ink-3); }
+.mu-empty { padding: 10px 4px; color: var(--ink-3); font-weight: 700; }
+/* Card: one Theme button (painted in the current theme) that opens the theme pop-up */
+.theme-pick { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 44px; padding: 8px 14px; border: 2.5px solid; border-radius: 12px; cursor: pointer;
+  font: 700 14px/1.2 var(--f); background-size: cover; background-position: center; box-shadow: var(--shadow-sm); }
+.theme-pick b { font-weight: 800; }
+.theme-pick > span { padding: 2px 8px; border-radius: 8px; }
+.theme-pick[style*="background-image"] > span { background: #fffd; color: var(--ink); }
+.theme-pick .ic { width: 18px; height: 18px; flex: none; }

@@ -824,7 +824,7 @@ async function cardUploadBg(input) {
   if (!blob) { toast('Hindi ma-save ang picture'); return; }
   await idb('images', 'readwrite', s => s.put({ id: 'cardbg', blob }));
   await setCardBgBlob(blob); CARD_BG.loaded = true;
-  ensureCard(); BIDA.card.theme = 'own'; saveState(); renderCard(); toast('Naka-set na ang background mo!');
+  ensureCard(); BIDA.card.theme = 'own'; saveState(); closeSheet(); renderCard(); toast('Naka-set na ang background mo!');
 }
 async function cardRemoveBg() {
   if (!await askConfirm('Tanggalin ang background mo?', 'Remove')) return;
@@ -850,10 +850,13 @@ function cardDefaults() {
   const theme = (CARD_THEMES.find(t => t.for.includes(e.type)) || CARD_THEMES[2]).id;
   return { theme, size: 'post', ownPanel: '1', intro: 'Imbitado ka sa', title: e.name || et.label, sub: '', date: e.date || '', time: e.start || '', venue: e.venue || '', msg: 'Kainan, games at kwentuhan — mas masaya kapag nandito ka!', rsvp: '' };
 }
+// These card fields ARE the plan's event details: editing either side updates the other
+const CARD_SYNC = { title: 'name', date: 'date', time: 'start', venue: 'venue' };
 function ensureCard() {
   const d = cardDefaults(), c = BIDA.card && typeof BIDA.card === 'object' ? BIDA.card : {};
   const out = {};
   for (const k of Object.keys(d)) out[k] = typeof c[k] === 'string' ? c[k].slice(0, k === 'msg' ? 220 : 90) : d[k];
+  for (const [k, ek] of Object.entries(CARD_SYNC)) out[k] = String(BIDA.event[ek] || (k === 'title' ? eventType().label : '')).slice(0, 90);
   if (out.theme !== 'own' && !CARD_THEMES.some(t => t.id === out.theme)) out.theme = d.theme;
   if (!CARD_SIZES[out.size]) out.size = 'post';
   BIDA.card = out;
@@ -923,8 +926,7 @@ function renderCard() {
   ensureCard();
   const c = BIDA.card, type = BIDA.event.type;
   const fit = CARD_THEMES.filter(t => t.for.includes(type)), rest = CARD_THEMES.filter(t => !t.for.includes(type));
-  const chip = t => `<button class="theme-chip ${t.id === c.theme ? 'on' : ''}" onclick="setCard('theme','${t.id}')" aria-pressed="${t.id === c.theme}">
-      <span class="theme-sw" style="background:${t.bg};color:${t.accent}"><span style="background:${t.accent}"></span></span>${esc(t.name)}</button>`;
+  const own = c.theme === 'own' && CARD_BG.img, cur = own ? null : cardTheme();
   const field = (k, label, ph, type = 'text') => `<div class="field"><label for="cd-${k}">${label}</label>${type === 'area'
     ? `<textarea class="input" id="cd-${k}" rows="3" maxlength="220" placeholder="${esc(ph)}" oninput="setCard('${k}',this.value)">${esc(c[k])}</textarea>`
     : `<input class="input" id="cd-${k}" type="${type}" maxlength="90" placeholder="${esc(ph)}" value="${esc(c[k])}" oninput="setCard('${k}',this.value)">`}</div>`;
@@ -934,20 +936,20 @@ function renderCard() {
     <div class="card-layout">
       <div class="card-preview-wrap">
         <canvas id="card-canvas" class="card-canvas card-canvas--${c.size}" aria-label="Preview ng invitation card"></canvas>
+        <div class="seg-ctrl seg-ctrl--light card-sizes" role="group" aria-label="Laki ng card">
+          ${Object.entries(CARD_SIZES).map(([k, v]) => `<button class="${c.size === k ? 'on' : ''}" onclick="setCard('size','${k}')">${v[2]}</button>`).join('')}</div>
         <div class="card-actions">
-          <button class="btn btn--magenta" onclick="downloadCard()">${ic('upload')}Download</button>
-          <button class="btn btn--chili" onclick="cardShowTV()">${ic('play')}Show sa TV</button>
-          ${navigator.share ? `<button class="btn btn--ink" onclick="shareCard()">${ic('arrow')}Share</button>` : ''}
+          <button class="btn btn--magenta" onclick="downloadCard()" aria-label="Download">${ic('upload')}Download</button>
+          <button class="btn btn--chili" onclick="cardShowTV()" aria-label="Show sa TV">${ic('play')}Show sa TV</button>
+          ${navigator.share ? `<button class="btn btn--ink" onclick="shareCard()" aria-label="Share">${ic('arrow')}Share</button>` : ''}
         </div>
       </div>
       <div class="card-form">
-        <span class="field-label">Theme — bagay sa ${esc(eventType().label)}</span>
-        <div class="theme-chips">${fit.map(chip).join('')}</div>
-        <details class="more-themes" ${CARD_UI.more ? 'open' : ''} ontoggle="CARD_UI_more(this.open)"><summary>Iba pang themes</summary><div class="theme-chips">${rest.map(chip).join('')}</div></details>
-        <div id="own-bg-wrap" style="margin-top:14px">${cardOwnHTML()}</div>
-        <div class="seg-ctrl seg-ctrl--light" role="group" aria-label="Laki ng card" style="margin:14px 0 4px">
-          ${Object.entries(CARD_SIZES).map(([k, v]) => `<button class="${c.size === k ? 'on' : ''}" onclick="setCard('size','${k}')">${v[2]}</button>`).join('')}</div>
-        <div class="stack" style="margin-top:12px">
+        <button class="theme-pick" onclick="cardThemeSheet()" ${own ? `style="background-image:url('${CARD_BG.url}')"` : `style="background:${cur.bg};color:${cur.accent};border-color:${cur.accent}"`}>
+          <span>Theme: <b>${own ? 'Picture mo' : esc(cur.name)}</b></span>${ic('down')}</button>
+        ${own ? `<div class="own-opts"><label class="toggle"><input type="checkbox" ${c.ownPanel === '0' ? '' : 'checked'} onchange="setCard('ownPanel', this.checked ? '1' : '0')">Box sa likod ng text</label>
+          <button class="linkish" onclick="cardRemoveBg()">Tanggalin ang picture</button></div>` : ''}
+        <div class="stack card-fields">
           ${field('intro', 'Intro', 'Imbitado ka sa')}
           ${field('title', 'Event name', eventType().label)}
           ${field('sub', 'From', 'hal. Santos Family')}
@@ -955,7 +957,7 @@ function renderCard() {
           ${field('venue', 'Saan', 'hal. Bahay ni Lola, Brgy. San Jose, Batangas')}
           ${field('msg', 'Mensahe', 'Maikling paanyaya', 'area')}
           ${field('rsvp', 'RSVP / contact', 'hal. Tita Bing · 0917 123 4567')}
-          <button class="btn btn--ghost btn--sm" onclick="resetCard()">Kunin ulit ang details sa Plan</button>
+          <p class="pro-small" style="text-align:left">Event name, petsa, oras at saan: pareho sa Plan. Palitan dito o doon, sabay silang magbabago.</p>
         </div>
       </div>
     </div>`;
@@ -965,13 +967,23 @@ function renderCard() {
   if (!cardFontsReady && document.fonts) Promise.all([document.fonts.load(`800 80px "Bricolage Grotesque"`), document.fonts.load(`700 40px "Nunito"`), document.fonts.load(`italic 600 40px "Nunito"`)])
     .then(() => { cardFontsReady = true; draw(); }).catch(() => { });
 }
+// Theme pop-up: every theme (the ones for this event first) plus your own picture
+function cardThemeSheet() {
+  ensureCard();
+  const c = BIDA.card, type = BIDA.event.type, own = c.theme === 'own' && CARD_BG.img;
+  const list = [...CARD_THEMES.filter(t => t.for.includes(type)), ...CARD_THEMES.filter(t => !t.for.includes(type))];
+  openSheet(`<div class="sheet-head"><h3>Theme</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <div class="theme-chips">${list.map(t => `<button class="theme-chip ${t.id === c.theme ? 'on' : ''}" style="background:${t.bg};color:${t.accent};border-color:${t.accent}" onclick="cardPickTheme('${t.id}')" aria-pressed="${t.id === c.theme}">${esc(t.name)}</button>`).join('')}
+      ${CARD_BG.img ? `<button class="theme-chip theme-chip--pic ${own ? 'on' : ''}" style="background-image:url('${CARD_BG.url}')" onclick="cardPickTheme('own')" aria-pressed="${!!own}"><span>Picture mo</span></button>` : ''}
+      <label class="theme-chip theme-chip--up">${ic('upload')}${CARD_BG.img ? 'Palitan ang picture' : 'Upload picture'}<input type="file" accept="image/*" hidden onchange="cardUploadBg(this)"></label></div>
+    <p class="pro-small" style="text-align:left">Ang picture ay sa device mo lang naka-save.</p>`);
+}
+function cardPickTheme(id) { closeSheet(); setCard('theme', id); }
 function setCard(k, v) {
-  ensureCard(); BIDA.card[k] = String(v).slice(0, k === 'msg' ? 220 : 90); saveState();
-  if (k === 'theme') {     // update the chips in place so open/closed sections stay as they are
-    $$('.theme-chip').forEach(b => { const on = b.getAttribute('onclick') === `setCard('theme','${v}')`; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
-    const w = $('#own-bg-wrap'); if (w) w.innerHTML = cardOwnHTML();
-    redrawCard();
-  } else if (k === 'size') renderCard(); else redrawCard();
+  ensureCard(); BIDA.card[k] = String(v).slice(0, k === 'msg' ? 220 : 90);
+  if (CARD_SYNC[k]) { BIDA.event[CARD_SYNC[k]] = BIDA.card[k]; renderHead(); }      // same details as the Plan
+  saveState();
+  if (k === 'theme' || k === 'size' || k === 'ownPanel') renderCard(); else redrawCard();
 }
 async function resetCard() {
   if (!await askConfirm('Gamitin ulit ang name, date at time galing sa Plan?', 'Palitan')) return;
@@ -1384,23 +1396,27 @@ function renderGames() {
   const list = BIDA_GAMES.filter(gameMatch);
   $('#panel-games').innerHTML = `
     <div class="panel-head"><div><h2>Mga Laro</h2>
-      <p>I-tap ang game para makita ang steps, tapos i-add sa activities.</p></div></div>
+      <p>Tap <b>i</b> para sa steps, <b>+</b> para i-add agad sa plan.</p></div></div>
     <div class="tools-row" role="group" aria-label="Game tools">
-      <button onclick="sbSetup()"><span class="tr-ic" style="background:var(--gold)">${ic('trophy')}</span>Scoreboard</button>
-      <button onclick="raffleSetup()"><span class="tr-ic" style="background:var(--magenta)">🎟️</span>Raffle</button>
-      <button onclick="timerOpen()"><span class="tr-ic" style="background:var(--turq)">⏱️</span>Timer</button>
-      <button onclick="diceSetup()"><span class="tr-ic" style="background:#fff">🎲</span>Dice</button>
-      <button onclick="colorSetup()"><span class="tr-ic" style="background:var(--leaf)">🎨</span>Kulay</button>
-      <button onclick="henyoSetup()"><span class="tr-ic" style="background:var(--chili-soft)">🧠</span>Henyo</button>
+      <button onclick="sbSetup()" aria-label="Scoreboard"><span class="tr-ic" style="background:var(--gold)">${ic('trophy')}</span><span class="tr-l">Score</span></button>
+      <button onclick="raffleSetup()"><span class="tr-ic" style="background:var(--magenta)">🎟️</span><span class="tr-l">Raffle</span></button>
+      <button onclick="timerOpen()"><span class="tr-ic" style="background:var(--turq)">⏱️</span><span class="tr-l">Timer</span></button>
+      <button onclick="diceSetup()"><span class="tr-ic" style="background:#fff">🎲</span><span class="tr-l">Dice</span></button>
+      <button onclick="colorSetup()"><span class="tr-ic" style="background:var(--leaf)">🎨</span><span class="tr-l">Kulay</span></button>
+      <button onclick="henyoSetup()"><span class="tr-ic" style="background:var(--chili-soft)">🧠</span><span class="tr-l">Henyo</span></button>
     </div>
     <div class="game-filters">${GAME_FILTERS.map(([id, l]) => `<button class="chip ${gameFilter === id ? 'on' : ''}" onclick="setGameFilter('${id}')">${l}</button>`).join('')}</div>
     <div class="game-grid">${list.map(g => `
-      <button class="gcard" onclick="openGame('${g.id}')">
+      <article class="gcard">
+        <button class="gcard-open" onclick="openGame('${g.id}')" aria-label="${esc(g.name)}: paano laruin">
         ${sceneHTML(g)}
         <div class="gcard-body"><b>${esc(g.name)}</b>
           <div class="gcard-meta"><span>${ic('people', 'ic')} ${esc(g.players)}</span><span>${esc(g.time)}</span>
             <span class="energy" aria-label="Energy ${g.energy} of 3">${[1, 2, 3].map(n => `<i class="${n <= g.energy ? 'on' : ''}"></i>`).join('')}</span></div>
-        </div></button>`).join('')}</div>`;
+        </div></button>
+        <div class="gcard-btns">
+          <button class="gcard-btn gcard-btn--add" onclick="quickAddGame('${g.id}')" aria-label="I-add ang ${esc(g.name)} sa plan" title="Add sa plan">${ic('plus')}</button>
+          <button class="gcard-btn" onclick="openGame('${g.id}')" aria-label="Info: ${esc(g.name)}" title="Paano laruin"><span aria-hidden="true">i</span></button></div></article>`).join('')}</div>`;
   $$('#panel-games .gcard-meta .ic').forEach(i => { i.style.width = '13px'; i.style.height = '13px'; i.style.verticalAlign = '-2px'; });
   watchScenes($('#panel-games'));
 }
@@ -1437,6 +1453,14 @@ function playSteps() {
 function checkMat(id, i, on) {
   const a = new Set(BIDA.gameChecks[id] || []); on ? a.add(i) : a.delete(i);
   BIDA.gameChecks[id] = [...a]; saveState();
+}
+// Add from the game card without opening it, after a quick confirm
+async function quickAddGame(id) {
+  const g = gameById(id); if (!g) return;
+  const n = BIDA.program.filter(s => s.game === id).length;
+  const m = Math.max(parseInt(g.time, 10) || 15, 10);
+  if (!await askConfirm(`I-add ang "${g.name}" sa plan? (${m} min)${n ? ` Nasa plan na ito (${n}×).` : ''}`, 'Oo, i-add')) return;
+  addGameToProgram(id);
 }
 function addGameToProgram(id) {
   const g = gameById(id), m = parseInt(g.time, 10) || 15;
@@ -2502,6 +2526,9 @@ function updateBar(src) {
   $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang music';
   $('#mb-sub').textContent = has ? [barSrc, M.pos, M.faded ? 'faded out' : ''].filter(Boolean).join(' · ') : (ytLinks().length ? 'Tap para i-play ang naka-save' : 'Tap para mag-set ng music');
   $$('.mb-play-ic').forEach(u => u.setAttribute('href', M.playing ? '#i-pause' : '#i-play'));
+  $$('.mu-play-l').forEach(s => s.textContent = M.playing ? 'PAUSE' : 'PLAY');
+  const mn = $('#mu-now'); if (mn) mn.innerHTML = muNowHTML();
+  const mq = $('#mu-q'); if (mq) mq.innerHTML = muQueueItems();
   $$('.mb-fade').forEach(b => { b.classList.toggle('on', M.faded); b.querySelector('span').textContent = M.faded || (has && !M.playing) ? 'Fade in' : 'Fade out'; });
   $$('.mb-vol').forEach(r => r.value = BIDA.music.master);
   $$('.o-duck').forEach(o => o.textContent = Math.round(BIDA.music.duck * 100) + '%');
@@ -2645,40 +2672,47 @@ function renderMusic() {
   const m = BIDA.music;
   if (!['youtube', 'spotify', 'local'].includes(m.src)) m.src = 'youtube';   // the old "link only" option is gone
   if (!ML.loaded) mlLoad().then(() => { if (BIDA.tab === 'music') renderMusic(); });
-  $('#panel-music').innerHTML = `
-    <div class="panel-head"><div><h2>Music setup</h2>
-      <p>Dito i-set ang music. Play, fade at Talk: nasa bar sa baba.</p></div></div>
-    <div class="src-tabs" role="tablist">
-      ${[['youtube', 'Music library', ''], ['spotify', 'Spotify', BIDA.premium ? '' : 'Premium'], ['local', 'Sariling files', '']].map(([id, l, s]) =>
-        `<button class="src-tab ${m.src === id ? 'on' : ''}" role="tab" aria-selected="${m.src === id}" onclick="setMusicSrc('${id}')">${l}${s ? `<small>${s}</small>` : ''}</button>`).join('')}
-    </div>
-    <div class="card stack">
-      <div ${m.src === 'youtube' ? '' : 'hidden'}>
-        <div class="yt-head"><span class="field-label">${BIDA.premium ? 'Playlist mo' : 'Songs mo'}</span></div>
-        ${plBarHTML()}
-        ${ytListHTML()}
-        <span class="field-label" style="display:block;margin-top:18px">Pili ng songs</span>
+  const src = m.src;
+  // left column: what plays next (a plain music-player queue) · right column: where songs come from
+  const queue = src === 'youtube' ? `<div class="vk-qhead"><h3>Queue <small class="muted">(${ytLinks().length})</small></h3></div>${plBarHTML()}<ol class="mu-q" id="mu-q">${muQueueItems()}</ol>`
+    : src === 'local' ? `<div class="vk-qhead"><h3>Queue <small class="muted">(${MFILES.length})</small></h3></div>${musicFilesHTML()}` : '';
+  const lib = src === 'youtube' ? `<div class="vk-qhead"><h3>Music library</h3></div>
         <div id="ml-catbar">${mlCatBarHTML()}</div>
         <div class="vk-find" style="margin-top:8px"><input class="input" id="ml-q" placeholder="Search song o artist" value="${esc(ML.q)}" oninput="mlFind(this.value)" autocomplete="off"></div>
-        <div id="ml-res" style="margin-top:6px">${mlResultsHTML()}</div>
-        ${braveTipHTML()}
-      </div>
-      <div ${m.src === 'spotify' ? '' : 'hidden'}>
-        ${BIDA_CONFIG.spotifyClientId ? `
+        <div id="ml-res" style="margin-top:6px">${mlResultsHTML()}</div>`
+    : src === 'local' ? `<div class="vk-qhead"><h3>Sariling files</h3></div>
+        <button class="btn btn--turq btn--block" style="margin-top:8px" onclick="${BIDA.premium || MFILES.length < FREE_MUSIC_FILES ? `$('#local-files').click()` : `openPremium('Music files')`}">${ic('upload')}Add music files</button>
+        <input type="file" id="local-files" accept="audio/*" multiple hidden onchange="loadLocal(this.files);this.value=''">
+        <p class="note" style="margin-top:10px">${ic('check')}<span>Mp3 o m4a galing sa device mo. Dito lang naka-save, <b>hindi ina-upload</b>. Gamitin lang ang files na sa'yo.</span></p>`
+    : `<div class="vk-qhead"><h3>Spotify</h3></div>${BIDA_CONFIG.spotifyClientId ? `
         <div class="field"><label for="sp-url">Spotify playlist / album link</label>
           <input class="input" id="sp-url" placeholder="https://open.spotify.com/playlist/…" value="${esc(m.spUrl)}"></div>
         <button class="btn btn--leaf btn--block" style="margin-top:12px" onclick="spPlay()">${ic('play')}${spToken() ? 'Load' : 'Connect at load'}</button>
         <p class="note" style="margin-top:12px">Kailangan ng <b>Spotify Premium</b>. ${isMobileUA ? 'Sa phone o tablet, open muna ang Spotify app. Yun ang ico-control natin, pati fade.' : 'Sa computer, dito mismo magpe-play.'}</p>` : `
-        <p class="note">Hindi pa naka-setup ang Spotify (kailangan ng Client ID ng developer).</p>`}
-      </div>
-      <div ${m.src === 'local' ? '' : 'hidden'}>
-        <button class="btn btn--turq btn--block" onclick="${BIDA.premium || MFILES.length < FREE_MUSIC_FILES ? `$('#local-files').click()` : `openPremium('Music files')`}">${ic('upload')}Add music files</button>
-        <input type="file" id="local-files" accept="audio/*" multiple hidden onchange="loadLocal(this.files);this.value=''">
-        <div class="yt-head" style="margin-top:12px"><span class="field-label">Naka-save sa device na 'to</span></div>
-        ${musicFilesHTML()}
-        <p class="note" style="margin-top:10px">${ic('check')}<span>Mp3 o m4a galing sa device mo. Dito lang naka-save, <b>hindi ina-upload</b>. Gamitin lang ang files na sa'yo.</span></p>
-      </div>
+        <p class="note">Hindi pa naka-setup ang Spotify (kailangan ng Client ID ng developer).</p>`}`;
+  $('#panel-music').innerHTML = `
+    <div class="panel-head"><div><h2>Music</h2><p>Pili ng songs, tapos PLAY. Talk at Fade: nasa bar sa baba.</p></div></div>
+    <div class="src-tabs" role="tablist">
+      ${[['youtube', 'Music library', ''], ['spotify', 'Spotify', BIDA.premium ? '' : 'Premium'], ['local', 'Sariling files', '']].map(([id, l, s]) =>
+        `<button class="src-tab ${src === id ? 'on' : ''}" role="tab" aria-selected="${src === id}" onclick="setMusicSrc('${id}')">${l}${s ? `<small>${s}</small>` : ''}</button>`).join('')}
     </div>
+    <section class="jbx mu" aria-label="Music player">
+      <div class="jbx-body ${queue ? '' : 'jbx-body--one'}">
+      <div class="jbx-center">
+        <span class="jbx-now" id="mu-now">${muNowHTML()}</span>
+        <div class="mu-ctrls">
+          <button class="mu-skip" onclick="musicSkip(-1)" aria-label="Previous">${ic('prev')}</button>
+          <button class="jbx-play ${M.kind || ytLinks().length || MFILES.length ? 'is-ready' : ''}" onclick="musicToggle()" aria-label="Play o pause">
+            <svg class="ic"><use class="mb-play-ic" href="#i-${M.playing ? 'pause' : 'play'}"/></svg><span class="mu-play-l">${M.playing ? 'PAUSE' : 'PLAY'}</span></button>
+          <button class="mu-skip" onclick="musicSkip(1)" aria-label="Next">${ic('next')}</button>
+        </div>
+        <span class="jbx-sub">${src === 'spotify' ? 'Spotify ang tutugtog.' : 'Hihina ang music pag pinindot ang Talk sa baba.'}</span>
+      </div>
+      ${queue ? `<div class="jbx-panel vk-queue">${queue}</div>` : ''}
+      <div class="jbx-panel jbx-lib">${lib}</div>
+      </div>
+    </section>
+    ${src === 'youtube' ? braveTipHTML() : ''}
     <div class="card stack">
       <h3>Talk</h3>
       ${talkControls('tab')}
@@ -2688,6 +2722,25 @@ function renderMusic() {
         <input type="range" id="sl-sens" min="0.05" max="1" step="0.05" value="${m.sens}" oninput="BIDA.music.sens=+this.value;saveState();$('#o-sens').textContent=Math.round(this.value*100)+'%'"></div>` : ''}
     </div>
     ${isAdmin() ? mlAdminHTML() : ''}`;
+}
+// What's playing (shown in the yellow bar)
+function muNowHTML() {
+  if (M.kind && M.title) return `${ic('music')}${M.playing ? 'Tumutugtog' : 'Naka-pause'}: <b>${esc(M.title)}</b>`;
+  return ytLinks().length || MFILES.length ? 'Ready na. PLAY para magsimula.' : 'Pumili muna ng songs sa library';
+}
+// A plain music-player queue: number (or the playing sign), title, remove. Tap a row to play it.
+function muQueueItems() {
+  const links = ytLinks();
+  if (!links.length) return '<li class="mu-empty">Wala pang songs. Pili sa library.</li>';
+  return links.map((l, i) => {
+    if (!plMatch(i)) return '';
+    const now = i === BIDA.music.ytIdx && M.kind === 'youtube', ok = ytCanUse(i);
+    return `<li class="${now ? 'now' : ''} ${ok ? '' : 'locked'}">
+      <button class="mu-row" onclick="playYouTube(${i})" aria-label="I-play ${esc(ytLabel(l, i))}">
+        <span class="mu-n">${now ? ic(M.playing ? 'sound' : 'pause') : ok ? i + 1 : ic('lock')}</span>
+        <span class="mu-t"><b>${esc(ytLabel(l, i))}</b>${ytCat(l) || !ok ? `<small>${esc(ytCat(l) || '')}${ok ? '' : ' Premium'}</small>` : ''}</span></button>
+      <button class="icon-btn icon-btn--plain" onclick="delYouTube(${i})" aria-label="Tanggalin">${ic('x')}</button></li>`;
+  }).join('');
 }
 function setMusicSrc(id) { BIDA.music.src = id; saveState(); renderMusic(); }
 
@@ -3001,35 +3054,44 @@ function renderVideoke() {
   if (VK.artist && !artists.some(([k]) => k === VK.artist)) VK.artist = '';
   const res = vkSearch(), shown = res.slice(0, 90);
   const now = VK.cur && vkSong(VK.cur.c);
+  const ready = v.queue.length || VK.cur, nxt = v.queue[0];
   $('#panel-videoke').innerHTML = `
-    <div class="panel-head"><div><h2>Videoke</h2>
-      <p>Search ng song, i-reserve, tapos kanta na! ${VK.lib.length} songs sa library.</p></div>
-      <button class="btn btn--chili" onclick="vkStart()" ${v.queue.length || VK.cur ? '' : 'disabled'}>${ic('play')}${VK.cur ? 'Open screen' : 'Start'}</button></div>
-    <div class="card vk-queue">
-      <div class="vk-qhead"><h3>Nakapila <small class="muted">(${v.queue.length})</small></h3>
-        ${now ? `<span class="vk-nowtag">${ic('mic')}<b>${esc(VK.cur.singer || 'Bisita')}</b> · ${esc(now.t)}</span>` : ''}</div>
+    <div class="panel-head"><div><h2>Videoke</h2><p>Pili ng kanta, i-reserve, tapos PLAY. ${VK.lib.length ? VK.lib.length.toLocaleString() + ' songs sa library.' : ''}</p></div></div>
+    <section class="jbx" aria-label="Videoke">
+      <div class="jbx-body">
+      <div class="jbx-center">
+        <span class="jbx-now">${now ? `${ic('mic')}Kumakanta: <b>${esc(VK.cur.singer || 'Bisita')}</b>` : nxt ? `Susunod: <b>${esc(nxt.singer || 'Bisita')}</b>` : 'Wala pang nakapila'}</span>
+        <button class="jbx-play ${ready ? 'is-ready' : ''}" onclick="vkPlayBtn()" aria-label="${VK.cur ? 'Buksan ang videoke screen' : 'Play: simulan ang videoke'}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg><span>${VK.cur ? 'Buksan ang screen' : 'PLAY'}</span></button>
+        <span class="jbx-sub">${ready ? 'Kanta na! Bubukas ang malaking screen.' : 'Pumili muna ng kanta sa library.'}</span>
+        <label class="toggle vk-scoretg jbx-score"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score sa dulo ng kanta</label>
+      </div>
+    <div class="jbx-panel vk-queue">
+      <div class="vk-qhead"><h3>Nakapila <small class="muted">(${v.queue.length})</small></h3></div>
       ${v.queue.length ? `<ol class="vk-q vk-q--slim">${v.queue.map((q, i) => { const s = vkSong(q.c); return `<li><span class="vk-qn">${i + 1}</span>
         <span class="vk-qav">${vkFace({ av: q.av || vkAvatarFor(q.singer), ph: q.ph }, 26)}</span>
         <div><b>${esc(q.singer || 'Bisita')}</b><small>${esc(s ? s.t : 'Kanta')}${q.src === 'guest' ? ' · via link' : ''}</small></div>
         <span class="admin-act"><button class="icon-btn icon-btn--plain" onclick="vkQMove(${i},-1)" ${i ? '' : 'disabled'} aria-label="Taas">${ic('up')}</button>
         <button class="icon-btn icon-btn--plain" onclick="vkQDel(${i})" aria-label="Alisin">${ic('x')}</button></span></li>`; }).join('')}</ol>`
-        : '<p class="muted" style="margin-top:6px">Wala pang nakapila. Pili ng song sa baba.</p>'}
+        : '<p class="muted jbx-empty">Wala pang nakapila. Pili ng song sa library.</p>'}
     </div>
-    ${BIDA.premium ? vkRoomHTML() : ''}
-    ${braveTipHTML()}
-    <div class="card" style="margin-top:16px">
+    <div class="jbx-panel jbx-lib" id="vk-lib">
+      <div class="vk-qhead"><h3>Song library</h3></div>
       <!-- Search, Artist and By song each work on their own: turning one on turns the others off -->
       <div class="vk-tools" role="toolbar" aria-label="Hanapin ang kanta">
         <button class="vk-tool vk-tool--ic ${VK.mode === 'search' ? 'on' : ''}" onclick="vkMode('search')" aria-pressed="${VK.mode === 'search'}" aria-label="Search" title="Search">${ic('search')}</button>
         <button class="vk-tool ${VK.mode === 'artist' ? 'on' : ''}" onclick="vkMode('artist')" aria-haspopup="dialog">${ic('people')}<span>${VK.artist ? esc((artists.find(([k]) => k === VK.artist) || [, 'Artist'])[1]) : 'Artist'}</span></button>
-        <button class="vk-tool ${VK.mode === 'letter' ? 'on' : ''}" onclick="vkMode('letter')" aria-pressed="${VK.mode === 'letter'}">${ic('music')}<span>${VK.letter ? 'Song: ' + VK.letter : 'By song'}</span></button>
-        <label class="toggle vk-scoretg"><input type="checkbox" ${v.score ? 'checked' : ''} onchange="vkScoreToggle(this.checked)">Score</label></div>
+        <button class="vk-tool ${VK.mode === 'letter' ? 'on' : ''}" onclick="vkMode('letter')" aria-pressed="${VK.mode === 'letter'}">${ic('music')}<span>${VK.letter ? 'Song: ' + VK.letter : 'By song'}</span></button></div>
       ${VK.mode === 'search' ? `<div class="vk-find" style="margin-top:10px"><input class="input" id="vk-q" placeholder="Type ang song o artist" value="${esc(VK.q)}" oninput="vkFind(this.value)" autocomplete="off">
           <button class="vk-find-x" id="vk-q-x" onclick="vkMode('search')" aria-label="Close search">${ic('x')}</button></div>` : ''}
       ${VK.mode === 'letter' && letters.length > 1 ? `<div class="vk-letters" role="group" aria-label="Unang letra ng song">${letters.map(l => `<button class="${VK.letter === l ? 'on' : ''}" aria-pressed="${VK.letter === l}" onclick="vkSetLetter('${l}')">${l}</button>`).join('')}</div>` : ''}
       <div id="vk-fbar">${vkFilterBar(res.length)}</div>
       <div id="vk-results">${vkResultsHTML(shown, res.length)}</div>
     </div>
+      </div>
+    </section>
+    ${BIDA.premium ? vkRoomHTML() : ''}
+    ${braveTipHTML()}
     ${vkMineHTML()}
     ${isAdmin() ? vkAdminHTML() : ''}`;
 }
@@ -3099,10 +3161,17 @@ function vkResultsHTML(shown, total) {
   if (!VK.lib.length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang songs sa library.' : 'Loading ang library…'}</p>`;
   if (!shown.length) return '<p class="muted" style="margin-top:12px">Walang lumabas.</p>';
   const cnt = vkQCounts(), open = shown.filter(s => vkCanSing(s.c)), locked = shown.filter(s => !vkCanSing(s.c));
-  const rows = open.length ? `<ul class="vk-list">${open.map(s => { const n = cnt.get(s.c) || 0; return `<li class="${n ? 'queued' : ''}"><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div>
+  const rows = open.length ? `<ul class="vk-list">${open.map(s => { const n = cnt.get(s.c) || 0; return `<li class="${n ? 'queued' : ''}"><span class="jbx-code">${s.c}</span><div><b>${esc(s.t)}</b><small>${esc(s.a)}</small></div>
     <button class="vk-add ${n ? 'on' : ''}" onclick="vkReserve(${s.c})" aria-label="${n ? `Nakapila na ×${n}. Reserve ulit` : 'Reserve'}: ${esc(s.t)}" title="${n ? `Nakapila na ×${n}` : 'Reserve'}">${n ? `<span class="vk-cnt">${n}</span>` : ic('plus')}</button></li>`; }).join('')}</ul>` : '';
   if (locked.length) return rows + vkUnlockHTML(locked.slice(0, 12));
   return rows + (total > shown.length ? `<p class="muted" style="margin-top:8px">+${total - shown.length} pa. I-type ang hinahanap o gamitin ang filter.</p>` : '');
+}
+function vkPlayBtn() {
+  const v = vkState();
+  if (v.queue.length || VK.cur) { vkStart(); return; }
+  toast('Pumili muna ng kanta sa library, tapos PLAY na!');
+  const lib = $('#vk-lib'); lib?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  lib?.classList.add('jbx-flash'); setTimeout(() => lib?.classList.remove('jbx-flash'), 1200);
 }
 function vkFind(q) {
   VK.q = q; const res = vkSearch();
@@ -5159,7 +5228,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
-  openReceipt, copyRefLink, trialStart, welPickDate, welOpt, fitToEnd, tvGuideGo, tvGuideRemote, shareTrialLink, openReferrals, revokeTrial, actRaffle, rmtKick, welType, welSet, welGo, welDone, cleanNames, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  openReceipt, copyRefLink, quickAddGame, cardThemeSheet, cardPickTheme, trialStart, welPickDate, welOpt, fitToEnd, tvGuideGo, tvGuideRemote, shareTrialLink, openReferrals, revokeTrial, actRaffle, rmtKick, welType, welSet, welGo, welDone, cleanNames, vkPlayBtn, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
