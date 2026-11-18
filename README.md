@@ -1,5 +1,7 @@
 # Bida-Vibe
 
+> © 2026 Bida-Vibe. All rights reserved. This code is public only to host the website; it is not open source. No copying, reuse or redistribution without written permission. See [LICENSE](LICENSE).
+
 Simple but powerful host buddy for Filipino family events and any group gathering — reunions, Christmas parties, birthdays, barkada nights, office parties, binyag, despedida, fiesta.
 
 No build step, no npm. Open `index.html` or push to GitHub Pages.
