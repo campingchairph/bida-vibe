@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bida.css?v=20261118a">
+<link rel="stylesheet" href="bida.css?v=20261118b">
 </head>
 <body>
 
@@ -73,7 +73,7 @@
 <section id="landing" class="landing" aria-label="Bida-Vibe welcome">
   <div class="bunting bunting--hero" aria-hidden="true"></div>
   <nav class="land-nav">
-    <a class="wordmark" href="#" onclick="return false">Bida<span>-</span>Vibe</a>
+    <a class="wordmark" href="./" aria-label="Bida-Vibe home">Bida<span>-</span>Vibe</a>
     <button class="btn btn--ink btn--sm" onclick="enterApp()">Open app</button>
   </nav>
   <div class="land-hero">
@@ -91,11 +91,12 @@
     <ul class="land-stats fade-up" style="--d:.7s">
       <li><b data-count="9">9</b><span>event types</span></li>
       <li><b data-count="40">40</b><span>party games</span></li>
-      <li><b data-count="20">20</b><span>sound pads</span></li>
+      <li><b data-count="8">8</b><span>libreng sound pads</span></li>
     </ul>
+    <p class="land-free fade-up" style="--d:.75s"><b>Libre:</b> plan, 40 games, card, raffle, scoreboard, 8 pads, 20 videoke songs.<br><b>Premium:</b> lahat ng songs at pads, Talk at Fade, QR para sa guests.</p>
     <div class="land-cards fade-up" style="--d:.5s" aria-hidden="true">
       <div class="tcard tcard--gold"><small>7:00 PM</small><b>Trip to Jerusalem</b><em>15 min · may animated how-to</em></div>
-      <div class="tcard tcard--turq"><small>Talk</small><b>I-hold habang nagsasalita. Hihina ang music, balik pag tapos ka na.</b></div>
+      <div class="tcard tcard--turq"><small>Talk · Premium</small><b>I-hold habang nagsasalita. Hihina ang music, balik pag tapos ka na.</b></div>
       <div class="tcard tcard--magenta"><small>Sound pads</small><b>Boink · Tawa · Faah · Drumroll</b></div>
     </div>
   </div>
@@ -109,7 +110,7 @@
     <div class="head-row">
       <button class="wordmark wordmark--sm" onclick="showLanding()" aria-label="Bida-Vibe home">Bida<span>-</span>Vibe</button>
       <div class="head-event" id="head-event"></div>
-      <button class="icon-btn acct-btn" id="acct-btn" onclick="openAccount()" aria-label="Account"><svg class="ic"><use href="#i-people"/></svg></button>
+      <button class="icon-btn acct-btn" id="acct-btn" onclick="openAccount()" aria-label="Account" title="Account"><svg class="ic"><use href="#i-people"/></svg></button>
       <button class="btn btn--ghost btn--sm view-btn" id="view-btn" onclick="toggleView()" aria-label="Palitan ang view: host o TV"></button>
       <button class="btn btn--ghost btn--sm remote-btn" onclick="rmtSheet()" aria-label="Remote para sa host"><svg class="ic"><use href="#i-remote"/></svg><span>Remote</span></button>
     </div>
@@ -242,8 +243,8 @@
 
 <!-- Firebase (sign-in, guest links, remote) is loaded by bida-app.js AFTER the app is usable,
      still pinned with SRI (see FB_SDK), so the buttons work right away even on slow phone data -->
-<script src="vk-avatars.js?v=20261118a"></script>
-<script src="bida-content.js?v=20261118a"></script>
-<script src="bida-app.js?v=20261118a"></script>
+<script src="vk-avatars.js?v=20261118b"></script>
+<script src="bida-content.js?v=20261118b"></script>
+<script src="bida-app.js?v=20261118b"></script>
 </body>
 </html>

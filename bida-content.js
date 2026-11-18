@@ -67,7 +67,7 @@ window.BIDA_EVENTS = [
       ['prayer', 'Opening prayer', 5],
       ['welcome', 'Welcome remarks', 5],
       ['icebreak', 'Icebreaker: Pass the Message', 10, 'whisper'],
-      ['meal', 'Noche Buena / Kainan', 60],
+      ['meal', 'Kainan / Salu-salo', 60],
       ['game', 'Paper Dance', 15, 'paperdance'],
       ['game', 'Pinoy Henyo', 20, 'henyo'],
       ['number', 'Christmas presentation / carol', 15],

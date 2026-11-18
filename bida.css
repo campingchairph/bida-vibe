@@ -1099,6 +1099,20 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 .wel-plan li { display: flex; gap: 12px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: var(--r-sm); background: #fff; font-weight: 800; }
 .wel-plan li span { min-width: 72px; color: var(--ink-2); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .wel-pop { animation: none; } .wel-type { transition: none; } }
+/* Landing: Free vs Premium, said upfront */
+.land-free { margin-top: 18px; max-width: 560px; padding: 12px 14px; border: 2px solid var(--ink); border-radius: var(--r-md); background: #fff; font: 700 14px/1.5 var(--f); color: var(--ink-2); }
+.land-free b { color: var(--ink); }
+/* Free accounts: Talk shows a small Premium lock before it's tapped */
+.is-free .talk-btn { position: relative; }
+.is-free .talk-btn::after { content: 'Premium'; position: absolute; top: -8px; right: -6px; padding: 2px 6px; border-radius: 99px; background: var(--gold); color: var(--ink); border: 1.5px solid var(--ink); font: 800 9px/1.2 var(--f); letter-spacing: .02em; }
+.wel-chips { margin: -4px 0 0; }
+.wel-opt { margin: -6px 0 0; }
+.wel-fit { align-self: center; padding: 4px 12px; border-radius: 99px; background: var(--leaf-soft); border: 1.5px solid var(--ink); font: 800 13px/1.3 var(--f); text-align: center; }
+.plan-fit { margin-top: 4px; font: 700 13px/1.3 var(--f); color: #8a4b00; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: var(--magenta); text-decoration: underline; cursor: pointer; }
+.tvg { list-style: none; padding: 0; margin: 4px 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.tvg li { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; }
+.tvg li > b { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--magenta); color: #fff; font: 800 14px/1 var(--f); }
 /* 3-day trial */
 .trial-card { margin-top: 14px; padding: 14px; border: 2px solid var(--ink); border-radius: var(--r-md); background: var(--gold); box-shadow: 4px 4px 0 var(--ink); display: flex; flex-direction: column; gap: 8px; }
 .trial-card h4 { font: 800 22px/1.15 var(--f2); letter-spacing: -.02em; }
@@ -1179,7 +1193,7 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 }
 /* Event name + date + time on one row only when there's truly room */
 @media (min-width: 960px) {
-  .plan-top { grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.6fr); }
+  .plan-top { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr); }
   .plan-top .field:first-child, .plan-top .field:last-child { grid-column: auto; }
 }
 @media (min-width: 840px) {

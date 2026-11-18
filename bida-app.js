@@ -55,7 +55,8 @@ let BIDA = defaultState();
 function defaultState() {
   return {
     v: 4,
-    event: { type: 'reunion', name: '', date: '', start: '15:00', venue: '' },
+    event: { type: 'reunion', name: '', date: '', start: '15:00', venue: '', end: '', guests: 'm', kids: 'mix' },   // end '' = no time limit
+    tvGuideSeen: false,
     setupDone: false, // the welcome steps (event type, date, time) were filled in
     program: [],
     nextId: 1,
@@ -125,6 +126,9 @@ function loadState() {
   if (!/^\d{2}:\d{2}$/.test(BIDA.event.start)) BIDA.event.start = '15:00';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(BIDA.event.date || '')) BIDA.event.date = '';
   BIDA.event.name = String(BIDA.event.name || '').slice(0, 90); BIDA.event.venue = String(BIDA.event.venue || '').slice(0, 90);
+  if (!/^\d{2}:\d{2}$/.test(BIDA.event.end || '')) BIDA.event.end = '';
+  if (!GUESTS[BIDA.event.guests]) BIDA.event.guests = 'm';
+  if (!KIDS[BIDA.event.kids]) BIDA.event.kids = 'mix';
   BIDA.setupDone = BIDA.setupDone === true || !!BIDA.event.date;
   const tr = BIDA.trial;
   BIDA.trial = tr && typeof tr.uid === 'string' ? (tr.none ? { uid: tr.uid.slice(0, 128), none: true } : { uid: tr.uid.slice(0, 128), start: +tr.start || 0, revoked: tr.revoked === true }) : null;
@@ -176,10 +180,84 @@ function totalMin() { return BIDA.program.reduce((a, s) => a + (Number(s.min) ||
 function fmtDur(m) { return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'm' : ''}` : `${m}m`; }
 
 /* ---------- Program ---------- */
+/* The suggested plan fits the event: games that suit the number and ages of the guests,
+   and activity lengths that fill the start → end window (when an end time is set). */
+const GUESTS = { s: { label: '10 pababa', lo: 2, hi: 10 }, m: { label: '11–30', lo: 11, hi: 30 }, l: { label: '31–60', lo: 31, hi: 60 }, xl: { label: '60+', lo: 61, hi: 300 } };
+const KIDS = { none: 'Wala', mix: 'Halo', most: 'Halos bata' };
+// "6–15" → 6..15 · "8+" → 8..∞ · "2 teams ng 6+" → 12..∞ · "4–10 pares" → 8..20
+function gamePlayers(g) {
+  const s = String(g.players || ''), n = (s.match(/\d+/g) || []).map(Number);
+  let lo = n[0] || 2, hi = /–/.test(s) && n[1] ? n[1] : Infinity;
+  const ng = s.match(/teams? ng (\d+)/); if (ng) lo = 2 * +ng[1];
+  if (/pares/.test(s)) { lo *= 2; if (hi !== Infinity) hi *= 2; }
+  if (/teams/.test(s) && !ng && hi !== Infinity) hi = Infinity;          // "3–6 teams": any crowd can be split
+  return { lo, hi };
+}
+function gameFits(g, ev = BIDA.event) {
+  const gs = GUESTS[ev.guests] || GUESTS.m, p = gamePlayers(g), age = String(g.age || '');
+  if (p.lo > gs.hi) return false;                                         // not enough people
+  if (p.hi < Math.min(gs.lo, 20)) return false;                           // made for a much smaller group
+  if (ev.kids === 'mix' && /Teens|10\+/.test(age)) return false;
+  if (ev.kids === 'most' && !/^Lahat|^[5-7]\+/.test(age)) return false;
+  return true;
+}
+const FIXED_KINDS = ['opening', 'prayer', 'anthem', 'welcome', 'closing', 'toast', 'cake'];
+const MIN_LEN = { arrival: 10, meal: 30, game: 10, icebreak: 5, videoke: 15, raffle: 10, gifts: 15, photo: 5, number: 10, speech: 5, tribute: 5, awards: 10, intro: 5 };
+const DROP_ORDER = ['videoke', 'number', 'tribute', 'intro', 'awards', 'photo', 'icebreak', 'speech', 'game'];   // first to go when time is short
+const r5 = m => Math.max(5, Math.round(m / 5) * 5);
+function windowMin(ev = BIDA.event) {
+  if (!ev.end) return 0;
+  let w = toMin(ev.end) - toMin(ev.start); if (w <= 0) w += 1440;
+  return w;
+}
+// Scale the flexible activities so the total matches w minutes (keeps the items, their notes and checks)
+function fitDurations(list, w) {
+  const flex = list.filter(s => !FIXED_KINDS.includes(s.kind));
+  if (!w || !flex.length) return list;
+  const fixed = list.reduce((a, s) => a + (FIXED_KINDS.includes(s.kind) ? s.min : 0), 0);
+  const mins = flex.map(s => MIN_LEN[s.kind] || 5), sumMin = mins.reduce((a, b) => a + b, 0), avail = w - fixed;
+  if (avail <= sumMin) { flex.forEach((s, i) => { s.min = mins[i]; }); return list; }
+  // every activity keeps its minimum; the extra time is shared by how long it was, with kainan and videoke getting more
+  const pull = { meal: 3, videoke: 4, arrival: 1.5 };
+  const wt = flex.map((s, i) => Math.max(1, s.min - mins[i]) * (pull[s.kind] || 1)), W = wt.reduce((a, b) => a + b, 0), extra = avail - sumMin;
+  flex.forEach((s, i) => { s.min = mins[i] + Math.floor(extra * wt[i] / W / 5) * 5; });
+  const left = avail - flex.reduce((a, s) => a + s.min, 0);                 // what rounding left over goes to the longest one
+  const big = flex.reduce((a, s) => s.min > a.min ? s : a, flex[0]); big.min += left;
+  return list;
+}
 function buildProgram(typeId) {
-  const et = eventType(typeId);
-  BIDA.program = et.program.map(([kind, title, min, game]) => ({ id: BIDA.nextId++, kind, title, min, game: game || '', note: '', done: false }));
+  const et = eventType(typeId), ev = BIDA.event, used = new Set();
+  let list = et.program.map(([kind, title, min, game]) => ({ kind, title, min, game: game || '' }));
+  // games that suit the crowd: swap any that don't fit for one that does
+  list.forEach(s => {
+    const g = s.game && gameById(s.game); if (!g) return;
+    if (gameFits(g) && !used.has(g.id)) { used.add(g.id); return; }
+    const alt = BIDA_GAMES.filter(x => gameFits(x) && !used.has(x.id) && !list.some(y => y.game === x.id))
+      .sort((a, b) => Math.abs((a.energy || 3) - (g.energy || 3)) - Math.abs((b.energy || 3) - (g.energy || 3)))[0];
+    if (alt) { used.add(alt.id); if (s.title === g.name || s.kind === 'game') s.title = alt.name; s.game = alt.id; }
+  });
+  // fit the time: drop the least important activities until the minimum lengths fit, then stretch or shrink
+  const w = windowMin(ev);
+  if (w) {
+    const need = l => l.reduce((a, s) => a + (FIXED_KINDS.includes(s.kind) ? s.min : (MIN_LEN[s.kind] || 5)), 0);
+    for (const kind of DROP_ORDER) {
+      while (need(list) > w) {
+        const games = list.filter(s => s.kind === 'game').length;
+        const i = kind === 'game' ? (games > 1 ? list.map(s => s.kind).lastIndexOf('game') : -1) : list.map(s => s.kind).lastIndexOf(kind);
+        if (i < 0) break; list.splice(i, 1);
+      }
+    }
+    fitDurations(list, w);
+  }
+  BIDA.program = list.map(s => ({ id: BIDA.nextId++, ...s, note: '', done: false }));
   BIDA.liveIdx = 0;
+}
+// Plan tab: make the current activities fit the end time (keeps every activity, its notes and checks)
+async function fitToEnd() {
+  const w = windowMin(); if (!w) return;
+  const minNeed = BIDA.program.reduce((a, s) => a + (FIXED_KINDS.includes(s.kind) ? s.min : (MIN_LEN[s.kind] || 5)), 0);
+  if (minNeed > w) { toast(`Kulang ang oras. Tanggalin ang ilang activities (kailangan ng ${fmtDur(minNeed)}).`); return; }
+  fitDurations(BIDA.program, w); saveState(); renderPlan(); toast(`Sakto na sa ${fmtTime(toMin(BIDA.event.end))}`);
 }
 
 /* ---------- Bunting (papel picado) ---------- */
@@ -277,10 +355,19 @@ function openWelcome() {
   $('#landing').hidden = true; $('#app').hidden = true; el.hidden = false; document.body.classList.add('in-wel');
   WEL.step = 1; renderWelcome();
 }
-function welDate(d) { if (!d) return 'Petsa'; const x = new Date(d + 'T00:00'); return isNaN(x) ? 'Petsa' : x.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function welDate(d) { if (!d) return 'Pumili ng petsa'; const x = new Date(d + 'T00:00'); return isNaN(x) ? 'Pumili ng petsa' : x.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); }
+// Quick date chips (typing a date is fiddly on some computers): this Saturday, Dec 24, Dec 31
+function welQuickDates() {
+  const iso = x => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const sat = new Date(now); sat.setDate(now.getDate() + ((6 - now.getDay() + 7) % 7 || 7));
+  const next = (m, d) => { const x = new Date(now.getFullYear(), m, d); if (x < now) x.setFullYear(x.getFullYear() + 1); return x; };
+  return [['Sabado', sat], ['Dec 24', next(11, 24)], ['Dec 31', next(11, 31)]].map(([l, x]) => [l, iso(x)]);
+}
+function welPickDate(v) { const i = $('#wel-date'); if (i) i.value = v; welSet('date', v); $$('.wel-chips .chip').forEach(c => c.classList.toggle('on', c.dataset.d === v)); }
 function welPreview() {
   const e = BIDA.event;
-  return `<div class="wel-prev" id="wel-prev"><small>${esc(welDate(e.date))} · ${e.start ? fmtTime(toMin(e.start)) : 'Oras'}</small>
+  return `<div class="wel-prev" id="wel-prev"><small>${esc(welDate(e.date))} · ${e.start ? fmtTime(toMin(e.start)) : 'Pumili ng oras'}</small>
     <b>${esc(e.name || EV_NAME_HINT[e.type] || eventType().label)}</b>${e.venue ? `<small>${esc(e.venue)}</small>` : ''}</div>`;
 }
 function renderWelcome() {
@@ -293,8 +380,14 @@ function renderWelcome() {
     <button class="btn btn--magenta btn--lg btn--block" onclick="welGo(2)">Next ${ic('arrow')}</button>`;
   else if (s === 2) body = `<h1>Kailan at saan?</h1>
     <div class="field"><label for="wel-name">Pangalan ng event</label><input class="input" id="wel-name" maxlength="90" placeholder="${esc(EV_NAME_HINT[e.type] || '')}" value="${esc(e.name)}" oninput="welSet('name',this.value)"></div>
-    <div class="wel-row"><div class="field"><label for="wel-date">Petsa</label><input class="input" id="wel-date" type="date" value="${esc(e.date)}" oninput="welSet('date',this.value)"></div>
-      <div class="field"><label for="wel-start">Simula</label><input class="input" id="wel-start" type="time" value="${esc(e.start)}" oninput="welSet('start',this.value)"></div></div>
+    <div class="wel-row"><div class="field"><label for="wel-date">Petsa</label><input class="input" id="wel-date" type="date" value="${esc(e.date)}" oninput="welSet('date',this.value)" onchange="welSet('date',this.value)"></div>
+      <div class="field"><label for="wel-start">Simula</label><input class="input" id="wel-start" type="time" value="${esc(e.start)}" oninput="welSet('start',this.value)" onchange="welSet('start',this.value)"></div></div>
+    <div class="chips wel-chips" aria-label="Mabilis na petsa">${welQuickDates().map(([l, v]) => `<button class="chip ${e.date === v ? 'on' : ''}" data-d="${v}" onclick="welPickDate('${v}')">${l}</button>`).join('')}</div>
+    <div class="wel-row"><div class="field"><label for="wel-end">Hanggang</label><input class="input" id="wel-end" type="time" value="${esc(e.end)}" oninput="welSet('end',this.value)" onchange="welSet('end',this.value)"></div><div></div></div>
+    <span class="field-label">Ilan ang bisita?</span>
+    <div class="chips wel-opt" role="radiogroup" aria-label="Ilan ang bisita">${Object.entries(GUESTS).map(([k, g]) => `<button class="chip ${e.guests === k ? 'on' : ''}" role="radio" aria-checked="${e.guests === k}" onclick="welOpt('guests','${k}',this)">${g.label}</button>`).join('')}</div>
+    <span class="field-label">May mga bata?</span>
+    <div class="chips wel-opt" role="radiogroup" aria-label="May mga bata">${Object.entries(KIDS).map(([k, l]) => `<button class="chip ${e.kids === k ? 'on' : ''}" role="radio" aria-checked="${e.kids === k}" onclick="welOpt('kids','${k}',this)">${l}</button>`).join('')}</div>
     <div class="field"><label for="wel-venue">Saan <small class="muted">(optional)</small></label><input class="input" id="wel-venue" maxlength="90" placeholder="hal. Bahay ni Lola, Batangas" value="${esc(e.venue)}" oninput="welSet('venue',this.value)"></div>
     <span class="field-label">Preview</span>${welPreview()}
     <p class="wel-err" id="wel-err" role="alert"></p>
@@ -304,6 +397,7 @@ function renderWelcome() {
     const times = segTimes(), end = toMin(e.start) + totalMin();
     body = `<div class="wel-pop" aria-hidden="true">🎉</div><h1 style="text-align:center">Ready na ang plan mo!</h1>
     <p class="muted" style="text-align:center">Para sa ${esc(eventType().label)}, ${fmtTime(toMin(e.start))} – ${fmtTime(end)}</p>
+    <p class="wel-fit">${e.end ? `Sakto sa ${fmtDur(windowMin())}` : fmtDur(totalMin())} · ${esc(GUESTS[e.guests].label)} bisita · ${e.kids === 'none' ? 'walang bata' : e.kids === 'most' ? 'halos bata' : 'may bata'}</p>
     <ol class="wel-plan">${BIDA.program.slice(0, 6).map((p, i) => `<li><span>${fmtTime(times[i])}</span>${esc(p.title)}</li>`).join('')}
       ${BIDA.program.length > 6 ? `<li class="muted"><span></span>+ ${BIDA.program.length - 6} pa</li>` : ''}</ol>
     <p class="muted" style="text-align:center">Puwede mong baguhin lahat mamaya.</p>
@@ -314,6 +408,11 @@ function renderWelcome() {
   requestAnimationFrame(renderAllBunting);
   if (s === 2) setTimeout(() => { const f = !e.date ? $('#wel-date') : $('#wel-name'); f?.focus({ preventScroll: true }); }, 60);
 }
+function welOpt(k, v, el) {
+  if (k === 'guests' && !GUESTS[v]) return; if (k === 'kids' && !KIDS[v]) return;
+  BIDA.event[k] = v; saveState();
+  el.parentElement.querySelectorAll('.chip').forEach(c => { c.classList.toggle('on', c === el); c.setAttribute('aria-checked', c === el); });
+}
 function welType(id) { BIDA.event.type = id; saveState(); renderWelcome(); }
 function welSet(k, v) {
   BIDA.event[k] = String(v || '').slice(0, 90); saveState();
@@ -321,6 +420,11 @@ function welSet(k, v) {
   const er = $('#wel-err'); if (er) er.textContent = '';
 }
 function welGo(step) {
+  if (step === 2 && !BIDA.event.name) { BIDA.event.name = eventType().label.split(' / ')[0]; saveState(); }   // a real name, not just a hint
+  if (step === 2 && !BIDA.event.end) {                                // suggest an end: start + about the template's length, max 5 hrs
+    const len = Math.min(300, Math.max(120, Math.round(eventType().program.reduce((a, p) => a + p[2], 0) * .8 / 30) * 30));
+    BIDA.event.end = (h => `${String(Math.floor(h / 60) % 24).padStart(2, '0')}:${String(h % 60).padStart(2, '0')}`)(toMin(BIDA.event.start) + Math.max(120, len)); saveState();
+  }
   if (step === 3) {
     const e = BIDA.event;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date)) { $('#wel-err').textContent = 'Ilagay ang petsa ng event'; $('#wel-date').focus(); return; }
@@ -334,7 +438,6 @@ function welDone() {
   $('#welcome').hidden = true; document.body.classList.remove('in-wel');
   $('#app').hidden = false; document.body.classList.add('in-app');
   goTab('plan'); renderHead(); requestAnimationFrame(renderAllBunting); braveNudge();
-  toast(`Plan para sa ${BIDA.event.name || eventType().label}: ready na!`);
 }
 function showLanding() {
   $('#landing').hidden = false; $('#app').hidden = true; document.body.classList.remove('in-app');
@@ -357,6 +460,7 @@ const IS_PHONE = (() => {
 const isTV = () => BIDA.view === 'tv' && !IS_PHONE;
 function applyView() {
   document.body.classList.toggle('is-phone', IS_PHONE);
+  document.body.classList.toggle('is-free', !BIDA.premium);
   document.body.classList.toggle('tv-mode', isTV());
   const b = $('#view-btn'); if (b) b.innerHTML = isTV() ? `${ic('people')}<span>Host view</span>` : `${ic('tv')}<span>TV view</span>`;
 }
@@ -367,7 +471,23 @@ function setView(v) {
   if (!isTV()) toast('Host view');
   rmtPublish();
 }
-function toggleView() { setView(isTV() ? 'host' : 'tv'); }
+function toggleView() {
+  if (!isTV() && !BIDA.tvGuideSeen) { tvGuide(); return; }
+  setView(isTV() ? 'host' : 'tv');
+}
+function tvGuide() {
+  openSheet(`<div class="sheet-head"><h3>Ilagay sa TV</h3><button class="icon-btn" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>
+    <ol class="tvg">
+      <li><b>1</b><span>I-connect ang laptop o tablet sa TV: HDMI cable, o screen mirroring / cast.</span></li>
+      <li><b>2</b><span>Tap ang <b>TV view</b>. Games at videoke lang ang makikita ng guests, walang setup.</span></li>
+      <li><b>3</b><span>Gawing remote ang phone mo: scan ang QR at ilagay ang PIN.</span></li>
+    </ol>
+    <button class="btn btn--magenta btn--block" onclick="tvGuideGo()">${ic('tv')}I-TV view na</button>
+    <button class="btn btn--ghost btn--block" style="margin-top:8px" onclick="tvGuideRemote()">${ic('remote')}Gawing remote ang phone</button>
+    <p class="pro-small">Balik sa host view: tap ang "Host view" sa taas.</p>`);
+}
+function tvGuideGo() { BIDA.tvGuideSeen = true; saveState(); closeSheet(); setView('tv'); }
+function tvGuideRemote() { BIDA.tvGuideSeen = true; saveState(); rmtSheet(); }
 // What's on the TV right now (the phone remote highlights it)
 function tvScreen() {
   const c = $('#card-tv'); if (c && !c.hidden) return 'card';
@@ -440,13 +560,16 @@ function renderPlan() {
         <input class="input" id="ev-date" type="date" value="${esc(e.date)}" oninput="setEv('date',this.value)"></div>
       <div class="field"><label for="ev-start">Simula</label>
         <input class="input" id="ev-start" type="time" value="${esc(e.start)}" onchange="setEv('start',this.value)"></div>
+      <div class="field"><label for="ev-end">Hanggang</label>
+        <input class="input" id="ev-end" type="time" value="${esc(e.end || '')}" onchange="setEv('end',this.value)"></div>
       <div class="field"><label for="ev-venue">Saan</label>
         <input class="input" id="ev-venue" maxlength="90" placeholder="hal. Bahay ni Lola" value="${esc(e.venue || '')}" oninput="setEv('venue',this.value.slice(0,90))"></div>
     </div>
     <div class="type-strip" role="radiogroup" aria-label="Uri ng event">${BIDA_EVENTS.map(t => `
       <button class="type-chip ${t.id === e.type ? 'on' : ''}" role="radio" aria-checked="${t.id === e.type}" onclick="pickEventType('${t.id}')">${esc(t.label)}</button>`).join('')}</div>
     <div class="plan-head">
-      <div><h2>Activities</h2><p class="muted">${BIDA.program.filter(s => s.done).length}/${BIDA.program.length} tapos · ${fmtTime(toMin(e.start))} – ${fmtTime(end)} · ${fmtDur(totalMin())}</p></div>
+      <div><h2>Activities</h2><p class="muted">${BIDA.program.filter(s => s.done).length}/${BIDA.program.length} tapos · ${fmtTime(toMin(e.start))} – ${fmtTime(end)} · ${fmtDur(totalMin())}</p>
+        ${e.end && totalMin() !== windowMin() ? `<p class="plan-fit">${totalMin() > windowMin() ? `Lagpas ng ${fmtDur(totalMin() - windowMin())}` : `Kulang ng ${fmtDur(windowMin() - totalMin())}`} sa ${fmtTime(toMin(e.end))} · <button class="linkish" onclick="fitToEnd()">I-sakto</button></p>` : ''}</div>
       <button class="btn btn--chili plan-live" onclick="openLive()">${ic('live')}Simulan</button>
     </div>
     <ol class="act-list">${BIDA.program.map((s, i) => {
@@ -482,7 +605,7 @@ function toggleDone(id) {
 }
 function setEv(k, v) {
   BIDA.event[k] = v; saveState(); renderHead();
-  if (k === 'start') renderPlan();
+  if (k === 'start' || k === 'end') renderPlan();
 }
 async function pickEventType(id) {
   if (id === BIDA.event.type) return;
@@ -1410,7 +1533,6 @@ function padNameFromFile(f) {
 }
 async function loadFolderPads() {
   let files = [];
-  try { const r = await fetch('sounds/free/list.json', { cache: 'no-cache' }); if (r.ok) files = (await r.json()).map(String); } catch (e) { }
   if (!files.length && IS_LOCAL) { try { files = [...(await (await fetch('sounds/free/', { cache: 'no-cache' })).text()).matchAll(/href="([^"?#/]+)"/g)].map(m => { try { return decodeURIComponent(m[1]); } catch (x) { return m[1]; } }); } catch (e) { } }   // folder listings give encoded names
   if (!files.length) {
     const { owner, repo } = ghRepo(), KEY = 'bidavibe_freepads';   // works on github.io and on a custom domain
@@ -2374,7 +2496,7 @@ function updateBar(src) {
   if (src) barSrc = src;
   rmtPublish();
   const has = !!M.kind;
-  $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang naka-play';
+  $('#mb-title').textContent = has ? (M.title || barSrc) : 'Walang music';
   $('#mb-sub').textContent = has ? [barSrc, M.pos, M.faded ? 'faded out' : ''].filter(Boolean).join(' · ') : (ytLinks().length ? 'Tap para i-play ang naka-save' : 'Tap para mag-set ng music');
   $$('.mb-play-ic').forEach(u => u.setAttribute('href', M.playing ? '#i-pause' : '#i-play'));
   $$('.mb-fade').forEach(b => { b.classList.toggle('on', M.faded); b.querySelector('span').textContent = M.faded || (has && !M.playing) ? 'Fade in' : 'Fade out'; });
@@ -2968,7 +3090,7 @@ function vkRoomHTML() {
 // Shown in Videoke and Music. YouTube's API terms don't allow telling people to block its ads,
 // so we only point to YouTube's own ad-free option (and to YouTube's terms, which apply to these videos).
 function braveTipHTML() {
-  return `<p class="note brave-tip" style="margin-top:16px"><span>Songs galing YouTube (<a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms</a>). May YouTube Premium? Mag-sign in sa YouTube dito para walang ads.</span></p>`;
+  return `<p class="note brave-tip" style="margin-top:16px"><span>Songs galing YouTube (<a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms</a>). <b>Ayaw ng ads?</b> ${navigator.brave ? 'Naka-Brave ka na, kaya mas kaunti ang ads.' : `Gamitin ang <a href="${braveLink()}" target="_blank" rel="noopener noreferrer">Brave browser</a> para mas kaunti ang ads.`}</span></p>`;
 }
 function vkResultsHTML(shown, total) {
   if (!VK.lib.length) return `<p class="muted" style="margin-top:12px">${VK.loaded ? 'Wala pang songs sa library.' : 'Loading ang library…'}</p>`;
@@ -4428,6 +4550,7 @@ function applyEntitlement() {
   const u = AUTH.user;
   const ownPass = !!(u && BIDA.premiumUid === u.uid && passActive());
   BIDA.premium = !!AUTH.admin || ownPass || trialActive() || (IS_LOCAL && !!BIDA.devPro);
+  document.body.classList.toggle('is-free', !BIDA.premium);
 }
 /* ---- 3-day free Premium (referral trial) ----
    1 NEW friend signs in with your link = 3 days of full Premium for you, and 3 days for them. Once per Gmail, ever.
@@ -5010,7 +5133,7 @@ Object.assign(window, { toggleView, setView, tvShow, henyoSetup, henyoCat, henyo
   BIDA_CONFIG, $, enterApp, showLanding, goTab, setEv, pickEventType,
   moveSeg, resetProgram, editSeg, saveSeg, deleteSeg, pickKind, pickMin, toggleDone,
   setCard, resetCard, downloadCard, shareCard,
-  openReceipt, copyRefLink, shareTrialLink, openReferrals, revokeTrial, actRaffle, rmtKick, welType, welSet, welGo, welDone, cleanNames, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
+  openReceipt, copyRefLink, welPickDate, welOpt, fitToEnd, tvGuideGo, tvGuideRemote, shareTrialLink, openReferrals, revokeTrial, actRaffle, rmtKick, welType, welSet, welGo, welDone, cleanNames, vkReserve, vkPickAv, vkPickCam, vkReserveGo, vkQMove, vkQDel, vkScoreToggle, braveCopy, vkFind, vkStart, vkClose, vkNext, vkFullscreen, vkAddMine,
   vkAdminAdd, vkAdminImport, vkAdminEdit, vkAdminDelete, vkAdminFind, vkAdminPage, vkAdminDup, vkSetLetter, vkSetArtist, vkMode, vkDelMine, admSel, admSelPage, admSelClear, admDelSel, admByArtist, admArtistList, admDelArtist, vkClearFilter, vkPickArtist, vkArtistList, vkSetArtistIdx, vkMakeRoom, vkShareRoom, vkCloseRoom, vkShowQR, vkDownloadQR,
   setGameFilter, openGame, playSteps, checkMat, addGameToProgram,
   playSound, uploadSounds, delSound, addSoundClick, micRetryNow, adminTier, adminUpload, adminPatch, adminRename, adminDelete, ghSaveToken, ghChangeToken, ghUpload, ghRename, ghMove, ghDelete, GH_retry,
