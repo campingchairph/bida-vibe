@@ -157,7 +157,7 @@ service cloud.firestore {
     }
 
     // ---------- 3-day free Premium (referral trial) ----------
-    // 1 NEW friend signs in with your link = 3 days Premium for you and for them. Once per Gmail, ever.
+    // 1 NEW friend signs in with your link = 3 days Premium for YOU (the sharer). Once per Gmail, ever.
     function isGoogle() {
       return request.auth != null
         && request.auth.token.email_verified == true
@@ -198,8 +198,8 @@ service cloud.firestore {
     }
 
     // The trial: created ONCE per account, never edited or deleted by the user. start = server time;
-    // the app ends it at start + 3 days (server time). Allowed only if the friend's joined record names
-    // this account as the inviter, or this account's joined record names the friend.
+    // the app ends it at start + 3 days (server time). Allowed only if a friend's joined record names
+    // this account as the inviter (only the sharer gets it, never the friend who joined).
     match /bv_trials/{uid} {
       allow get: if (request.auth != null && request.auth.uid == uid) || isBidaAdmin();
       allow list: if isBidaAdmin();
@@ -210,8 +210,7 @@ service cloud.firestore {
         && request.resource.data.via is string && request.resource.data.via != uid
         && request.resource.data.via.matches('^[A-Za-z0-9]{10,128}$')
         && exists(joinedPath(uid))
-        && (get(joinedPath(request.resource.data.via)).data.ref == uid
-            || get(joinedPath(uid)).data.ref == request.resource.data.via);
+        && get(joinedPath(request.resource.data.via)).data.ref == uid;
       // Only the admin can end a trial early (Revoke). It can never be restarted.
       allow update: if isBidaAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked', 'revokedAt'])

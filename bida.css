@@ -1067,6 +1067,7 @@ body.in-live .mbar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
 .pro-plan small { display: block; font: 700 13px/1 var(--f); color: var(--ink-2); }
 .pro-plan b { display: block; font: 800 28px/1.1 var(--f2); letter-spacing: -.03em; margin: 6px 0 10px; }
 .pro-tag { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: var(--magenta); color: #fff; font: 800 11px/1 var(--f); padding: 4px 8px; border-radius: 99px; }
+.pro-soon { display: block; padding: 10px; border: 2px dashed var(--ink-3, #0004); border-radius: 99px; font: 800 14px/1 var(--f); color: var(--ink-2); }
 .pro-small { margin-top: 8px; text-align: center; font-size: 13px; color: var(--ink-2); }
 .pro-facts { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line, #0002); display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink-2); }
 .pro-facts p { display: flex; gap: 8px; align-items: flex-start; }
